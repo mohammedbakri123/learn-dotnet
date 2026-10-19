@@ -3166,6 +3166,51 @@ public async Task&lt;List&lt;BookCardDto&gt;&gt; GetCardsAsync(CancellationToken
         <button class="btn-primary" data-nav-target="lesson-assessment" type="button">التالي: التقييم ←</button>
       </div>
     `
+    },
+    "lesson-assessment": {
+      nav: "التقييم النهائي للوحدة",
+      content: `
+      <div class="lesson-header-box">
+        <div class="lesson-badge-top">تقييم الوحدة</div>
+        <h1 class="lesson-title">التقييم النهائي</h1>
+        <p class="lesson-subtitle">12 سؤالًا متعدد الخيارات زائد سيناريوهين تطبيقيين، مستمدة من الدروس السبعة كلها. وحد النجاح قابل للضبط أدناه.</p>
+      </div>
+
+      <div class="assessment-intro" id="assessment-intro">
+        <div class="content-panel">
+          <h3 style="margin-top:0;">📋 قبل أن تبدأ</h3>
+          <ul>
+            <li>تغطي الأسئلة الدروس 1–7. ويمكنك إعادة التقييم كما تشاء — وتُحفظ أفضل درجة.</li>
+            <li>يقدّم السيناريوهان التطبيقيان مواقف على شكل شيفرة؛ ولكل واحد إجابة واحدة أفضل، تُشرح بعده.</li>
+            <li>عتبة النجاح الافتراضية 80% ويمكن ضبطها على 70% / 80% / 90% قبل البدء.</li>
+            <li>تُخزَّن إجاباتك ونتائجك محليًّا مع بقية تقدمك، ويمكن تصديرها من الشريط الجانبي.</li>
+          </ul>
+          <div class="assessment-config-row">
+            <label for="assessment-threshold">حد النجاح:</label>
+            <select id="assessment-threshold" class="assessment-select">
+              <option value="70">70%</option>
+              <option value="80" selected>80%</option>
+              <option value="90">90%</option>
+            </select>
+            <button class="btn-primary" id="btn-start-assessment" type="button">ابدأ التقييم ▶</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="assessment-questions" id="assessment-questions" hidden></div>
+
+      <div class="assessment-actions" id="assessment-actions" hidden>
+        <button class="btn-primary" id="btn-submit-assessment" type="button">إرسال التقييم</button>
+        <button class="btn-secondary" id="btn-retry-assessment" type="button" hidden>إعادة التقييم ↺</button>
+      </div>
+
+      <div class="assessment-results" id="assessment-results"></div>
+
+      <div class="lesson-footer-nav">
+        <button class="btn-secondary" data-nav-target="lesson-challenge" type="button">→ التحدي</button>
+        <button class="btn-secondary" data-nav-target="lesson-0" type="button">العودة إلى النظرة العامة ↑</button>
+      </div>
+    `
     }
   }
 };
