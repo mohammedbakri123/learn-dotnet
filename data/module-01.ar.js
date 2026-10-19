@@ -2231,6 +2231,487 @@ public record AuthorSummaryDto(
 `
     },
 
+    'lesson-6': {
+      nav: 'PUT وPATCH والتحديثات الجزئية',
+      content: `
+  <div class="lesson-header-box">
+    <div class="lesson-meta-bar">
+      <span class="lesson-pill">الدرس 6</span>
+      <span class="badge-time">قراءة وتمارين في 40 دقيقة</span>
+    </div>
+    <h1 class="lesson-h1">‏PUT وPATCH وقابلية القيمة للعدم والتحديثات الجزئية</h1>
+    <p class="lesson-lead">
+      هذا هو التحدي الجوهري الذي واجهته أثناء بناء Raff: لماذا يمنع الشرط <code>if (dto.summary is not null)</code> المستخدمين من مسح ملخصات الكتب؟ ولماذا لا تستطيع كائنات DTO العادية في C# التمييز بين الحقل المحذوف والحقل المعيَّن صراحةً إلى null؟ وكيف يحلّ المهندسون المحترفون مشكلة التحديثات الجزئية؟
+    </p>
+  </div>
+
+  <div class="content-body">
+    <h2>1. المعضلة الواقعية في Raff</h2>
+    <p>
+      في ملفك <code>Raff.Services.BookService.cs</code> تحتوي الأسطر 120–137 حاليًا على:
+    </p>
+
+    <div class="code-container">
+      <div class="code-header">
+        <div class="code-badge-group">
+          <span class="code-lang-tag">C#</span>
+          <span class="code-filename">Raff/Services/BookService.cs (التنفيذ الحالي)</span>
+          <span class="code-type-pill">كود المشروع الفعلي</span>
+        </div>
+      </div>
+      <pre><code class="language-csharp">public async Task&lt;BookDto&gt; UpdateBookAsync(int id, updateBookDto dto)
+{
+    var book = await context.Books.FindAsync(id);
+    if (book == null) throw new KeyNotFoundException($"Book with ID {id} not found.");
+
+    if (dto.title is not null)
+        book.Title = dto.title;
+
+    if (dto.summary is not null)
+        book.Summary = dto.summary;
+
+    if (dto.CoverUrl is not null)
+        book.CoverUrl = dto.CoverUrl;
+
+    if (dto.publishedYear is not null)
+        book.PublishedYear = dto.publishedYear;
+
+    await context.SaveChangesAsync();
+    return Map(book);
+}</code></pre>
+      <div class="code-explanation">
+        <strong>الخطأ الخفي:</strong> للوهلة الأولى يبدو هذا الكود سليمًا. لكن لنختبر ما يحدث عندما يريد المستخدم <em>حذف</em> ملخص الكتاب أو <em>مسحه</em>.
+      </div>
+    </div>
+
+    <h2>2. مشكلة الحالات الثلاث في JSON</h2>
+    <p>
+      لنفترض أن كتابًا موجودًا في قاعدة بيانات PostgreSQL لديك يحتوي:
+    </p>
+
+    <div class="code-container">
+      <div class="code-header">
+        <div class="code-badge-group">
+          <span class="code-lang-tag">JSON</span>
+          <span class="code-filename">حالة قاعدة البيانات الحالية في PostgreSQL</span>
+          <span class="code-type-pill">سجل موجود</span>
+        </div>
+      </div>
+      <pre><code class="language-json">{
+  "id": 42,
+  "title": "C# Basics",
+  "summary": "An introduction to C#",
+  "coverUrl": "https://cdn.raff.local/covers/csharp.jpg",
+  "publishedYear": 2022
+}</code></pre>
+    </div>
+
+    <p>
+      الآن تأمّل النوايا الثلاث المختلف المحتملة لمستخدم الواجهة عند تحديث هذا الكتاب:
+    </p>
+
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>النية</th>
+            <th>ما يرسله العميل في حمولة JSON</th>
+            <th>حالة قاعدة البيانات المطلوبة</th>
+            <th>ما الذي يحدث مع <code>if (dto.summary is not null)</code>؟</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>1. تحديث الملخص</strong></td>
+            <td><code>{"summary": "An advanced deep-dive"}</code></td>
+            <td>يصبح الملخص <code>"An advanced deep-dive"</code></td>
+            <td><strong style="color:var(--success);">ينجح.</strong> الخاصية ليست null، فيُحدَّث الملخص.</td>
+          </tr>
+          <tr>
+            <td><strong>2. مسح / حذف الملخص</strong></td>
+            <td><code>{"title": "C# Basics", "summary": null}</code></td>
+            <td>يصبح الملخص <code>null</code> في قاعدة البيانات</td>
+            <td><strong style="color:var(--danger);">يفشل بصمت!</strong> إن تعبير <code>dto.summary is not null</code> يُقيَّم إلى <strong>false</strong>! فيبقى الملخص <code>"An introduction to C#"</code>. وأمر العميل يُتجاهل تمامًا!</td>
+          </tr>
+          <tr>
+            <td><strong>3. ترك الملخص دون مساس</strong></td>
+            <td><code>{"title": "C# 12 in Depth"}</code> (محذوف)</td>
+            <td>يبقى الملخص <code>"An introduction to C#"</code></td>
+            <td><strong style="color:var(--success);">ينجح.</strong> الملخص محذوف، لكن للسبب الخاطئ.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout callout-danger">
+      <div class="callout-icon">🚨</div>
+      <div class="callout-content">
+        <div class="callout-title">السبب الجذري: كائنات DTO العادية في C# تدمج الحالات الثلاث في واحدة</div>
+        <p>
+          في فئة أو سجل C# عادي:
+        </p>
+        <pre style="margin: 0.5rem 0; padding: 0.5rem;"><code class="language-csharp">public record updateBookDto
+{
+    public string? title { get; set; }
+    public string? summary { get; set; }
+}</code></pre>
+        <p>
+          عندما يفكّ <code>System.Text.Json</code> تسلسل الطلب:
+        </p>
+        <ul style="margin-top:0.5rem;">
+          <li>إذا أرسل JSON القيمة <code>{"summary": null}</code> → تكون <code>dto.summary</code> مساوية لـ <code>null</code>.</li>
+          <li>وإذا <em>حذف</em> حقل <code>summary</code> من JSON بالكامل → تكون <code>dto.summary</code> <em>أيضًا</em> <code>null</code>!</li>
+        </ul>
+        <p style="margin-top:0.5rem;">
+          قيمة C# وقت التشغيل متطابقة في الحالتين. فخاصية DTO عادية قابلة للعدم <strong>لا تستطيع التمييز</strong> بين <em>«العميل حذف هذه الخاصية»</em> و<em>«العميل عيّن هذه الخاصية عمدًا إلى null»</em>!
+        </p>
+      </div>
+    </div>
+
+    <h2>3. الفخ الثاني: استدعاء <code>Update()</code> في EF Core</h2>
+    <p>
+      يحاول بعض المطوّرين حلّ المسألة بإنشاء كيان من DTO ثم استدعاء <code>context.Books.Update(book)</code>:
+    </p>
+
+    <div class="code-container">
+      <div class="code-header">
+        <div class="code-badge-group">
+          <span class="code-lang-tag">C#</span>
+          <span class="code-filename">فخ التحديث الأعمى</span>
+          <span class="code-type-pill">خطأ جسيم</span>
+        </div>
+      </div>
+      <pre><code class="language-csharp">// DANGEROUS ANTI-PATTERN:
+var book = new Book { Id = id, Title = dto.title };
+context.Books.Update(book); // Marks EVERY column as Modified!
+await context.SaveChangesAsync();</code></pre>
+      <div class="code-explanation">
+        <strong>عاقبة كارثية:</strong> في EF Core يضع استدعاء <code>Update(entity)</code> حالة <strong>كل خاصية</strong> في الكيان على <code>EntityState.Modified</code>. ولأن <code>publishedYear</code> محذوف من <code>dto</code>، تأخذ قيمته الافتراضية <code>0</code>. فيرسل EF Core استعلام SQL يضبط <code>published_year = 0</code> و<code>summary = NULL</code>، فيمحو بيانات سليمة من PostgreSQL!
+      </div>
+    </div>
+
+    <h2>4. أنواع المراجع القابلة للعدم (NRT) مقابل القيم الفارغة وقت التشغيل</h2>
+    <p>
+      لا تخلط بين أنواع المراجع القابلة للعدم في C# ‏(<code>string?</code>) وسلوك وقت التشغيل:
+    </p>
+    <ul>
+      <li><strong>أنواع المراجع القابلة للعدم (C# 8+):</strong> <em>تعليق وقت ترجمة</em> فقط. ينتج تحذيرات للمساعدة في منع <code>NullReferenceException</code>. أما وقت التشغيل فيُترجم <code>string</code> و<code>string?</code> معًا إلى البنية الوصفية نفسها <code>System.String</code>.</li>
+      <li><strong>القيم الفارغة وقت التشغيل:</strong> مرجع null فعلي في الذاكرة. ويفكّ <code>System.Text.Json</code> القيمة <code>null</code> في JSON إلى مرجع <code>null</code> في C#<b></b> بصرف النظر عن تمكين NRT أو لا.</li>
+    </ul>
+
+    <h2>5. المقاربات المعمارية الأربع للتحديثات الجزئية</h2>
+    <p>
+      لا يوجد زر سحري واحد في ASP.NET Core للتحديثات الجزئية. يزن المهندسون المحترفون المقايضات بين أربع مقاربات مختلفة:
+    </p>
+
+    <h3>المقاربة A: تتبّع الحضور الصريح (غلاف Optional&lt;T&gt;)</h3>
+    <p>
+      غلّف خصائص DTO في بنية عامة تتبّع ما إذا كان الحقل حاضرًا في JSON أصلًا:
+    </p>
+    <div class="code-container">
+      <div class="code-header">
+        <div class="code-badge-group">
+          <span class="code-lang-tag">C#</span>
+          <span class="code-filename">غلاف تتبّع الحضور</span>
+          <span class="code-type-pill">نمط قوي الأنواع</span>
+        </div>
+      </div>
+      <pre><code class="language-csharp">public readonly struct Optional&lt;T&gt;
+{
+    public bool IsSpecified { get; }
+    public T? Value { get; }
+
+    public Optional(T? value)
+    {
+        IsSpecified = true;
+        Value = value;
+    }
+}
+
+public class PatchBookDto
+{
+    public Optional&lt;string?&gt; Title { get; set; }
+    public Optional&lt;string?&gt; Summary { get; set; }
+}
+
+// In BookService:
+if (dto.Summary.IsSpecified)
+{
+    // If client sent "summary": null, Value is null and IsSpecified is true!
+    // The summary is correctly cleared in the database!
+    book.Summary = dto.Summary.Value;
+}</code></pre>
+      <div class="code-explanation">
+        <strong>المقايضات:</strong>
+        <br>
+        <strong>المزايا:</strong> أنواع قوية 100%، وكود خدمة نظيف، وتمييز واضح بين الحقل المحذوف والحقل الفارغ.
+        <br>
+        <strong>العيوب:</strong> يتطلب كتابة أو استيراد ‎<code>System.Text.Json.Serialization.JsonConverter</code>‎ مخصّص من أجل <code>Optional&lt;T&gt;</code>.
+      </div>
+    </div>
+
+    <h3>المقاربة B: دمج JSON ‏(JSON Merge Patch — RFC 7396)</h3>
+    <p>
+      يعرّف المعيار RFC 7396 نوع وسائط قياسيًا: <code>application/merge-patch+json</code>.
+    </p>
+    <ul>
+      <li>إذا وُضع لمفتاح قيمة: حُدِّث.</li>
+      <li>وإذا وُضع المفتاح إلى <code>null</code>: أُزيل / مُسح.</li>
+      <li>وإذا حُذف المفتاح: بقي المنقول دون مساس.</li>
+    </ul>
+
+    <div class="callout callout-important">
+      <div class="callout-icon">⚠️</div>
+      <div class="callout-content">
+        <div class="callout-title">هل يوفّر ASP.NET Core دعمًا مدمجًا للمعيار RFC 7396؟</div>
+        <p>
+          <strong>لا.</strong> لا يطبّق ASP.NET Core تلقائيًا دمج JSON ‏(RFC 7396) للسجلات أو كائنات DTO الاعتيادية. لاستخدامه في ASP.NET Core عليك إما فحص عقد <code>JsonDocument</code> / <code>JsonElement</code> الخام مباشرة، أو استخدام مكتبات من المجتمع (مثل Morcatko.AspNetCore.JsonMergePatch).
+        </p>
+      </div>
+    </div>
+
+    <h3>المقاربة C: تصحيح JSON ‏(JSON Patch — RFC 6902)</h3>
+    <p>
+      يعرّف المعيار RFC 6902 نوع الوسائط <code>application/json-patch+json</code>. فبدل إرسال مستند جزئي يرسل العميل مصفوفة عمليات:
+    </p>
+    <div class="code-container">
+      <div class="code-header">
+        <div class="code-badge-group">
+          <span class="code-lang-tag">JSON</span>
+          <span class="code-filename">مصفوفة عمليات RFC 6902</span>
+          <span class="code-type-pill">حمولة الشبكة</span>
+        </div>
+      </div>
+      <pre><code class="language-json">[
+  { "op": "replace", "path": "/title", "value": "Advanced C#" },
+  { "op": "replace", "path": "/summary", "value": null }
+]</code></pre>
+      <div class="code-explanation">
+        <strong>المقايضات:</strong>
+        <br>
+        <strong>المزايا:</strong> مدعومة رسميًا عبر حزمة NuGet باسم <code>Microsoft.AspNetCore.JsonPatch</code> و<code>patchDoc.ApplyTo(book)</code>.
+        <br>
+        <strong>العيوب:</strong> لا يحب مطوّرو الواجهات تحرير الطلبات كمصفوفات عمليات؛ وتطلّبت تاريخيًا مكتبة Newtonsoft.Json.
+      </div>
+    </div>
+
+    <h3>المقاربة D: موارد فرعية دقيقة / إجراءات RPC</h3>
+    <p>
+      تجنّب غموض التحديث الجزئي كليًا بالكشف عن مسارات واضحة تكشف النية:
+    </p>
+    <ul>
+      <li><code>DELETE /api/books/42/summary</code> — يمسح الملخص صراحةً.</li>
+      <li><code>PUT /api/books/42/cover</code> — يعيّن الغلاف أو يستبدله.</li>
+      <li><code>PUT /api/books/42</code> — استبدال كامل (كل الحقول مطلوبة؛ والحقول المحذوفة تصبح null أو القيمة الافتراضية).</li>
+    </ul>
+
+    <!-- Interactive Partial Update Playground -->
+    <div class="simulator-widget">
+      <div class="simulator-header">
+        <span class="simulator-title">🎮 محاكي تفاعلي: معضلة التحديث الجزئي</span>
+      </div>
+      <div class="simulator-body">
+        <p style="font-size:0.9rem; margin-bottom:1rem; color:var(--text-secondary);">
+          <strong>سجل قاعدة البيانات الابتدائي للكتاب رقم 42:</strong>
+          <br>
+          <code>{ title: "C# Basics", summary: "An introduction to C#", coverUrl: "cover.jpg", publishedYear: 2022 }</code>
+        </p>
+
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:1rem; margin-bottom:1.25rem;">
+          <div>
+            <label style="font-weight:600; font-size:0.8rem; color:var(--text-muted); text-transform:uppercase;">1. اختر حمولة طلب العميل:</label>
+            <select id="sim-payload-select" style="width:100%; margin-top:0.4rem; padding:0.6rem; border-radius:var(--radius-sm); background:var(--bg-secondary); color:var(--text-primary); border:1px solid var(--border-color); font-family:var(--font-mono); font-size:0.85rem;">
+              <option value="explicit_null">{"title": "Advanced C#", "summary": null}</option>
+              <option value="omitted">{"title": "Advanced C#"}</option>
+              <option value="new_string">{"summary": "A deep dive into C#"}</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-weight:600; font-size:0.8rem; color:var(--text-muted); text-transform:uppercase;">2. اختر تنفيذ الخادم:</label>
+            <select id="sim-algo-select" style="width:100%; margin-top:0.4rem; padding:0.6rem; border-radius:var(--radius-sm); background:var(--bg-secondary); color:var(--text-primary); border:1px solid var(--border-color); font-size:0.85rem;">
+              <option value="naive">نهج Raff الساذج \`if (dto.summary is not null)\`</option>
+              <option value="ef_update">‏EF Core ‏\`context.Update(book)\` بكيان جزئي</option>
+              <option value="presence">تتبّع الحضور الصريح (\`Optional&lt;T&gt;\`)</option>
+              <option value="full_put">‏HTTP PUT الصارم (استبدال كامل)</option>
+            </select>
+          </div>
+        </div>
+
+        <button class="btn-primary" id="btn-run-sim">شغّل المحاكاة</button>
+
+        <div id="sim-result-box" style="margin-top:1.25rem; padding:1.25rem; border-radius:var(--radius-sm); background:var(--bg-secondary); border:1px solid var(--border-color); display:none;">
+          <div style="font-weight:700; font-size:0.95rem; margin-bottom:0.5rem;" id="sim-result-title"></div>
+          <div style="font-family:var(--font-mono); font-size:0.85rem; padding:0.75rem; background:var(--bg-code); border-radius:4px; margin-bottom:0.75rem;" id="sim-result-json"></div>
+          <div style="font-size:0.875rem; color:var(--text-secondary); line-height:1.6;" id="sim-result-analysis"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Knowledge Check 6.1 -->
+    <div class="exercise-card" id="qc-6-1">
+      <div class="exercise-header">
+        <div class="exercise-title-group">
+          <span class="exercise-badge">اختبار المعرفة 6.1</span>
+          <span>خلل فحص القيمة الفارغة الساذج</span>
+        </div>
+      </div>
+      <div class="exercise-body">
+        <div class="exercise-prompt">
+          في دالّة <code>UpdateBookAsync</code> ضمن Raff، لماذا يفشل الفحص <code>if (dto.summary is not null) book.Summary = dto.summary;</code> عندما يريد العميل عمدًا حذف ملخص موجود بإرسال <code>{"summary": null}</code>؟
+        </div>
+        <div class="quiz-options" data-qid="qc-6-1">
+          <div class="quiz-option" data-opt="0">
+            <div class="option-indicator">A</div>
+            <div class="option-text">لأن <code>dto.summary</code> يساوي null، فيُقيَّم الشرط إلى false وتُتخطى الإسناد، فيبقى الملخص القديم في قاعدة البيانات دون تغيير.</div>
+          </div>
+          <div class="quiz-option" data-opt="1">
+            <div class="option-indicator">B</div>
+            <div class="option-text">لأن PostgreSQL يرمي استثناء قفل الجدول عند حفظ قيم نصية فارغة.</div>
+          </div>
+          <div class="quiz-option" data-opt="2">
+            <div class="option-indicator">C</div>
+            <div class="option-text">لأن سجلات C# لا تستطيع تخزين قيم null تحت أي ظرف.</div>
+          </div>
+          <div class="quiz-option" data-opt="3">
+            <div class="option-indicator">D</div>
+            <div class="option-text">لأن ASP.NET Core يحوّل القيمة null في JSON إلى سلسلة فارغة <code>""</code>.</div>
+          </div>
+        </div>
+        <div class="exercise-footer">
+          <button class="btn-primary btn-submit-quiz" data-qid="qc-6-1">أرسل الإجابة</button>
+          <button class="btn-secondary btn-retry-quiz" data-qid="qc-6-1" style="display:none;">إعادة المحاولة</button>
+        </div>
+        <div class="quiz-feedback" id="feedback-qc-6-1"></div>
+      </div>
+    </div>
+
+    <!-- Knowledge Check 6.2 -->
+    <div class="exercise-card" id="qc-6-2">
+      <div class="exercise-header">
+        <div class="exercise-title-group">
+          <span class="exercise-badge">اختبار المعرفة 6.2</span>
+          <span>التمييز بين الحقل المحذوف والحقل الفارغ صراحةً</span>
+        </div>
+      </div>
+      <div class="exercise-body">
+        <div class="exercise-prompt">
+          لماذا تعجز فئة C# عادية تحتوي <code>public string? Summary { get; set; }</code> عن التمييز بين طلب JSON حذف فيه حقل <code>summary</code> وطلب آخر عيّنه صراحةً إلى <code>"summary": null</code>؟
+        </div>
+        <div class="quiz-options" data-qid="qc-6-2">
+          <div class="quiz-option" data-opt="0">
+            <div class="option-indicator">A</div>
+            <div class="option-text">لأن تحسينات مُترجم C# تحذف أسماء الخصائص أثناء البناء.</div>
+          </div>
+          <div class="quiz-option" data-opt="1">
+            <div class="option-indicator">B</div>
+            <div class="option-text">لأن مفكّك تسلسل JSON يضبط المرجع في C# على null في الحالتين معًا، فلا تبقى أي بيانات وصفية عن الحضور على الكائن.</div>
+          </div>
+          <div class="quiz-option" data-opt="2">
+            <div class="option-indicator">C</div>
+            <div class="option-text">لأن بروتوكول HTTP يمنع حذف الخصائص من أجسام JSON.</div>
+          </div>
+          <div class="quiz-option" data-opt="3">
+            <div class="option-indicator">D</div>
+            <div class="option-text">لأن Entity Framework Core يشترط أن تكون كل خصائص DTO غير قابلة للعدم.</div>
+          </div>
+        </div>
+        <div class="exercise-footer">
+          <button class="btn-primary btn-submit-quiz" data-qid="qc-6-2">أرسل الإجابة</button>
+          <button class="btn-secondary btn-retry-quiz" data-qid="qc-6-2" style="display:none;">إعادة المحاولة</button>
+        </div>
+        <div class="quiz-feedback" id="feedback-qc-6-2"></div>
+      </div>
+    </div>
+
+    <!-- Knowledge Check 6.3 -->
+    <div class="exercise-card" id="qc-6-3">
+      <div class="exercise-header">
+        <div class="exercise-title-group">
+          <span class="exercise-badge">اختبار المعرفة 6.3</span>
+          <span>مفهوم خاطئ حول Update() في EF Core</span>
+        </div>
+      </div>
+      <div class="exercise-body">
+        <div class="exercise-prompt">
+          ماذا يحدث إذا أنشأت <code>new Book { Id = 42, Title = "New Title" }</code> من DTO جزئي ثم استدعيت <code>context.Books.Update(book)</code> في EF Core؟
+        </div>
+        <div class="quiz-options" data-qid="qc-6-3">
+          <div class="quiz-option" data-opt="0">
+            <div class="option-indicator">A</div>
+            <div class="option-text">يجلب EF Core صف قاعدة البيانات تلقائيًا ويدمج العنوان ويحافظ على كل الأعمدة الأخرى.</div>
+          </div>
+          <div class="quiz-option" data-opt="1">
+            <div class="option-indicator">B</div>
+            <div class="option-text">يضع EF Core كل خاصية في حالة Modified، فتمحو الحقول غير المعبّأة (القيمة الافتراضية 0 لـ PublishedYear وnull لـ Summary وCoverUrl) البيانات الموجودة في قاعدة البيانات!</div>
+          </div>
+          <div class="quiz-option" data-opt="2">
+            <div class="option-indicator">C</div>
+            <div class="option-text">يتجاهل EF Core الاستدعاء ما لم تُحمَّل كل خصائص التنقل.</div>
+          </div>
+          <div class="quiz-option" data-opt="3">
+            <div class="option-indicator">D</div>
+            <div class="option-text">يحوّل PostgreSQL الاستعلام إلى عملية إفراغ الجدول (truncate).</div>
+          </div>
+        </div>
+        <div class="exercise-footer">
+          <button class="btn-primary btn-submit-quiz" data-qid="qc-6-3">أرسل الإجابة</button>
+          <button class="btn-secondary btn-retry-quiz" data-qid="qc-6-3" style="display:none;">إعادة المحاولة</button>
+        </div>
+        <div class="quiz-feedback" id="feedback-qc-6-3"></div>
+      </div>
+    </div>
+
+    <!-- Knowledge Check 6.4 -->
+    <div class="exercise-card" id="qc-6-4">
+      <div class="exercise-header">
+        <div class="exercise-title-group">
+          <span class="exercise-badge">اختبار المعرفة 6.4</span>
+          <span>دعم معيار JSON Merge Patch في الإطار</span>
+        </div>
+      </div>
+      <div class="exercise-body">
+        <div class="exercise-prompt">
+          هل يوفّر ASP.NET Core معالجة تلقائية جاهزة للمعيار RFC 7396 ‏(JSON Merge Patch) لأي سجل أو DTO في C#<b></b> دون كود أو حزم إضافية؟
+        </div>
+        <div class="quiz-options" data-qid="qc-6-4">
+          <div class="quiz-option" data-opt="0">
+            <div class="option-indicator">A</div>
+            <div class="option-text">نعم، يدعم ASP.NET Core المعيار RFC 7396 أصلًا على أي فئة موسومة بـ [FromBody].</div>
+          </div>
+          <div class="quiz-option" data-opt="1">
+            <div class="option-indicator">B</div>
+            <div class="option-text">لا. لا يطبّق ASP.NET Core أصلًا تتبّع الحضور ولا دلالات RFC 7396 لكائنات DTO الاعتيادية؛ فعلى المطوّر تنفيذ تتبّع الحضور بنفسه (مثل Optional&lt;T&gt; أو JsonElement) أو استخدام محوّلات/مكتبات مخصّصة.</div>
+          </div>
+          <div class="quiz-option" data-opt="2">
+            <div class="option-indicator">C</div>
+            <div class="option-text">نعم، لكن فقط عند التشغيل على Windows Server.</div>
+          </div>
+          <div class="quiz-option" data-opt="3">
+            <div class="option-indicator">D</div>
+            <div class="option-text">نعم، بتمكين علامة MergePatch الخاصة بـ Kestrel في appsettings.json.</div>
+          </div>
+        </div>
+        <div class="exercise-footer">
+          <button class="btn-primary btn-submit-quiz" data-qid="qc-6-4">أرسل الإجابة</button>
+          <button class="btn-secondary btn-retry-quiz" data-qid="qc-6-4" style="display:none;">إعادة المحاولة</button>
+        </div>
+        <div class="quiz-feedback" id="feedback-qc-6-4"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="lesson-nav-footer">
+    <button class="btn-complete-lesson" data-lesson="lesson-6">
+      <span class="complete-checkbox">✓</span> أكمل الدرس 6
+    </button>
+    <button class="btn-primary btn-next-lesson" data-target="lesson-7">
+      التالي: ربْط المفاهيم معًا ←
+    </button>
+  </div>
+`
+    },
+
     'assessment': {
       nav: 'التقييم الختامي (80%)',
       content: `
