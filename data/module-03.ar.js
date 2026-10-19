@@ -2075,6 +2075,367 @@ var dto = await context.Books
         <button class="btn-primary" data-nav-target="lesson-4" type="button">التالي: تحميل البيانات المرتبطة ←</button>
       </div>
     `
+    },
+    "lesson-4": {
+      nav: "تحميل البيانات المرتبطة",
+      content: `
+      <div class="lesson-header-box">
+        <div class="lesson-badge-top">الدرس 4</div>
+        <h1 class="lesson-title">تحميل البيانات المرتبطة</h1>
+        <p class="lesson-subtitle">التحميل المتلهّف والصريح والكسول — ثلاث استراتيجيات مدروسة، لكل منها موضع، ولكل منها نمط فشل.</p>
+      </div>
+
+      <p>أرسى الدرس 3 القاعدة الجوهرية: لا يحمل التنقل بيانات إلا إذا وضعها فيه شيء. وهذا الدرس عن ذلك "الشيء". وقبل اختيار استراتيجية، أجب عن ثلاثة أسئلة بشأن نقطة النهاية التي تبنيها:</p>
+      <ol>
+        <li><strong>هل تحتاج الاستجابة البيانات المرتبطة أصلًا؟</strong> (إن لا: فلا تحمّلها. وإن كنت تحتاج عددًا فقط: راجع الدرس 6.)</li>
+        <li><strong>هل تحتاجها دائمًا أم أحيانًا فقط؟</strong> (دائمًا → حمّلها مع الاستعلام الأول؛ أحيانًا → حمّلها عند الطلب.)</li>
+        <li><strong>وكم منها — حقلان أم مخطط الكيانات كاملًا؟</strong> (حقول قليلة → إسقاط؛ كيانات كاملة → Include أو تحميل صريح.)</li>
+      </ol>
+
+      <h2>أ. التحميل المتلهّف — اطلب البيانات المرتبطة مع الاستعلام الأول</h2>
+      <p>يخبر التحميل المتلهّف EF Core أن يجلب البيانات المرتبطة ضمن الاستعلام الأول. وتطلبه بـ <code>Include</code>:</p>
+
+      <div class="code-wrapper">
+        <div class="code-header">
+          <div class="code-badge-group">
+            <span class="code-lang-tag">C#</span>
+            <span class="code-filename">تحميل متلهّف لمجموعة (بأسلوب Raff)</span>
+            <span class="code-type-pill pill-fragment">مقتطف</span>
+          </div>
+          <button class="btn-copy" type="button" aria-label="نسخ الكود">📋 نسخ</button>
+        </div>
+        <pre><code class="language-c#">
+var books = await context.Books
+    .Include(b =&gt; b.Authors)      // load Authors together with Books
+    .ToListAsync();
+</code></pre>
+        <div class="code-expl"><code>Include</code> ليس عملية على العميل — إنه يغيّر SQL المُولَّد (عادةً JOIN في استعلام واحد افتراضيًّا). وتعود كل كيانات <code>Book</code> المحمَّلة ومجموعات <code>Authors</code> فيها ممتلئة.</div>
+      </div>
+
+      <p>وتُضمَّن التنقلات المرجعية بالطريقة نفسها:</p>
+
+      <div class="code-wrapper">
+        <div class="code-header">
+          <div class="code-badge-group">
+            <span class="code-lang-tag">C#</span>
+            <span class="code-filename">تحميل متلهّف لتنقل مرجعي</span>
+            <span class="code-type-pill pill-fragment">مقتطف</span>
+          </div>
+          <button class="btn-copy" type="button" aria-label="نسخ الكود">📋 نسخ</button>
+        </div>
+        <pre><code class="language-c#">
+var books = await context.Books
+    .Include(b =&gt; b.Category)     // reference navigation (Category?)
+    .ToListAsync();
+</code></pre>
+        <div class="code-expl">ولأن علاقة الفئة في Raff اختيارية، يستخدم SQL وصلًا يساريًّا (LEFT JOIN) ويكون <code>book.Category</code> مساويًا null للكتب بلا فئة — مطابقةً لقابلية القيمة الفارغة في المفتاح الأجنبي.</div>
+      </div>
+
+      <h3>بيانات متداخلة مع <code>ThenInclude</code></h3>
+      <p>لتحميل علاقةِ علاقة، سلسِل <code>ThenInclude</code> بعد التنقل المُضمَّن. وهذا مسار حقيقي في Raff: <code>ReadingEntry → Book → Category</code>:</p>
+
+      <div class="code-wrapper">
+        <div class="code-header">
+          <div class="code-badge-group">
+            <span class="code-lang-tag">C#</span>
+            <span class="code-filename">تحميل متلهّف بمستويين (بأسلوب Raff)</span>
+            <span class="code-type-pill pill-fragment">مقتطف</span>
+          </div>
+          <button class="btn-copy" type="button" aria-label="نسخ الكود">📋 نسخ</button>
+        </div>
+        <pre><code class="language-c#">
+var entries = await context.ReadingEntries
+    .Include(e =&gt; e.Book)              // level 1: the entry's book
+        .ThenInclude(b =&gt; b.Category)  // level 2: the book's category
+    .ToListAsync();
+</code></pre>
+        <div class="code-expl">يُطبَّق <code>ThenInclude</code> دائمًا على <em>آخر</em> تنقل مُضمَّن. ولاحظ أن النمط يطابق الأنواع: بعد <code>Include(e =&gt; e.Book)</code> يُتاح <code>ThenInclude</code> على <code>Book</code>.</div>
+      </div>
+
+      <p>وتُحمَّل المجموعات الشقيقة المتعددة بتكرار <code>Include</code> — وهنا يسكن خطر الأداء (الدرس 7):</p>
+
+      <div class="code-wrapper">
+        <div class="code-header">
+          <div class="code-badge-group">
+            <span class="code-lang-tag">C#</span>
+            <span class="code-filename">مجموعتان شقيقتان (بأسلوب Raff)</span>
+            <span class="code-type-pill pill-fragment">مقتطف</span>
+          </div>
+          <button class="btn-copy" type="button" aria-label="نسخ الكود">📋 نسخ</button>
+        </div>
+        <pre><code class="language-c#">
+var books = await context.Books
+    .Include(b =&gt; b.Authors)         // collection 1
+    .Include(b =&gt; b.ReadingEntries)  // collection 2 — sibling, not nested
+    .ToListAsync();
+</code></pre>
+        <div class="code-expl">تنتج المجموعتان <em>الشقيقتان</em> على الكيان نفسه تفريع وصل في استعلام واحد: فتتضاعف الصفوف (المؤلفون × الإدخالات لكل كتاب). ويقيس الدرس 7 ذلك ويعرض <code>AsSplitQuery()</code>.</div>
+      </div>
+
+      <h3>استدعاءات Include المُرشَّحة</h3>
+      <p>يقبل <code>Include</code> عبارة <code>Where</code> لتحميل بعض الصفوف المرتبطة فقط:</p>
+
+      <div class="code-wrapper">
+        <div class="code-header">
+          <div class="code-badge-group">
+            <span class="code-lang-tag">C#</span>
+            <span class="code-filename">Include مُرشَّح (بأسلوب Raff)</span>
+            <span class="code-type-pill pill-fragment">مقتطف</span>
+          </div>
+          <button class="btn-copy" type="button" aria-label="نسخ الكود">📋 نسخ</button>
+        </div>
+        <pre><code class="language-c#">
+var books = await context.Books
+    .Include(b =&gt; b.ReadingEntries
+        .Where(e =&gt; e.Status == ReadingStatus.FINISHED))
+    .ToListAsync();
+</code></pre>
+        <div class="code-expl">تُحمَّل الإدخالات المنتهية فقط في تنقل <code>ReadingEntries</code>. (لا يسمح EF Core بـ <code>Where</code> إلا على آخر تنقل في سلسلة Include، وينطبق المرشّح على البيانات المحمَّلة — لا على صفوف الأب.)</div>
+      </div>
+
+      <div class="callout callout-warning">
+        <div class="callout-title">⚠️ تنقل مُرشَّح ليس حقيقة مُرشَّحة</div>
+        <p>في الممارسة يهم تحذيران:</p>
+        <ul>
+          <li><strong>ينطبق المرشّح على ما يحمّله هذا الاستعلام — وليس قيدًا دائمًا على التنقل.</strong> فبسبب التتبّع والـ fix-up (الدرس 3)، إذا حمّل السياق نفسه لاحقًا إدخالات أخرى لهذه الكتب (استعلام آخر، أو Include آخر)، وُصلت تلك الكيانات في التنقل نفسه وظهرت بجانب المُرشَّحة. فيحتوي التنقل حينها على "الإدخالات المحمَّلة بأي وسيلة"، لا على "الإدخالات المطابقة للمرشّح".</li>
+          <li><strong>لا تقرأ تنقلًا مُرشَّحًا كحقيقة كاملة عن قاعدة البيانات.</strong> فـ <code>book.ReadingEntries.Count</code> بعد Include مُرشَّح يعد الإدخالات <em>المحمَّلة</em>، لا إدخالات الجدول. وإن كان المعنى التجاري "عدد الإدخالات المنتهية"، فاجعل قاعدة البيانات تحسبه (الدرس 6) بدل عدّ مجموعة محمَّلة جزئيًّا.</li>
+        </ul>
+        <p>واستدعاءات Include المُرشَّحة مفيدة حقًّا — في سيناريوهات العرض التي تعرض، مثلًا، أحدث ثلاثة صفوف مرتبطة. لكنها خطرة عندما يُعتمد عليها في منطق الأعمال.</p>
+      </div>
+
+      <h2>ب. التحميل الصريح — اجلب البيانات المرتبطة لاحقًا</h2>
+      <p>يجلب التحميل الصريح البيانات المرتبطة <em>بعد</em> تجسيد كيان الأب بالفعل. والواجهة تسكن في <code>DbContext.Entry(...)</code>:</p>
+
+      <div class="code-wrapper">
+        <div class="code-header">
+          <div class="code-badge-group">
+            <span class="code-lang-tag">C#</span>
+            <span class="code-filename">تحميل صريح (بأسلوب Raff)</span>
+            <span class="code-type-pill pill-fragment">مقتطف</span>
+          </div>
+          <button class="btn-copy" type="button" aria-label="نسخ الكود">📋 نسخ</button>
+        </div>
+        <pre><code class="language-c#">
+var book = await context.Books
+    .SingleAsync(b =&gt; b.Id == id);            // Query 1: just the book
+
+await context.Entry(book)                      // the tracked entry
+    .Collection(b =&gt; b.Authors)                // target a collection…
+    .LoadAsync();                              // Query 2: that book's authors
+
+// -- or a reference navigation --
+await context.Entry(book)
+    .Reference(b =&gt; b.Category)
+    .LoadAsync();
+
+// -- filtered explicit load through Query() --
+var finished = await context.Entry(book)
+    .Collection(b =&gt; b.ReadingEntries)
+    .Query()                                   // an IQueryable over the navigation
+    .Where(e =&gt; e.Status == ReadingStatus.FINISHED)
+    .ToListAsync();
+</code></pre>
+        <div class="code-expl">يُبنى التحميل الصريح حول متتبع التغييرات: فهو يعمل على الكيانات المتتبَّعة بالسياق. ويكشف <code>Entry(entity)</code> تنقلات <code>Collection</code> / <code>Reference</code>، ويمنحك <code>Query()</code> عبارة <code>IQueryable</code> ليُرشَّح الاستعلام الإضافي بل ويُسقَط.</div>
+      </div>
+
+      <p>ومتى يكون التحميل الصريح الأداة الصحيحة؟</p>
+      <ul>
+        <li>لديك الكيان بالفعل (حُمِّل لذاته، أو وُصل من استعلام آخر) وتُحتاج البيانات المرتبطة <strong>شرطيًّا</strong> فقط — مثل لوحة تفاصيل قد يوسّعها المستخدم أو لا.</li>
+        <li>تريد تحميل <em>جزء</em> من مجموعة (بـ <code>Query()</code>) بدل تحميلها كاملة.</li>
+        <li>أنت في كود استلم كيانًا لا استعلامًا — طريقة خدمة أو عملية نطاق — ولا تستطيع إعادة هيكلة الاستعلام الأصلي.</li>
+      </ul>
+
+      <div class="code-wrapper">
+        <div class="code-header">
+          <div class="code-badge-group">
+            <span class="code-lang-tag">C#</span>
+            <span class="code-filename">services (نمط مضاد)</span>
+            <span class="code-type-pill pill-anti-pattern">نمط مضاد</span>
+          </div>
+          <button class="btn-copy" type="button" aria-label="نسخ الكود">📋 نسخ</button>
+        </div>
+        <pre><code class="language-c#">
+// ❌ DANGEROUS: explicit loading inside a loop = hand-written N+1
+var books = await context.Books.Take(50).ToListAsync();   // Query 1
+
+foreach (var book in books)
+{
+    await context.Entry(book)
+        .Collection(b =&gt; b.Authors)
+        .LoadAsync();          // + 1 query PER BOOK (2..51)
+}
+</code></pre>
+        <div class="code-expl">هذا هو نمط N+1 من الدرس 5 بعينه، مكتوبًا يدويًّا بدل الحصول عليه بالتحميل الكسول. والحل ليس "التحميل بعناية أكبر داخل الحلقة" — بل إعادة الهيكلة بحيث تعود كل البيانات المطلوبة مع استعلام الأب (Include أو إسقاط)، أو التحميل دفعةً واحدة باستعلام مُرشَّح واحد.</div>
+      </div>
+
+      <div class="callout callout-info">
+        <div class="callout-title">💡 التحقق من تحميل تنقل</div>
+        <p>يخبرك <code>context.Entry(book).Collection(b =&gt; b.Authors).IsLoaded</code> هل يعتبر EF Core المجموعة محمَّلة لهذا الكيان المتتبَّع. وهو يجيب عن السؤال الثالث من الدرس 3. ولاحظ أن "محمَّل" لا يضمن "كامل" في التنقلات التجاوزية والمجموعات المملوءة بالـ fix-up — ففضّل استدعاءات تحميل صريحة في مسارات الكود التي تكون فيها قيمة <code>IsLoaded</code> واضحة.</p>
+      </div>
+
+      <h2>ج. التحميل الكسول — اجلب عند أول وصول</h2>
+      <p>مع التحميل الكسول، يؤدي الوصول إلى تنقل إلى تنفيذ استعلام قاعدة بيانات تلقائيًّا. وهو <strong>غير مُفعَّل افتراضيًّا</strong> — ويطلب EF Core منك الاشتراك الصريح، وللتحميل الكسول القائم على الوكلاء متطلبات ملموسة:</p>
+
+      <div class="grid-2">
+        <div class="content-panel">
+          <h4 style="margin-top:0;">المتطلبات (القائمة على الوكلاء)</h4>
+          <ul style="margin-bottom:0;">
+            <li>حزمة <code>Microsoft.EntityFrameworkCore.Proxies</code>.</li>
+            <li><code>optionsBuilder.UseLazyLoadingProxies()</code> في تهيئة سياقك.</li>
+            <li>يجب أن تكون أنواع الكيانات <strong>غير مغلقة</strong> بتنقلات <strong>قابلة للتجاوز (<code>virtual</code>)</strong> — فالوكيل يتجاوزها.</li>
+            <li>ويجب أن يكون الكيان متتبَّعًا بسياق (فالوكلاء يمررون الاستعلام عبره).</li>
+          </ul>
+        </div>
+        <div class="content-panel">
+          <h4 style="margin-top:0;">أين يقف Raff اليوم</h4>
+          <ul style="margin-bottom:0;">
+            <li>التنقلات <code>virtual</code> بالفعل (فمولّد الهيكل يخرجها هكذا) — لذا فالنموذج <em>متوافق</em>.</li>
+            <li>لكن <strong>لا مرجع لحزمة Proxies</strong> ولا استدعاء <code>UseLazyLoadingProxies()</code>، فالتحميل الكسول <strong>مطفأ</strong> في Raff.</li>
+            <li>والوصول إلى <code>book.Authors</code> اليوم يعيد المجموعة في الذاكرة (غالبًا فارغة) ولا ينفّذ أي SQL.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="code-wrapper">
+        <div class="code-header">
+          <div class="code-badge-group">
+            <span class="code-lang-tag">C#</span>
+            <span class="code-filename">تفعيل وكلاء التحميل الكسول (توضيحي — Raff لا يفعل ذلك)</span>
+            <span class="code-type-pill pill-illustrative">توضيحي</span>
+          </div>
+          <button class="btn-copy" type="button" aria-label="نسخ الكود">📋 نسخ</button>
+        </div>
+        <pre><code class="language-c#">
+// 1) Add package: Microsoft.EntityFrameworkCore.Proxies
+// 2) Opt in during context registration:
+builder.Services.AddDbContext&lt;BooksContext&gt;(options =&gt;
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"))
+           .UseLazyLoadingProxies());
+
+// 3) Navigations must be virtual and entities non-sealed:
+public class Book                    // not sealed
+{
+    public int Id { get; set; }
+    public int? PublishedYear { get; set; }
+    public virtual Category? Category { get; set; }             // virtual ✓
+    public virtual ICollection&lt;Author&gt; Authors { get; set; }    // virtual ✓
+        = new List&lt;Author&gt;();
+}
+</code></pre>
+        <div class="code-expl">ثمة بديل بلا وكلاء (حقن <code>ILazyLoader</code> في الكيان)، لكنه يربط الكيانات بأنواع EF Core. والتحميل الكسول القائم على الوكلاء هو الخيار السائد.</div>
+      </div>
+
+      <h3>لماذا التحميل الكسول سلاح مذخّر في واجهة برمجية</h3>
+      <ul>
+        <li><strong>وصول خفي إلى قاعدة البيانات أثناء قراءة خاصية.</strong> فـ <code>book.Authors.Count</code> يبدو قراءة من الذاكرة؛ وقد يكون رحلة ذهاب وإياب عبر الشبكة. ولا شيء في موضع الاستدعاء يكشف الكلفة.</li>
+        <li><strong>تنفيذ استعلامات غير متوقع.</strong> فقد تنطلق الاستعلامات في حلقات، أو في كود العرض بعد الاستعلام، أو في مواضع (ترشيح، ترتيب، تنسيق سلاسل) ظننت ألا إدخال/إخراج فيها. وLINQ-to-Objects على مجموعة محمَّلة كسولًا يستعلم في منتصف التعداد في صمت.</li>
+        <li><strong>N+1 بالخطأ.</strong> تعداد قائمة من 50 كتابًا ولمس خاصية مؤلف ينفّذ ما يصل إلى 50 استعلامًا إضافيًّا — موضوع الدرس 5.</li>
+        <li><strong>انفجارات التسلسل.</strong> فمُسلسِل يعبر مخطط كائناتك (أو مخطِّط DTO ينسخ قيم التنقلات) يُطلق استعلامات لكل كائن، وقد يتفجر تسلسل JSON أيضًا على الدورات (Book → Authors → Books → …) ما لم تُتجاهل الدورات أو تُستخدم DTOs.</li>
+        <li><strong>أداء غير متوقع.</strong> فأعداد الاستعلامات تعتمد على مسارات الكود، مما يجعل اختبار الحِمل وتخطيط السعة غير موثوقين.</li>
+      </ul>
+
+      <div class="callout callout-info">
+        <div class="callout-title">💡 أين يمكن الدفاع عن التحميل الكسول</div>
+        <p>التحميل الكسول ليس "خطأ في كل مكان". فقد يكون معقولًا في سيناريوهات قصيرة العمر أو شبه مكتبية أو تفاعلية حيث أحجام البيانات صغيرة، ويعيش السياق مدة تكفي للاستفادة، ويتقبّل الفريق الإدخال/الإخراج الخفي. أما في واجهة برمجية بطراز الطلب/الاستجابة مثل Raff، فالإرشاد السائد: فضّل التحميل المتلهّف أو الإسقاط للحاجات المعروفة، والتحميل الصريح للحاجات الشرطية، وأبقِ التحميل الكسول مطفأً. وإن فُعِّل يومًا، فليكن بقرار واعٍ، مع استجابات DTO وتسجيل يثبت أعداد الاستعلامات.</p>
+      </div>
+
+      <h2>مقارنة الاستراتيجيات</h2>
+      <table class="table-scroll concept-table">
+        <thead>
+          <tr><th>الاستراتيجية</th><th>متى يعمل الاستعلام</th><th>نقاط القوة</th><th>نمط الفشل</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>المتلهّف</strong> (<code>Include</code>)</td>
+            <td>مع استعلام الأب؛ عدد استعلامات ثابت (1 افتراضيًّا).</td>
+            <td>حتمي؛ المخطط كله هناك؛ جيد حين يحتاجه العقد دائمًا.</td>
+            <td>جلب مفرط؛ وتفريع وصل مع المجموعات الشقيقة (الدرس 7).</td>
+          </tr>
+          <tr>
+            <td><strong>الصريح</strong></td>
+            <td>عند الطلب، بعد تحميل الأب.</td>
+            <td>تحكم دقيق؛ قد يحمّل فقط عند تحقق شرط؛ يدعم التحميل المُرشَّح عبر <code>Query()</code>.</td>
+            <td>يسهل وضعه داخل الحلقات → N+1؛ والكلفة غير مرئية من بعيد.</td>
+          </tr>
+          <tr>
+            <td><strong>الكسول</strong></td>
+            <td>عند أول وصول إلى تنقل، بشكل غير مرئي.</td>
+            <td>مريح لأنماط الوصول غير المتوقعة؛ أصغر استعلام أولي.</td>
+            <td>إدخال/إخراج خفي؛ N+1؛ مخاطر تسلسل؛ أداء غير متوقع.</td>
+          </tr>
+          <tr>
+            <td><strong>الإسقاط</strong> (<code>Select</code>)</td>
+            <td>مع الاستعلام الرئيسي، ضمن عبارة SQL واحدة.</td>
+            <td>شكل وأعمدة مضبوطة؛ القيم القياسية والتجميعات مجانًا؛ بلا كلفة تتبّع كيانات.</td>
+            <td>لا يلائم حين تحتاج كيانات متتبَّعة للتحديثات، أو حين يحتاج العقد كيانات فعلًا في مسارات كود متعددة.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="callout callout-warning">
+        <div class="callout-title">⚠️ لا استراتيجية أفضل عالميًّا</div>
+        <p>لكل استراتيجية أعلاه سيناريو تكون فيه صحيحة بوضوح وسيناريو تكون فيه خاطئة بوضوح. والمهارة الهندسية ليست حفظ "استخدم Include دائمًا" أو "أسقط دائمًا" — بل صياغة المتطلب (أي بيانات، دائمًا أم شرطيًّا، وكم منها)، ثم اختيار أرخص استراتيجية تلبّيه.</p>
+      </div>
+
+      <h2>مختبر قرار استراتيجية التحميل</h2>
+      <p>ستة سيناريوهات واقعية. اختر الاستراتيجية التي ستستخدمها أولًا، ثم تحقق من إجاباتك. ولعدة سيناريوهات خيار ثانٍ يمكن الدفاع عنه — تقول الملاحظات ذلك صراحةً وتشرح المقايضة.</p>
+
+      <div class="simulator-box" id="loading-lab">
+        <div class="simulator-header">
+          <div class="simulator-title">🧪 مختبر قرار استراتيجية التحميل</div>
+          <div class="simulator-controls">
+            <button class="btn-sim primary" id="lab-check" type="button">✓ تحقق من الإجابات</button>
+            <button class="btn-sim" id="lab-reset" type="button">↺ مسح الاختيارات</button>
+            <span class="explorer-control-label" id="lab-score-label">0 من 6 مُتحقَّق منها</span>
+          </div>
+        </div>
+        <div class="simulator-body">
+          <div class="table-scroll">
+            <table class="lab-table" id="lab-table">
+              <thead>
+                <tr>
+                  <th style="width:44%;">السيناريو</th>
+                  <th style="width:30%;">اختيارك</th>
+                  <th style="width:26%;">النتيجة</th>
+                </tr>
+              </thead>
+              <tbody id="lab-tbody">
+                <!-- rows rendered by JavaScript -->
+              </tbody>
+            </table>
+          </div>
+          <div class="sim-verdict" id="lab-verdict">اختر استراتيجية لكل سيناريو ثم اضغط "تحقق من الإجابات".</div>
+        </div>
+      </div>
+
+      <h2>فحوص المعرفة</h2>
+      <div class="kc-mount" data-kc-group="lesson-4"></div>
+
+      <h2>خلاصة الدرس 4</h2>
+      <ul>
+        <li><strong>التحميل المتلهّف</strong> (<code>Include</code> / <code>ThenInclude</code>) يجلب البيانات المرتبطة ضمن الاستعلام الأول — أعداد استعلامات حتمية، مع خطر الجلب المفرط وتفريع الوصل.</li>
+        <li><strong>التحميل الصريح</strong> (<code>Entry(...).Collection().LoadAsync()</code>) يحمّل عند الطلب لكيانات متتبَّعة؛ قوي للحاجات الشرطية، خطير داخل الحلقات.</li>
+        <li><strong>التحميل الكسول</strong> اشتراك اختياري (وكلاء + تنقلات <code>virtual</code>)، مخفي بطبيعته، وسبب شائع لـ N+1 ومفاجآت التسلسل؛ وRaff لا يفعّله عن قصد.</li>
+        <li><strong>استدعاءات Include المُرشَّحة</strong> تحدّ مما يحمّله استعلام — لكنها لا تحوّل التنقل إلى عرض مُرشَّح دائم لقاعدة البيانات.</li>
+        <li>صرّح بالمتطلب أولًا ثم اختر الاستراتيجية؛ والإسقاط غالبًا هو الإجابة الصحيحة لعقود واجهات القراءة فقط.</li>
+      </ul>
+
+      <div class="refs-block">
+        <div class="refs-title">مراجع رسمية لهذا الدرس</div>
+        <ul>
+          <li><a href="https://learn.microsoft.com/en-us/ef/core/querying/related-data/" target="_blank" rel="noopener noreferrer">EF Core — تحميل البيانات المرتبطة</a></li>
+          <li><a href="https://learn.microsoft.com/en-us/ef/core/querying/related-data/eager" target="_blank" rel="noopener noreferrer">EF Core — التحميل المتلهّف للبيانات المرتبطة</a></li>
+          <li><a href="https://learn.microsoft.com/en-us/ef/core/querying/related-data/explicit" target="_blank" rel="noopener noreferrer">EF Core — التحميل الصريح للبيانات المرتبطة</a></li>
+          <li><a href="https://learn.microsoft.com/en-us/ef/core/querying/related-data/lazy" target="_blank" rel="noopener noreferrer">EF Core — التحميل الكسول للبيانات المرتبطة</a></li>
+        </ul>
+      </div>
+
+      <div class="lesson-footer-nav">
+        <button class="btn-secondary" data-nav-target="lesson-3" type="button">→ الدرس 3</button>
+        <button class="btn-complete-lesson" data-lesson="lesson-4" type="button">أكمل الدرس 4 ✓</button>
+        <button class="btn-primary" data-nav-target="lesson-5" type="button">التالي: مشكلة N+1 ←</button>
+      </div>
+    `
     }
   }
 };
