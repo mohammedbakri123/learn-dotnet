@@ -601,6 +601,39 @@ window.RAFF_MODULE_02_AR = {
 
   lessons: {
 
+    'lesson-assessment': {
+      nav: 'التقييم الختامي للوحدة',
+      content: `
+      <div class="lesson-header-box">
+        <div class="lesson-badge-top">الوحدة 2 • الاعتماد والإتقان</div>
+        <h1 class="lesson-title">التقييم الختامي الشامل</h1>
+        <p class="lesson-subtitle">أثبت فهمك لأعماق EF Core وتتبّع التغييرات وأعمار DbContext وتنفيذ LINQ وأدوات التشخيص.</p>
+        <div class="lesson-meta-bar">
+          <span>📝 12 سيناريو تفكير معمّق</span>
+          <span>🎯 درجة النجاح: <span id="assessment-threshold-label">80%</span> (قابلة للتعديل)</span>
+          <span>🏆 يتضمن تفصيلًا تشخيصيًا بالمواضيع</span>
+        </div>
+      </div>
+
+      <div class="callout callout-info" style="margin-bottom:2rem;">
+        <div class="callout-title">📋 تعليمات التقييم</div>
+        <p>يقيّم هذا الاختبار تفكيرك العملي كمهندس .NET خلفي مبتدئ. أجب عن كل سيناريو بعناية. وعند تسليم التقييم تُحسب نتيجتك ويُعرض تفصيل تشخيصي مفصل لنقاط قوتك وتوصيات المراجعة.</p>
+      </div>
+
+      <div id="assessment-container">
+        <!-- Rendered dynamically by JavaScript -->
+      </div>
+
+      <div style="margin-top: 2rem; text-align: center;">
+        <button class="btn-primary" id="btn-submit-final-assessment" style="padding: 0.85rem 2.5rem; font-size: 1.1rem;">سلّم التقييم النهائي</button>
+      </div>
+
+      <div id="assessment-results" style="display:none; margin-top:2.5rem;">
+        <!-- Rendered after submission -->
+      </div>
+    `
+    },
+
     'lesson-0': {
       nav: 'نظرة عامة والمخرجات',
       content: `
