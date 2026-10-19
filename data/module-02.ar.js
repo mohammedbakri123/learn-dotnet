@@ -601,6 +601,356 @@ window.RAFF_MODULE_02_AR = {
 
   lessons: {
 
+    'lesson-3': {
+      nav: 'حالات الكيان وتتبّع التغييرات',
+      content: `
+      <div class="lesson-header-box">
+        <div class="lesson-badge-top">الدرس 3 • المحرّك الأساسي</div>
+        <h1 class="lesson-title">حالات الكيان ومتتبّع التغييرات</h1>
+        <p class="lesson-subtitle">إتقان حالات الكيان الخمس، واكتشاف التغييرات باللقطات، وChangeTracker.DebugView، وتجنّب مزالق Update().</p>
+      </div>
+
+      <h2>1. حالات الكيان الخمس الرئيسية</h2>
+      <p>كل نسخة كيان مسجّلة في <code>DbContext</code> لها <code>EntityEntry</code> مرتبطة بها تحمل قيمة تعداد <code>EntityState</code>:</p>
+
+      <div class="states-grid">
+        <div class="state-card border-detached">
+          <div class="state-header"><span class="badge badge-detached">Detached</span></div>
+          <div class="state-desc">الكيان غير متتبَّع بالسياق. إنه كائن C# عادي في الذاكرة. ولا يملك EF Core لقطة لقيمه، ويتجاهله <code>SaveChangesAsync()</code> تمامًا.</div>
+        </div>
+        <div class="state-card border-unchanged">
+          <div class="state-header"><span class="badge badge-unchanged">Unchanged</span></div>
+          <div class="state-desc">الكيان موجود في PostgreSQL وحُمّل باستعلام. وقيم خصائصه الحالية في C# مطابقة للقطة المأخوذة وقت الاستعلام. ولا يولّد <code>SaveChangesAsync()</code> أي SQL له.</div>
+        </div>
+        <div class="state-card border-added">
+          <div class="state-header"><span class="badge badge-added">Added</span></div>
+          <div class="state-desc">الكيان متتبَّع بالسياق لكنه غير موجود في قاعدة البيانات بعد. سيولّد <code>SaveChangesAsync()</code> أمر <code>INSERT</code> ويعيّن أي مفتاح أساسي مُولَّد.</div>
+        </div>
+        <div class="state-card border-modified">
+          <div class="state-header"><span class="badge badge-modified">Modified</span></div>
+          <div class="state-desc">الكيان موجود في PostgreSQL وتغيّرت خاصية معيّنة أو أكثر مقارنةً باللقطة الأصلية. يولّد <code>SaveChangesAsync()</code> أمر <code>UPDATE</code> يستهدف الأعمدة المعدّلة.</div>
+        </div>
+        <div class="state-card border-deleted">
+          <div class="state-header"><span class="badge badge-deleted">Deleted</span></div>
+          <div class="state-desc">الكيان موجود في PostgreSQL لكنه عُلّم للحذف عبر <code>Remove()</code>. سيولّد <code>SaveChangesAsync()</code> أمر <code>DELETE</code>.</div>
+        </div>
+      </div>
+
+      <h2>2. تتبّع التغييرات باللقطات عمليًا</h2>
+      <p>كيف يعرف EF Core أنك غيّرت العنوان من "Old Title" إلى "New Title"؟</p>
+      <p>عند تجسيد كيان من استعلام متتبّع، يأخذ EF Core لقطة خاصة بكل قيمه العددية. وعند استدعاء <code>DetectChanges()</code> (وهو ما يحدث تلقائيًا داخل <code>SaveChangesAsync()</code>) يتنقل EF Core عبر كل الكيانات المتتبَّعة ويقارن خصائص الكائن الحالية باللقطة.</p>
+
+      
+    <div class="code-wrapper">
+      <div class="code-header">
+        <div class="code-badge-group">
+          <span class="code-lang-tag">C#</span>
+          <span class="code-filename">TrackingWalkthrough.cs</span>
+          <span class="code-type-pill pill-complete example">[مثال كامل]</span>
+        </div>
+        <button class="btn-copy" aria-label="نسخ الكود">📋 نسخ</button>
+      </div>
+      <pre><code class="language-c#">
+// 1. Query entity: enters ChangeTracker as 'Unchanged' with snapshot taken
+var book = await context.Books.FindAsync(42);
+Console.WriteLine(context.Entry(book!).State); // Output: Unchanged
+
+// 2. Mutate in C# memory
+book!.Title = "Muqaddimah (Second Edition)";
+
+// 3. Before DetectChanges runs, the ChangeTracker might still report Unchanged
+// But calling DetectChanges explicitly forces the comparison:
+context.ChangeTracker.DetectChanges();
+Console.WriteLine(context.Entry(book).State); // Output: Modified
+Console.WriteLine(context.Entry(book).Property(b =&gt; b.Title).IsModified); // Output: True
+Console.WriteLine(context.Entry(book).Property(b =&gt; b.Summary).IsModified); // Output: False
+
+// 4. Save changes
+await context.SaveChangesAsync();
+
+// 5. State resets to Unchanged because the database now matches C# memory!
+Console.WriteLine(context.Entry(book).State); // Output: Unchanged
+</code></pre>
+      <div class="code-expl">عرض خطوة بخطوة لاكتشاف التغييرات باللقطات وانتقالات الحالة قبل الحفظ وبعده.</div>
+    </div>
+    
+
+      <h2>3. فحص عرض تصحيح متتبّع التغييرات</h2>
+      <p>يوفّر EF Core أداة تصحيح مدمجة تُسمى <code>DebugView</code> في متتبّع التغييرات. وأثناء التصحيح محليًا يمكنك فحص:</p>
+
+      
+    <div class="code-wrapper">
+      <div class="code-header">
+        <div class="code-badge-group">
+          <span class="code-lang-tag">C#</span>
+          <span class="code-filename">DebugViewer.cs</span>
+          <span class="code-type-pill pill-fragment">[مقتطف]</span>
+        </div>
+        <button class="btn-copy" aria-label="نسخ الكود">📋 نسخ</button>
+      </div>
+      <pre><code class="language-c#">
+// ShortView: Concise summary of all tracked entities and their states
+Console.WriteLine(context.ChangeTracker.DebugView.ShortView);
+// Example Output:
+// Book {Id: 42} Modified
+
+// LongView: Full breakdown of original vs current values for every property
+Console.WriteLine(context.ChangeTracker.DebugView.LongView);
+// Example Output:
+// Book {Id: 42} Modified
+//   Id: 42 PK
+//   CoverUrl: 'cover.jpg'
+//   PublishedYear: 2022
+//   Summary: 'Classic text'
+//   Title: 'Muqaddimah (Second Edition)' Originally 'Muqaddimah'
+</code></pre>
+      <div class="code-expl">يوفّر ChangeTracker.DebugView تشخيصًا مقروءًا للبشر أثناء جلسات التصحيح.</div>
+    </div>
+    
+
+      <h2>4. خطر استدعاء \`context.Books.Update()\`</h2>
+      <div class="callout callout-warning">
+        <div class="callout-title">⚠️ لماذا يُعد استدعاء Update() غالبًا خطأً برمجيًا</div>
+        <p>في السيناريوهات المفصولة (مثل واجهة برمجية تستقبل DTO)، ينشئ المطورون غالبًا نسخة كيان جديدة ويستدعون <code>context.Books.Update(book)</code>. <strong>احذر:</strong> يعلّم <code>Update()</code> <em>كل خصيصة معنونة</em> في الكيان كـ<code>Modified</code>! فإذا كان DTO قد أغفل خصائص (مثل <code>CoverUrl</code> أو <code>Summary</code>)، فسيضبطها C# على <code>null</code> أو <code>0</code>، وسيستبدل <code>Update()</code> قيمًا صحيحة في قاعدة البيانات بهذه الأصفار عميانيًا!</p>
+        <p>في المقابل، يحافظ تحميل الكيان المتتبَّع الموجود وضبط خصائص محددة على الحقول غير المرسلة، لأن اكتشاف التغييرات باللقطات يحدّث الأعمدة المعدّلة فقط.</p>
+      </div>
+
+      <!-- INTERACTIVE SIMULATOR: Change Tracker Simulator -->
+      <h2>5. محاكي متتبّع التغييرات التفاعلي</h2>
+      <p>استخدم هذا المحاكي للمرور خطوة بخطوة عبر دورة حياة حالات الكيان. راقب كيف تتغيّر حالة الكيان ولقطة الخصائص وSQL المُولَّد لـ PostgreSQL مع كل إجراء.</p>
+
+      <div class="simulator-box" id="tracker-simulator">
+        <div class="simulator-header">
+          <div class="simulator-title">⚡ محاكي متتبّع التغييرات التفاعلي</div>
+          <div class="simulator-controls">
+            <button class="btn-sim" id="sim-btn-new">1. كتاب جديد (Detached)</button>
+            <button class="btn-sim" id="sim-btn-add">2. ‏context.Add()</button>
+            <button class="btn-sim" id="sim-btn-query">3. استعلام عن كتاب (Unchanged)</button>
+            <button class="btn-sim" id="sim-btn-mutate">4. عدّل العنوان</button>
+            <button class="btn-sim" id="sim-btn-detect">5. DetectChanges()</button>
+            <button class="btn-sim" id="sim-btn-remove">6. ‏context.Remove()</button>
+            <button class="btn-sim" id="sim-btn-save">7. SaveChangesAsync()</button>
+            <button class="btn-sim btn-sim-reset" id="sim-btn-reset">↺ إعادة تعيين</button>
+          </div>
+        </div>
+
+        <div class="simulator-body">
+          <div class="sim-grid">
+            <div class="sim-panel">
+              <div class="sim-panel-title">حالة الكيان المتتبَّع</div>
+              <div class="sim-state-badge" id="sim-state-display">Detached</div>
+              <div class="sim-prop-table-box">
+                <table class="sim-table">
+                  <thead>
+                    <tr>
+                      <th>الخاصية</th>
+                      <th>اللقطة (الأصلية)</th>
+                      <th>القيمة الحالية</th>
+                      <th>IsModified</th>
+                    </tr>
+                  </thead>
+                  <tbody id="sim-props-tbody">
+                    <tr><td>Id</td><td>-</td><td>42</td><td>False</td></tr>
+                    <tr><td>Title</td><td>-</td><td>"Raff Guide"</td><td>False</td></tr>
+                    <tr><td>PublishedYear</td><td>-</td><td>2024</td><td>False</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="sim-panel">
+              <div class="sim-panel-title">عملية قاعدة البيانات المعلّقة (PostgreSQL)</div>
+              <div class="sim-sql-box" id="sim-sql-display">-- No pending database operation. Entity is Detached.</div>
+              <div class="sim-commentary" id="sim-commentary">
+                انقر زرًا في الأعلى لتنفيذ إجراء محاكى لتتبّع التغييرات في EF Core.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <h2>ملخص الدرس 3</h2>
+      <ul>
+        <li>قيم <code>EntityState</code> الخمس هي <strong>Detached</strong> و<strong>Unchanged</strong> و<strong>Added</strong> و<strong>Modified</strong> و<strong>Deleted</strong>.</li>
+        <li><strong>اكتشاف التغييرات باللقطات</strong> يخزّن القيم الأصلية عند التجسيد ويقارنها بالقيم الحالية أثناء <code>DetectChanges()</code>.</li>
+        <li>بعد نجاح <code>SaveChangesAsync()</code> تنتقل كيانات <code>Added</code> و<code>Modified</code> إلى <code>Unchanged</code>، بينما تصبح كيانات <code>Deleted</code> في حالة <code>Detached</code>.</li>
+        <li>يعلّم <code>Update()</code> كل الخصائص كمعدّلة؛ ففضّل تعديل كيانات متتبَّعة محمّلة من استعلامات.</li>
+      </ul>
+
+      <h2>اختبارات المعرفة</h2>
+      
+    <div class="exercise-card" id="qc-3-1">
+      <div class="exercise-header">
+        <div class="exercise-title-group">
+          <span class="exercise-badge">اختبار المعرفة</span>
+          <span style="font-weight:600; font-size:0.9rem;">حالات الكيان</span>
+        </div>
+      </div>
+      <div class="exercise-body">
+        <div class="exercise-prompt">كتب مطوّر: \`var book = new Book { Title = "Raff Architecture" }; context.Books.Add(book);\`. ما حالة \`context.Entry(book).State\` مباشرةً بعد هذا السطر؟</div>
+        <div class="quiz-options" data-qid="qc-3-1">
+          
+        <div class="quiz-option" data-opt="0">
+          <div class="option-indicator">A</div>
+          <div class="option-text">Detached</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="1">
+          <div class="option-indicator">B</div>
+          <div class="option-text">Unchanged</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="2">
+          <div class="option-indicator">C</div>
+          <div class="option-text">Added</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="3">
+          <div class="option-indicator">D</div>
+          <div class="option-text">Modified</div>
+        </div>
+        
+        </div>
+        <div class="exercise-actions">
+          <button class="btn-primary btn-submit-quiz" data-qid="qc-3-1">أرسل الإجابة</button>
+          <button class="btn-secondary btn-retry-quiz" data-qid="qc-3-1" style="display:none;">إعادة المحاولة</button>
+        </div>
+        <div class="quiz-feedback" id="feedback-qc-3-1"></div>
+      </div>
+    </div>
+    
+      
+    <div class="exercise-card" id="qc-3-2">
+      <div class="exercise-header">
+        <div class="exercise-title-group">
+          <span class="exercise-badge">اختبار المعرفة</span>
+          <span style="font-weight:600; font-size:0.9rem;">تتبّع التغييرات باللقطات</span>
+        </div>
+      </div>
+      <div class="exercise-body">
+        <div class="exercise-prompt">كيف يحدّد اكتشاف التغييرات باللقطات الافتراضي في EF Core أي أعمدة كيان متتبَّع يجب تضمينها في أمر UPDATE؟</div>
+        <div class="quiz-options" data-qid="qc-3-2">
+          
+        <div class="quiz-option" data-opt="0">
+          <div class="option-indicator">A</div>
+          <div class="option-text">يُرفق وكلاء انعكاس وقت التشغيل بكل جامع وضابط خصائص في C#.</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="1">
+          <div class="option-indicator">B</div>
+          <div class="option-text">يسجّل نسخة لقطة من كل قيم الخصائص عند استعلام الكيان؛ وعند DetectChanges() يقارن قيم الخصائص الحالية باللقطة.</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="2">
+          <div class="option-indicator">C</div>
+          <div class="option-text">يستعلم من PostgreSQL ليسأل عن الأعمدة التي تغيّرت قبل الحفظ.</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="3">
+          <div class="option-indicator">D</div>
+          <div class="option-text">يعلّم كل عمود في الجدول كمعدّل كلما استُدعي أي ضابط خصائص.</div>
+        </div>
+        
+        </div>
+        <div class="exercise-actions">
+          <button class="btn-primary btn-submit-quiz" data-qid="qc-3-2">أرسل الإجابة</button>
+          <button class="btn-secondary btn-retry-quiz" data-qid="qc-3-2" style="display:none;">إعادة المحاولة</button>
+        </div>
+        <div class="quiz-feedback" id="feedback-qc-3-2"></div>
+      </div>
+    </div>
+    
+      
+    <div class="exercise-card" id="qc-3-3">
+      <div class="exercise-header">
+        <div class="exercise-title-group">
+          <span class="exercise-badge">اختبار المعرفة</span>
+          <span style="font-weight:600; font-size:0.9rem;">حالات الكيان</span>
+        </div>
+      </div>
+      <div class="exercise-body">
+        <div class="exercise-prompt">ماذا يحدث لـ\`EntityState\` كيان متتبَّع كانت حالته \`Deleted\` بعد تنفيذ \`await context.SaveChangesAsync()\` بنجاح؟</div>
+        <div class="quiz-options" data-qid="qc-3-3">
+          
+        <div class="quiz-option" data-opt="0">
+          <div class="option-indicator">A</div>
+          <div class="option-text">يبقى في حالة \`Deleted\` في حال أراد المطوّر التراجع عن الحذف.</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="1">
+          <div class="option-indicator">B</div>
+          <div class="option-text">ينتقل إلى حالة \`Detached\` لأن الصف لم يعد موجودًا في قاعدة البيانات.</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="2">
+          <div class="option-indicator">C</div>
+          <div class="option-text">ينتقل إلى \`Unchanged\` مع ضبط مفتاحه الأساسي على 0.</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="3">
+          <div class="option-indicator">D</div>
+          <div class="option-text">يتسبب في إطلاق DbContext استثناء \`InvalidOperationException\` فورًا.</div>
+        </div>
+        
+        </div>
+        <div class="exercise-actions">
+          <button class="btn-primary btn-submit-quiz" data-qid="qc-3-3">أرسل الإجابة</button>
+          <button class="btn-secondary btn-retry-quiz" data-qid="qc-3-3" style="display:none;">إعادة المحاولة</button>
+        </div>
+        <div class="quiz-feedback" id="feedback-qc-3-3"></div>
+      </div>
+    </div>
+    
+      
+    <div class="exercise-card" id="qc-3-4">
+      <div class="exercise-header">
+        <div class="exercise-title-group">
+          <span class="exercise-badge">اختبار المعرفة</span>
+          <span style="font-weight:600; font-size:0.9rem;">مزالق Update()</span>
+        </div>
+      </div>
+      <div class="exercise-body">
+        <div class="exercise-prompt">في Raff، لماذا يُعد استدعاء \`context.Books.Update(disconnectedBook)\` خطيرًا إذا كان \`disconnectedBook\` قد بُني من حمولة JSON ناقصة أُغفل فيها \`PublishedYear\` (فاستخدم 0 افتراضيًا)؟</div>
+        <div class="quiz-options" data-qid="qc-3-4">
+          
+        <div class="quiz-option" data-opt="0">
+          <div class="option-indicator">A</div>
+          <div class="option-text">لأن Update() يحذف الكيان تلقائيًا إذا كانت أي خاصية تساوي 0.</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="1">
+          <div class="option-indicator">B</div>
+          <div class="option-text">لأن Update() يعلّم كل الخصائص المعنونة في الكيان كـ\`Modified\`، فيستبدل \`PublishedYear\` في قاعدة البيانات بالقيمة 0 بدلًا من إبقاء القيمة الموجودة.</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="2">
+          <div class="option-indicator">C</div>
+          <div class="option-text">لأن Update() يتطلب قفل معاملة قاعدة بيانات نشط قبل التنفيذ.</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="3">
+          <div class="option-indicator">D</div>
+          <div class="option-text">لأن Update() يعمل فقط على الكيانات التي تملك مجموعة تنقّل نشطة.</div>
+        </div>
+        
+        </div>
+        <div class="exercise-actions">
+          <button class="btn-primary btn-submit-quiz" data-qid="qc-3-4">أرسل الإجابة</button>
+          <button class="btn-secondary btn-retry-quiz" data-qid="qc-3-4" style="display:none;">إعادة المحاولة</button>
+        </div>
+        <div class="quiz-feedback" id="feedback-qc-3-4"></div>
+      </div>
+    </div>
+    
+
+      <div class="lesson-footer-nav">
+        <button class="btn-secondary" onclick="switchLesson('lesson-2')">→ الدرس السابق</button>
+        <button class="btn-complete-lesson" data-lesson="lesson-3">أكمل الدرس 3 ✓</button>
+        <button class="btn-primary" onclick="switchLesson('lesson-4')">التالي: التتبّع مقابل عدم التتبّع ←</button>
+      </div>
+    `
+    },
+
     'lesson-2': {
       nav: 'DbContext ونمط Unit of Work',
       content: `
