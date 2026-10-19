@@ -2712,6 +2712,442 @@ if (dto.Summary.IsSpecified)
 `
     },
 
+    'lesson-7': {
+      nav: 'ربْط المفاهيم معًا',
+      content: `
+  <div class="lesson-header-box">
+    <div class="lesson-meta-bar">
+      <span class="lesson-pill">الدرس 7</span>
+      <span class="badge-time">قراءة ومراجعة معمارية في 30 دقيقة</span>
+    </div>
+    <h1 class="lesson-h1">ربْط المفاهيم معًا</h1>
+    <p class="lesson-lead">
+      اربط كل مفهوم تعلمته — طلبات HTTP والتوجيه بالسمات وربط النماذج وعقود DTO وحدود الخدمات واستمرارية EF Core ورموز حالة REST الصحيحة — في معمارية نظيفة ومتماسكة لـ Raff.
+    </p>
+  </div>
+
+  <div class="content-body">
+    <h2>1. معمارية «الكتب» من البداية إلى النهاية</h2>
+    <p>
+      لنفحص كيف تعمل كل طبقة في Raff معًا بفصل نظيف للمسؤوليات عندما ينشئ العميل كتابًا:
+    </p>
+
+    <div class="code-container">
+      <div class="code-header">
+        <div class="code-badge-group">
+          <span class="code-lang-tag">C#</span>
+          <span class="code-filename">Domain/Entities/Book.cs</span>
+          <span class="code-type-pill">نموذج استمرارية قاعدة البيانات</span>
+        </div>
+        <button class="btn-copy-code" data-code="namespace Raff.Models;
+
+public class Book
+{
+    public int Id { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public int PublishedYear { get; set; }
+    public string? Summary { get; set; }
+    public string? CoverUrl { get; set; }
+
+    // EF Core Navigation Property
+    public List&lt;Author&gt; Authors { get; set; } = new();
+
+    // Internal database metadata (Never exposed over HTTP)
+    public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+}">نسخ الكيان</button>
+      </div>
+      <pre><code class="language-csharp">namespace Raff.Models;
+
+public class Book
+{
+    public int Id { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public int PublishedYear { get; set; }
+    public string? Summary { get; set; }
+    public string? CoverUrl { get; set; }
+
+    // EF Core Navigation Property
+    public List&lt;Author&gt; Authors { get; set; } = new();
+
+    // Internal database metadata (Never exposed over HTTP)
+    public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+}</code></pre>
+      <div class="code-explanation">
+        <strong>دور الكيان:</strong> يُقترن بجدول PostgreSQL باسم <code>books</code>. يتتبّع الحالة العلائقية وحقول التدقيق الداخلية وروابط التنقل.
+      </div>
+    </div>
+
+    <div class="code-container">
+      <div class="code-header">
+        <div class="code-badge-group">
+          <span class="code-lang-tag">C#</span>
+          <span class="code-filename">DTOs/books/BookDtos.cs</span>
+          <span class="code-type-pill">عقود الشبكة العامة</span>
+        </div>
+        <button class="btn-copy-code" data-code="using System.ComponentModel.DataAnnotations;
+
+namespace Raff.DTOs;
+
+public record CreateBookRequest(
+    [Required, MaxLength(200)] string Title,
+    [Range(0, 2100)] int PublishedYear,
+    [MaxLength(2000)] string? Summary,
+    [Url] string? CoverUrl);
+
+public record BookResponse(
+    int Id,
+    string Title,
+    int PublishedYear,
+    string? Summary,
+    string? CoverUrl,
+    IReadOnlyList&lt;AuthorSummaryResponse&gt; Authors);
+
+public record AuthorSummaryResponse(
+    int Id,
+    string Name);">نسخ كائنات DTO</button>
+      </div>
+      <pre><code class="language-csharp">using System.ComponentModel.DataAnnotations;
+
+namespace Raff.DTOs;
+
+public record CreateBookRequest(
+    [Required, MaxLength(200)] string Title,
+    [Range(0, 2100)] int PublishedYear,
+    [MaxLength(2000)] string? Summary,
+    [Url] string? CoverUrl);
+
+public record BookResponse(
+    int Id,
+    string Title,
+    int PublishedYear,
+    string? Summary,
+    string? CoverUrl,
+    IReadOnlyList&lt;AuthorSummaryResponse&gt; Authors);
+
+public record AuthorSummaryResponse(
+    int Id,
+    string Name);</code></pre>
+      <div class="code-explanation">
+        <strong>دور DTO:</strong> عقود عامة صارمة. تحرس سمات البيانات حدود الطلبات الواردة. ويفصل <code>BookResponse</code> العملاء عن مخططات تنقل EF Core.
+      </div>
+    </div>
+
+    <div class="code-container">
+      <div class="code-header">
+        <div class="code-badge-group">
+          <span class="code-lang-tag">C#</span>
+          <span class="code-filename">Services/BookService.cs</span>
+          <span class="code-type-pill">طبقة الأعمال والاستمرارية</span>
+        </div>
+        <button class="btn-copy-code" data-code="namespace Raff.Services;
+
+public class BookService(BooksContext context) : IBookService
+{
+    public async Task&lt;BookResponse&gt; CreateBookAsync(CreateBookRequest request)
+    {
+        // 1. Map DTO to Entity
+        var entity = new Book
+        {
+            Title = request.Title,
+            PublishedYear = request.PublishedYear,
+            Summary = request.Summary,
+            CoverUrl = request.CoverUrl
+        };
+
+        // 2. Persist to PostgreSQL
+        context.Books.Add(entity);
+        await context.SaveChangesAsync();
+
+        // 3. Map Entity to Response DTO
+        return MapToResponse(entity);
+    }
+
+    private static BookResponse MapToResponse(Book b) =&gt;
+        new(b.Id, b.Title, b.PublishedYear, b.Summary, b.CoverUrl,
+            b.Authors.Select(a =&gt; new AuthorSummaryResponse(a.Id, a.Name)).ToList());
+}">نسخ الخدمة</button>
+      </div>
+      <pre><code class="language-csharp">namespace Raff.Services;
+
+public class BookService(BooksContext context) : IBookService
+{
+    public async Task&lt;BookResponse&gt; CreateBookAsync(CreateBookRequest request)
+    {
+        // 1. Map DTO to Entity
+        var entity = new Book
+        {
+            Title = request.Title,
+            PublishedYear = request.PublishedYear,
+            Summary = request.Summary,
+            CoverUrl = request.CoverUrl
+        };
+
+        // 2. Persist to PostgreSQL
+        context.Books.Add(entity);
+        await context.SaveChangesAsync();
+
+        // 3. Map Entity to Response DTO
+        return MapToResponse(entity);
+    }
+
+    private static BookResponse MapToResponse(Book b) =&gt;
+        new(b.Id, b.Title, b.PublishedYear, b.Summary, b.CoverUrl,
+            b.Authors.Select(a =&gt; new AuthorSummaryResponse(a.Id, a.Name)).ToList());
+}</code></pre>
+      <div class="code-explanation">
+        <strong>دور الخدمة:</strong> لا تعرف شيئًا عن HTTP. لا إشارات إلى <code>HttpContext</code> ولا رموز الحالة ولا <code>IActionResult</code>. وقابلة لاختبار الوحدة بالكامل.
+      </div>
+    </div>
+
+    <div class="code-container">
+      <div class="code-header">
+        <div class="code-badge-group">
+          <span class="code-lang-tag">C#</span>
+          <span class="code-filename">Controllers/BookController.cs</span>
+          <span class="code-type-pill">طبقة موائم HTTP</span>
+        </div>
+        <button class="btn-copy-code" data-code="using Microsoft.AspNetCore.Mvc;
+using Raff.DTOs;
+using Raff.Services;
+
+namespace Raff.Controllers;
+
+[ApiController]
+[Route(&quot;api/[controller]&quot;)]
+public class BookController(IBookService bookService) : ControllerBase
+{
+    [HttpGet(&quot;{id:int}&quot;)]
+    public async Task&lt;IActionResult&gt; GetBook([FromRoute] int id)
+    {
+        var book = await bookService.GetBookByIdAsync(id);
+        return Ok(book);
+    }
+
+    [HttpPost]
+    public async Task&lt;IActionResult&gt; Create([FromBody] CreateBookRequest request)
+    {
+        var created = await bookService.CreateBookAsync(request);
+
+        // RESTful Best Practice: 201 Created + Location Header
+        return CreatedAtAction(
+            nameof(GetBook),
+            new { id = created.Id },
+            created);
+    }
+}">نسخ المتحكم</button>
+      </div>
+      <pre><code class="language-csharp">using Microsoft.AspNetCore.Mvc;
+using Raff.DTOs;
+using Raff.Services;
+
+namespace Raff.Controllers;
+
+[ApiController]
+[Route("api/[controller]")]
+public class BookController(IBookService bookService) : ControllerBase
+{
+    [HttpGet("{id:int}")]
+    public async Task&lt;IActionResult&gt; GetBook([FromRoute] int id)
+    {
+        var book = await bookService.GetBookByIdAsync(id);
+        return Ok(book);
+    }
+
+    [HttpPost]
+    public async Task&lt;IActionResult&gt; Create([FromBody] CreateBookRequest request)
+    {
+        var created = await bookService.CreateBookAsync(request);
+
+        // RESTful Best Practice: 201 Created + Location Header
+        return CreatedAtAction(
+            nameof(GetBook),
+            new { id = created.Id },
+            created);
+    }
+}</code></pre>
+      <div class="code-explanation">
+        <strong>دور المتحكم:</strong> بوابة HTTP خالصة. يحوّل JSON الوارد إلى DTO ويفوّض العمل للخدمة ويصدر ردود HTTP قياسية: يولّد <code>CreatedAtAction</code> الاستجابة <code>201 Created</code> مع الترويسة <code>Location: /api/books/42</code>.
+      </div>
+    </div>
+
+    <h2>2. ملخص مصفوفة المسؤوليات</h2>
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>المكوّن</th>
+            <th>مسؤوليته الأساسية</th>
+            <th>الاعتماديات المسموحة</th>
+            <th>الاعتماديات الممنوعة</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>المتحكم (Controller)</strong></td>
+            <td>رموز حالة HTTP والتوجيه وربط النماذج والترويسات</td>
+            <td>الخدمات وDTO و<code>ControllerBase</code></td>
+            <td>استدعاءات DbContext من EF Core مباشرة، ومنطق التحقق من قواعد العمل</td>
+          </tr>
+          <tr>
+            <td><strong>خدمة التطبيق (Service)</strong></td>
+            <td>منطق الأعمال وتنسيق سير العمل وإسناد الكيانات</td>
+            <td>‏DbContext الخاص بـ EF Core والمستودعات ونماذج النطاق</td>
+            <td><code>HttpContext</code> و<code>IActionResult</code> ورموز حالة HTTP</td>
+          </tr>
+          <tr>
+            <td><strong>كيان EF Core</strong></td>
+            <td>تمثيل قاعدة البيانات العلائقية وحالة الاستمرارية</td>
+            <td>سمات النطاق والتنقل العلائقي</td>
+            <td>كائنات DTO للواجهة ومكتبات HTTP وسمات تسلسل JSON</td>
+          </tr>
+          <tr>
+            <td><strong>‏DTO</strong></td>
+            <td>عقد الشبكة وقواعد التحقق من المدخلات</td>
+            <td>سمات التحقق الأساسية</td>
+            <td>مكتبات قواعد البيانات ومراجع EF Core</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2>3. خريطة الطريق: الاستعداد للوحدات القادمة</h2>
+    <p>
+      مبروك! لقد أتقنت الأسس الجوهرية لـ HTTP والتوجيه وربط النماذج وعقود DTO ودلالات التحديث. وتمهّد هذه المبادئ التأسيسية للوحدات القادمة في منهجنا الخلفي:
+    </p>
+    <ul>
+      <li><strong>الوحدة 2 — التحقق ومعالجة الأخطاء:</strong> مسارات FluentValidation والمحقّقات المخصّصة ووسيطة <code>IExceptionHandler</code> مركزية.</li>
+      <li><strong>الوحدة 3 — التعمق في EF Core:</strong> آليات تتبّع التغييرات ومنع استعلامات N+1 والإسقاط عبر <code>Select()</code> ورموز التزامن في PostgreSQL ‏(<code>xmin</code>).</li>
+      <li><strong>الوحدة 4 — المعمارية والاختبار:</strong> حدود المعمارية النظيفة وأنماط المستودعات والاختبار التكاملي بـ <code>WebApplicationFactory</code> وTestcontainers.</li>
+      <li><strong>الوحدة 5 — المصادقة والأمان:</strong> مصادقة حامل JWT وسياسات الأدوار والمطالبات وتحديد المعدل.</li>
+    </ul>
+
+    <!-- Knowledge Check 7.1 -->
+    <div class="exercise-card" id="qc-7-1">
+      <div class="exercise-header">
+        <div class="exercise-title-group">
+          <span class="exercise-badge">اختبار المعرفة 7.1</span>
+          <span>دلالات CreatedAtAction</span>
+        </div>
+      </div>
+      <div class="exercise-body">
+        <div class="exercise-prompt">
+          لماذا يُفضَّل <code>CreatedAtAction(nameof(GetBook), new { id = created.Id }, created)</code> على <code>Ok(created)</code> عند إنشاء مورد عبر <code>[HttpPost]</code>؟
+        </div>
+        <div class="quiz-options" data-qid="qc-7-1">
+          <div class="quiz-option" data-opt="0">
+            <div class="option-indicator">A</div>
+            <div class="option-text">لأن <code>CreatedAtAction</code> يولّد تلقائيًا رمز الحالة القياسي 201 Created ويملأ ترويسة الاستجابة <code>Location</code> بعنوان المورد المنشأ حديثًا.</div>
+          </div>
+          <div class="quiz-option" data-opt="1">
+            <div class="option-indicator">B</div>
+            <div class="option-text">لأن ASP.NET Core لا يدعم <code>Ok(created)</code> في إجراءات POST.</div>
+          </div>
+          <div class="quiz-option" data-opt="2">
+            <div class="option-indicator">C</div>
+            <div class="option-text">لأنه يجبر PostgreSQL على تنفيذ المعاملة (commit) فورًا.</div>
+          </div>
+          <div class="quiz-option" data-opt="3">
+            <div class="option-indicator">D</div>
+            <div class="option-text">لأنه يمنع متصفحات العملاء من تخزين طلبات GET مؤقتًا.</div>
+          </div>
+        </div>
+        <div class="exercise-footer">
+          <button class="btn-primary btn-submit-quiz" data-qid="qc-7-1">أرسل الإجابة</button>
+          <button class="btn-secondary btn-retry-quiz" data-qid="qc-7-1" style="display:none;">إعادة المحاولة</button>
+        </div>
+        <div class="quiz-feedback" id="feedback-qc-7-1"></div>
+      </div>
+    </div>
+
+    <!-- Knowledge Check 7.2 -->
+    <div class="exercise-card" id="qc-7-2">
+      <div class="exercise-header">
+        <div class="exercise-title-group">
+          <span class="exercise-badge">اختبار المعرفة 7.2</span>
+          <span>نظافة الحدود المعمارية</span>
+        </div>
+      </div>
+      <div class="exercise-body">
+        <div class="exercise-prompt">
+          لماذا يُعدّ إرجاع <code>IActionResult</code> (مثل <code>NotFound()</code> أو <code>Ok()</code>) من دالّة في <code>BookService</code> نمطًا معاكسًا معماريًا؟
+        </div>
+        <div class="quiz-options" data-qid="qc-7-2">
+          <div class="quiz-option" data-opt="0">
+            <div class="option-indicator">A</div>
+            <div class="option-text">لأن <code>IActionResult</code> لا يمكن إرجاعه إلا من دوال متزامنة.</div>
+          </div>
+          <div class="quiz-option" data-opt="1">
+            <div class="option-indicator">B</div>
+            <div class="option-text">لأنه يقرن خدمة التطبيق بطبقة عرض الويب في ASP.NET Core، فيمنع إعادة استخدام الخدمة في عمّال الخلفية وأدوات سطر الأوامر ونقاط gRPC، ويصعّب اختبار الوحدة.</div>
+          </div>
+          <div class="quiz-option" data-opt="2">
+            <div class="option-indicator">C</div>
+            <div class="option-text">لأن C# لا تسمح للواجهات بالتصريح عن دوال تعيد <code>IActionResult</code>.</div>
+          </div>
+          <div class="quiz-option" data-opt="3">
+            <div class="option-indicator">D</div>
+            <div class="option-text">لأن EF Core سيرفض تنفيذ استعلامات LINQ داخل دوال تعيد <code>IActionResult</code>.</div>
+          </div>
+        </div>
+        <div class="exercise-footer">
+          <button class="btn-primary btn-submit-quiz" data-qid="qc-7-2">أرسل الإجابة</button>
+          <button class="btn-secondary btn-retry-quiz" data-qid="qc-7-2" style="display:none;">إعادة المحاولة</button>
+        </div>
+        <div class="quiz-feedback" id="feedback-qc-7-2"></div>
+      </div>
+    </div>
+
+    <!-- Knowledge Check 7.3 -->
+    <div class="exercise-card" id="qc-7-3">
+      <div class="exercise-header">
+        <div class="exercise-title-group">
+          <span class="exercise-badge">اختبار المعرفة 7.3</span>
+          <span>التحقق من التدفق كاملًا</span>
+        </div>
+      </div>
+      <div class="exercise-body">
+        <div class="exercise-prompt">
+          في تدفقنا من البداية إلى النهاية، من المسؤول تمامًا عن تحويل وحدات JSON الخام القادمة من العميل إلى سجل C# قوي الأنواع وهو <code>CreateBookRequest</code>؟
+        </div>
+        <div class="quiz-options" data-qid="qc-7-3">
+          <div class="quiz-option" data-opt="0">
+            <div class="option-indicator">A</div>
+            <div class="option-text">الفئة <code>BookService</code> داخل <code>CreateBookAsync</code>.</div>
+          </div>
+          <div class="quiz-option" data-opt="1">
+            <div class="option-indicator">B</div>
+            <div class="option-text">محرّك ربط النماذج في ASP.NET Core ومُنسِّق إدخال JSON المهيأ لديه ‏(<code>System.Text.Json</code>).</div>
+          </div>
+          <div class="quiz-option" data-opt="2">
+            <div class="option-indicator">C</div>
+            <div class="option-text">مفكّك تسلسل JSONB الأصلي في PostgreSQL.</div>
+          </div>
+          <div class="quiz-option" data-opt="3">
+            <div class="option-indicator">D</div>
+            <div class="option-text">متتبّع التغييرات <code>BooksContext</code> في EF Core.</div>
+          </div>
+        </div>
+        <div class="exercise-footer">
+          <button class="btn-primary btn-submit-quiz" data-qid="qc-7-3">أرسل الإجابة</button>
+          <button class="btn-secondary btn-retry-quiz" data-qid="qc-7-3" style="display:none;">إعادة المحاولة</button>
+        </div>
+        <div class="quiz-feedback" id="feedback-qc-7-3"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="lesson-nav-footer">
+    <button class="btn-complete-lesson" data-lesson="lesson-7">
+      <span class="complete-checkbox">✓</span> أكمل الدرس 7
+    </button>
+    <button class="btn-primary btn-next-lesson" data-target="assessment">
+      ابدأ التقييم الختامي للوحدة 1 ←
+    </button>
+  </div>
+`
+    },
+
     'assessment': {
       nav: 'التقييم الختامي (80%)',
       content: `
