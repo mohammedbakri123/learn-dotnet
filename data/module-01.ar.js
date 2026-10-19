@@ -1885,6 +1885,352 @@ Host: api.raff.local</code></pre>
 `
     },
 
+    'lesson-5': {
+      nav: 'الكيانات وDTO والعقود',
+      content: `
+  <div class="lesson-header-box">
+    <div class="lesson-meta-bar">
+      <span class="lesson-pill">الدرس 5</span>
+      <span class="badge-time">قراءة وتمارين في 35 دقيقة</span>
+    </div>
+    <h1 class="lesson-h1">الكيانات وكائنات DTO وعقود الواجهة</h1>
+    <p class="lesson-lead">
+      افهم لماذا يمكن أن يسبب إرجاع كيانات قاعدة البيانات مباشرة ثغرات الإسناد الجماعي وأعطال التسلسل الدائري والاقتران المعماري المحكم — وكيف تصوغ عقود DTO مرنة.
+    </p>
+  </div>
+
+  <div class="content-body">
+    <h2>1. الكيانات مقابل كائنات نقل البيانات (DTO)</h2>
+    <p>
+      في قاعدة كود Raff لديك كيانات قاعدة بيانات مثل <code>Book</code> وسجلات DTO مثل <code>createBookDto</code> و<code>BookDto</code>. لنعرّف التمييز الجوهري بينهما:
+    </p>
+
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>المفهوم</th>
+            <th>الغرض الأساسي</th>
+            <th>العمر والنطاق</th>
+            <th>ماذا يحتوي؟</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>كيان EF Core</strong> (مثل <code>Book</code>)</td>
+            <td>يمثّل بنية التخزين في قاعدة البيانات وحالة الاستمرارية العلائقية.</td>
+            <td>داخلي في طبقة الوصول إلى البيانات/الخدمة؛ يتتبّعه <code>DbContext</code>.</td>
+            <td>المفاتيح الأساسية والأجنبية وخصائص التنقل (<code>Authors</code>) وأنواع أعمدة قاعدة البيانات وطوابع التدقيق الزمنية.</td>
+          </tr>
+          <tr>
+            <td><strong>DTO</strong> (مثل <code>CreateBookDto</code> و<code>BookDto</code>)</td>
+            <td>يمثّل عقد الشبكة العام بين العميل والخادم.</td>
+            <td>صيغة خارجية تُسلسَل إلى JSON وتُفكّ منه عبر HTTP.</td>
+            <td>الحقول المطلوبة بدقة لتلك العملية بعينها فقط.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2>2. الخطايا الأربع القاتلة لإرجاع الكيانات مباشرة</h2>
+    <p>
+      كثيرًا ما يسأل المطوّرون المبتدئون: <em>«لماذا لا نعيد ببساطة <code>await context.Books.ToListAsync()</code> من المتحكم مباشرة؟»</em>
+      <br>
+      إليك الأسباب الأربعة التي تجعل فعل ذلك في بيئة الإنتاج يولّد أخطاء جسيمة وثغرات أمنية:
+    </p>
+
+    <div class="callout callout-danger">
+      <div class="callout-icon">💣</div>
+      <div class="callout-content">
+        <div class="callout-title">1. ثغرة الإسناد الجماعي (Over-Posting)</div>
+        <p>
+          إذا ربط إجراؤك الكيان مباشرة بالشكل <code>public IActionResult Create([FromBody] Book book)</code>، يمكن لمهاجم إرسال:
+        </p>
+        <pre style="margin: 0.5rem 0; padding: 0.5rem;"><code class="language-json">{
+  "title": "Innocent Book",
+  "isDeleted": true,
+  "tenantId": "victim-company",
+  "approvedByAdmin": true
+}</code></pre>
+        <p>
+          فإذا كان كيان <code>Book</code> يحتوي هذه الخصائص، سيربطها ASP.NET Core مباشرة! وستحفظها EF Core في قاعدة البيانات دون أن يدري كودك. أما كائنات DTO فتعمل كقائمة بيضاء صارمة.
+        </p>
+      </div>
+    </div>
+
+    <div class="callout callout-danger">
+      <div class="callout-icon">🔄</div>
+      <div class="callout-content">
+        <div class="callout-title">2. الدوران المرجعي وانهيار التسلسل</div>
+        <p>
+          في Raff يحتوي <code>Book</code> على قائمة <code>Authors</code>، ويحتوي <code>Author</code> على قائمة <code>Books</code>. وعندما يحاول <code>System.Text.Json</code> تسلسل الكيان يتتبّع:
+          <br>
+          <code>Book → Author → Book → Author → ...</code>
+          <br>
+          فيرمي المسلسِل الاستثناء <code>JsonException: A possible object cycle was detected</code>، وتعيد الواجهة خطأ 500!
+        </p>
+      </div>
+    </div>
+
+    <div class="callout callout-warning">
+      <div class="callout-icon">🔓</div>
+      <div class="callout-content">
+        <div class="callout-title">3. كشف بيانات حساسة أو داخلية عن طريق الخطأ</div>
+        <p>
+          تحتوي الكيانات غالبًا على بيانات وصفية داخلية: رموز التزامن في PostgreSQL ‏(<code>xmin</code>) وتجزئات كلمات المرور وأعلام الحذف الناعم والمعرّفات الداخلية وسجلات تدقيق المستخدمين. وإرجاع الكيانات يسرّب هذه البنية الداخلية إلى الإنترنت العام.
+        </p>
+      </div>
+    </div>
+
+    <div class="callout callout-warning">
+      <div class="callout-icon">⛓️</div>
+      <div class="callout-content">
+        <div class="callout-title">4. اقتران معماري محكم</div>
+        <p>
+          إذا أعدت تسمية عمود في جدول PostgreSQL أو قسّمت جدولًا إلى اثنين، سيتعطّل فورًا كل عميل جوّال وويب يستهلك واجهتك! أما كائنات DTO فتفصل عقودك العامة عن مخطط قاعدة بياناتك.
+        </p>
+      </div>
+    </div>
+
+    <h2>3. تصنيف كائنات DTO في C# الحديثة</h2>
+    <p>
+      في .NET الحديثة ‏(C# 9+) توفّر <strong>سجلات C# الموضعية (positional records)</strong> أنظف صياغة ثابتة (immutable) لعقود DTO. لنصمّم عائلة DTO في Raff:
+    </p>
+
+    <div class="code-container">
+      <div class="code-header">
+        <div class="code-badge-group">
+          <span class="code-lang-tag">C#</span>
+          <span class="code-filename">DTOs/BookDtos.cs</span>
+          <span class="code-type-pill">Contract Definitions</span>
+        </div>
+        <button class="btn-copy-code" data-code="// Request DTO for creating a book (No ID because PostgreSQL generates it)
+public record CreateBookDto(
+    string Title,
+    int PublishedYear,
+    string? Summary,
+    string? CoverUrl);
+
+// Request DTO for updating a book
+public record UpdateBookDto(
+    string? Title,
+    int? PublishedYear,
+    string? Summary,
+    string? CoverUrl);
+
+// Response DTO tailored for read operations (Hides DB internals)
+public record BookDto(
+    int Id,
+    string Title,
+    int PublishedYear,
+    string? Summary,
+    string? CoverUrl,
+    IReadOnlyList&lt;AuthorSummaryDto&gt; Authors);
+
+public record AuthorSummaryDto(
+    int Id,
+    string Name);">Copy DTO Definitions</button>
+      </div>
+      <pre><code class="language-csharp">// Request DTO for creating a book (No ID because PostgreSQL generates it)
+public record CreateBookDto(
+    string Title,
+    int PublishedYear,
+    string? Summary,
+    string? CoverUrl);
+
+// Request DTO for updating a book
+public record UpdateBookDto(
+    string? Title,
+    int? PublishedYear,
+    string? Summary,
+    string? CoverUrl);
+
+// Response DTO tailored for read operations (Hides DB internals)
+public record BookDto(
+    int Id,
+    string Title,
+    int PublishedYear,
+    string? Summary,
+    string? CoverUrl,
+    IReadOnlyList&lt;AuthorSummaryDto&gt; Authors);
+
+public record AuthorSummaryDto(
+    int Id,
+    string Name);</code></pre>
+      <div class="code-explanation">
+        <strong>رؤى التصميم:</strong> لاحظ أن <code>CreateBookDto</code> لا يتضمن خاصية <code>Id</code> لأن قاعدة البيانات تولّدها عبر تسلسل تلقائي الزيادة. ويعيد <code>BookDto</code> قائمة نظيفة من <code>AuthorSummaryDto</code> تمنع حلقات خصائص التنقل الدائرية.
+      </div>
+    </div>
+
+    <h2>4. استراتيجيات الإسناد: يدويًا أم بالمكتبات؟</h2>
+    <p>
+      في ملفك <code>BookService.cs</code> تُسند البيانات حاليًا عبر دوال مساعدة خاصة:
+    </p>
+
+    <div class="code-container">
+      <div class="code-header">
+        <div class="code-badge-group">
+          <span class="code-lang-tag">C#</span>
+          <span class="code-filename">Services/BookService.cs</span>
+          <span class="code-type-pill">Manual Mapping</span>
+        </div>
+      </div>
+      <pre><code class="language-csharp">private BookDto Map(Book b)
+{
+    return new BookDto(
+        b.Id,
+        b.Title,
+        b.PublishedYear,
+        b.Summary,
+        b.CoverUrl,
+        b.Authors.Select(a =&gt; new AuthorSummaryDto(a.Id, a.Name)).ToList()
+    );
+}</code></pre>
+      <div class="code-explanation">
+        <strong>تحليل المقايضة:</strong>
+        <br>
+        <strong>الإسناد اليدوي (مُوصى به لمعظم التطبيقات):</strong> صريح ومتحقَّق منه بالكامل وقت الترجمة، وبلا كلفة انعكاس (reflection)، وسهل التتبّع في المنقّح.
+        <br>
+        <strong>المكتبات (AutoMapper وMapster):</strong> تقلّل الكود المتكرر في الأنظمة الضخمة ذات المئات من الكيانات، لكنها قد تخفي أخطاء الإسناد حتى وقت التشغيل وتضيف كلفة انعكاس خفية.
+      </div>
+    </div>
+
+    <h2>5. إسناد البيانات مقابل التحقق من قواعد العمل</h2>
+    <p>
+      لا تخلط أبدًا بين <strong>الإسناد</strong> و<strong>التحقق من قواعد العمل</strong>:
+    </p>
+    <ul>
+      <li><strong>الإسناد:</strong> نقل البيانات من شكل كائن إلى آخر (مثل نسخ <code>dto.Title</code> إلى <code>book.Title</code>).</li>
+      <li><strong>التحقق من قواعد العمل:</strong> التأكد من قواعد النطاق وثوابته (مثل <em>«هل سنة النشر بين 1800 والسنة الحالية؟»</em> و<em>«هل هذا المؤلف موجود فعلًا في قاعدة البيانات؟»</em> و<em>«هل يملك المستخدم صلاحية تعديل هذا الكتاب؟»</em>).</li>
+    </ul>
+
+    <!-- Knowledge Check 5.1 -->
+    <div class="exercise-card" id="qc-5-1">
+      <div class="exercise-header">
+        <div class="exercise-title-group">
+          <span class="exercise-badge">اختبار المعرفة 5.1</span>
+          <span>المخاطر الأمنية لكشف الكيانات</span>
+        </div>
+      </div>
+      <div class="exercise-body">
+        <div class="exercise-prompt">
+          ما الثغرة الأمنية الأساسية الناشئة عن قبول كيان قاعدة بيانات من EF Core مباشرة كمعامل في إجراء <code>[HttpPost]</code>؟
+        </div>
+        <div class="quiz-options" data-qid="qc-5-1">
+          <div class="quiz-option" data-opt="0">
+            <div class="option-indicator">A</div>
+            <div class="option-text">حقن SQL عبر معامل المسار.</div>
+          </div>
+          <div class="quiz-option" data-opt="1">
+            <div class="option-indicator">B</div>
+            <div class="option-text">الإسناد الجماعي (Over-posting): يمكن لمهاجم إرسال حقول JSON تقابل خصائص كيان داخلية لم يُقصد أبدًا أن يعدّلها العميل.</div>
+          </div>
+          <div class="quiz-option" data-opt="2">
+            <div class="option-indicator">C</div>
+            <div class="option-text">هجمات XSS في سجل معاملات قاعدة البيانات.</div>
+          </div>
+          <div class="quiz-option" data-opt="3">
+            <div class="option-indicator">D</div>
+            <div class="option-text">فيضان المخزن المؤقت (buffer overflow) في قارئ مقبس Kestrel.</div>
+          </div>
+        </div>
+        <div class="exercise-footer">
+          <button class="btn-primary btn-submit-quiz" data-qid="qc-5-1">أرسل الإجابة</button>
+          <button class="btn-secondary btn-retry-quiz" data-qid="qc-5-1" style="display:none;">إعادة المحاولة</button>
+        </div>
+        <div class="quiz-feedback" id="feedback-qc-5-1"></div>
+      </div>
+    </div>
+
+    <!-- Knowledge Check 5.2 -->
+    <div class="exercise-card" id="qc-5-2">
+      <div class="exercise-header">
+        <div class="exercise-title-group">
+          <span class="exercise-badge">اختبار المعرفة 5.2</span>
+          <span>حلّ الدوران المرجعي</span>
+        </div>
+      </div>
+      <div class="exercise-body">
+        <div class="exercise-prompt">
+          في Raff يشير كيان <code>Book</code> إلى قائمة كيانات <code>Author</code>، ويشير كل <code>Author</code> إلى قائمة كيانات <code>Book</code>. فلماذا يحلّ إرجاع <code>BookDto</code> مخصص أعطال تسلسل JSON؟
+        </div>
+        <div class="quiz-options" data-qid="qc-5-2">
+          <div class="quiz-option" data-opt="0">
+            <div class="option-indicator">A</div>
+            <div class="option-text">تعطّل كائنات DTO ضغط JSON على الشبكة.</div>
+          </div>
+          <div class="quiz-option" data-opt="1">
+            <div class="option-indicator">B</div>
+            <div class="option-text">يعرّف DTO بنية مسطّحة أو هرمية تقطع حلقة التنقل ثنائية الاتجاه، فتسقط فقط حقول المؤلف اللازمة دون الرجوع إلى مجموعة الكتب مجددًا.</div>
+          </div>
+          <div class="quiz-option" data-opt="2">
+            <div class="option-indicator">C</div>
+            <div class="option-text">تجبر كائنات DTO تطبيق ASP.NET Core على التسلسل بصيغة XML بدل JSON.</div>
+          </div>
+          <div class="quiz-option" data-opt="3">
+            <div class="option-indicator">D</div>
+            <div class="option-text">يحذف Entity Framework علاقة المؤلف تلقائيًا عند إنشاء DTO.</div>
+          </div>
+        </div>
+        <div class="exercise-footer">
+          <button class="btn-primary btn-submit-quiz" data-qid="qc-5-2">أرسل الإجابة</button>
+          <button class="btn-secondary btn-retry-quiz" data-qid="qc-5-2" style="display:none;">إعادة المحاولة</button>
+        </div>
+        <div class="quiz-feedback" id="feedback-qc-5-2"></div>
+      </div>
+    </div>
+
+    <!-- Knowledge Check 5.3 -->
+    <div class="exercise-card" id="qc-5-3">
+      <div class="exercise-header">
+        <div class="exercise-title-group">
+          <span class="exercise-badge">اختبار المعرفة 5.3</span>
+          <span>تصميم عقدDTO</span>
+        </div>
+      </div>
+      <div class="exercise-body">
+        <div class="exercise-prompt">
+          لماذا يُوصى بفصل <code>CreateBookDto</code> و<code>BookDto</code> بدل إعادة استخدام فئة واحدة للإنشاء والقراءة معًا؟
+        </div>
+        <div class="quiz-options" data-qid="qc-5-3">
+          <div class="quiz-option" data-opt="0">
+            <div class="option-indicator">A</div>
+            <div class="option-text">لأن C# لا تسمح باستخدام الفئة نفسها في أكثر من دالّة متحكم.</div>
+          </div>
+          <div class="quiz-option" data-opt="1">
+            <div class="option-indicator">B</div>
+            <div class="option-text">لأن إنشاء كتاب لا يوفّر معرّفًا تولّده قاعدة البيانات، بينما تتطلب قراءة الكتاب معرّفًا؛ ووجود DTO منفصلين يعكس بدقة عقدي العمليتين المختلفين.</div>
+          </div>
+          <div class="quiz-option" data-opt="2">
+            <div class="option-indicator">C</div>
+            <div class="option-text">لأن EF Core يرمي استثناءً إذا احتوى معامل إدخال على كلمة "Response".</div>
+          </div>
+          <div class="quiz-option" data-opt="3">
+            <div class="option-indicator">D</div>
+            <div class="option-text">لمنع PostgreSQL من تخزين خطط الاستعلام مؤقتًا.</div>
+          </div>
+        </div>
+        <div class="exercise-footer">
+          <button class="btn-primary btn-submit-quiz" data-qid="qc-5-3">أرسل الإجابة</button>
+          <button class="btn-secondary btn-retry-quiz" data-qid="qc-5-3" style="display:none;">إعادة المحاولة</button>
+        </div>
+        <div class="quiz-feedback" id="feedback-qc-5-3"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="lesson-nav-footer">
+    <button class="btn-complete-lesson" data-lesson="lesson-5">
+      <span class="complete-checkbox">✓</span> أكمل الدرس 5
+    </button>
+    <button class="btn-primary btn-next-lesson" data-target="lesson-6">
+      التالي: ‏PUT وPATCH والتحديثات الجزئية ←
+    </button>
+  </div>
+`
+    },
+
     'assessment': {
       nav: 'التقييم الختامي (80%)',
       content: `
