@@ -600,5 +600,70 @@ window.RAFF_MODULE_02_AR = {
   ],
 
   lessons: {
+
+    'lesson-0': {
+      nav: 'نظرة عامة والمخرجات',
+      content: `
+      <div class="lesson-header-box">
+        <div class="lesson-badge-top">الوحدة 2 • المعمارية والوصول إلى البيانات</div>
+        <h1 class="lesson-title">أعماق EF Core وتتبّع التغييرات وتنفيذ الاستعلامات</h1>
+        <p class="lesson-subtitle">إتقان الميكانيكا الداخلية لـ Entity Framework Core 10 وNpgsql في واجهة تتبّع الكتب Raff.</p>
+        <div class="lesson-meta-bar">
+          <span>🎯 المستوى: علوم حاسوب متقدمة / مهندس .NET مبتدئ</span>
+          <span>⏱️ الوتيرة: تعلّم ذاتي (7 دروس معمّقة)</span>
+          <span>🐘 المحرّك: EF Core 10 + Npgsql + PostgreSQL</span>
+        </div>
+      </div>
+
+      <div class="callout callout-info">
+        <div class="callout-title">📖 السياق: الواجهة الخلفية لـ Raff</div>
+        <p>في الوحدة 1 أتقنت دلالات HTTP على الشبكة وقوالب المسارات ورموز الحالة وعقود DTO وتحديات التحديث الجزئي. وفي <strong>Raff</strong> لديك بالفعل <code>BooksController</code> عامل، و<code>BooksContext</code> مشتق من <code>DbContext</code>، وكيان <code>Book</code> مقترن بجدول PostgreSQL.</p>
+        <p>الآن ننتقل إلى ما تحت السطح. لقد بلغت القسم 1.9 من كتاب <em>Entity Framework Core in Action</em>. تعلّمك هذه الوحدة <strong>ما يفعله EF Core فعليًا خلف الكواليس</strong>: كيف يعمل تتبّع التغييرات، ولماذا يعدّ <code>DbContext</code> وحدة عمل (Unit of Work)، وكيف تُترجم أشجار تعبيرات LINQ إلى SQL في PostgreSQL، وكيف تنقّح تفاعلات قاعدة البيانات وتحسّنها كما يفعل مهندس خلفي محترف.</p>
+      </div>
+
+      <h2>خريطة الوحدة</h2>
+      <div class="roadmap-grid">
+        <div class="roadmap-card">
+          <div class="roadmap-num">01</div>
+          <div class="roadmap-title">النموذج الذهني لـ EF Core</div>
+          <div class="roadmap-desc">الإسقاط العلائقي، وحدود تجريد الـ ORM، والانفصال بين مساري الاستعلام والتحديث.</div>
+        </div>
+        <div class="roadmap-card">
+          <div class="roadmap-num">02</div>
+          <div class="roadmap-title">‏DbContext ونمط Unit of Work</div>
+          <div class="roadmap-desc">الأعمار في حقن التبعيات في ASP.NET Core، وقواعد سلامة الخيوط، ودورة حياة الاتصال، وأنماط التحرير.</div>
+        </div>
+        <div class="roadmap-card">
+          <div class="roadmap-num">03</div>
+          <div class="roadmap-title">حالات الكيان وتتبّع التغييرات</div>
+          <div class="roadmap-desc">حالات الكيان الخمس، ومقارنة اللقطات، وDetectChanges، وDebugView، ومخاطر <code>Update()</code>. مع محاكي تفاعلي!</div>
+        </div>
+        <div class="roadmap-card">
+          <div class="roadmap-num">04</div>
+          <div class="roadmap-title">التتبّع مقابل عدم التتبّع</div>
+          <div class="roadmap-desc">تحسين الأداء للقراءة فقط عبر <code>AsNoTracking()</code>، وحلّ الهوية، والبحث في الذاكرة بـ<code>FindAsync</code>.</div>
+        </div>
+        <div class="roadmap-card">
+          <div class="roadmap-num">05</div>
+          <div class="roadmap-title">SaveChanges وSQL المولَّد</div>
+          <div class="roadmap-desc">ترجمة الحالة إلى SQL، وقيم الإرجاع، والمعاملات الضمنية، ومعالجة <code>DbUpdateConcurrencyException</code>.</div>
+        </div>
+        <div class="roadmap-card">
+          <div class="roadmap-num">06</div>
+          <div class="roadmap-title">LINQ وتنفيذ الاستعلامات</div>
+          <div class="roadmap-desc">أشجار التعبيرات، والتنفيذ المؤجَّل، والعوامل النهائية غير المتزامنة، والتقييم على العميل مقابل الخادم. مع ملعب استعلام تفاعلي!</div>
+        </div>
+        <div class="roadmap-card">
+          <div class="roadmap-num">07</div>
+          <div class="roadmap-title">الإسقاط والتنقيح</div>
+          <div class="roadmap-desc">إسقاطات DTO، و<code>ToQueryString()</code>، وتسجيل EF Core عبر <code>LogTo</code>، واستكشاف الاستعلامات البطيئة أو الفاشلة.</div>
+        </div>
+      </div>
+
+      <div style="margin-top: 2rem; text-align: center;">
+        <button class="btn-primary" style="padding: 0.85rem 2rem; font-size: 1rem;" onclick="switchLesson('lesson-1')">🚀 ابدأ الدرس 1: النموذج الذهني لـ EF Core</button>
+      </div>
+    `
+    }
   }
 };
