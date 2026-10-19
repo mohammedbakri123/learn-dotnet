@@ -244,6 +244,22 @@
     return translated !== undefined && translated !== '' ? translated : obj[field];
   }
 
+  /* Overlay localized content onto a base list.
+     map may be an array aligned by index, or an object keyed by item[keyField]. */
+  function mergeById(list, map, keyField) {
+    if (!list || !map) return list;
+    var key = keyField || 'id';
+    if (Array.isArray(map)) {
+      return list.map(function (item, i) {
+        return map[i] ? Object.assign({}, item, map[i]) : item;
+      });
+    }
+    return list.map(function (item) {
+      var overlay = map[String(item[key])];
+      return overlay ? Object.assign({}, item, overlay) : item;
+    });
+  }
+
   /* ---------------- language toggle button ---------------- */
 
   function initToggle(options) {
@@ -275,6 +291,7 @@
     t: t,
     pick: pick,
     localized: localized,
+    mergeById: mergeById,
     onChange: onChange,
     initToggle: initToggle
   };

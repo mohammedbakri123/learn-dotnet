@@ -243,6 +243,24 @@
     }
   });
 
+  /* Arabic content overlays (data/module-01.ar.js). English fallback when absent. */
+  const OV = (RaffI18n.get() === 'ar') ? (window.RAFF_MODULE_01_AR || null) : null;
+  let QUESTIONS = QUESTIONS_DB;
+  let LESSONS = MODULE_LESSONS;
+  let GLOSSARY_ITEMS = GLOSSARY_ITEMS_DATA;
+  let SEARCH = SEARCH_INDEX;
+  if (OV) {
+    if (OV.questions) {
+      QUESTIONS = {};
+      Object.keys(QUESTIONS).forEach((id) => {
+        QUESTIONS[id] = OV.questions[id] ? Object.assign({}, QUESTIONS[id], OV.questions[id]) : QUESTIONS[id];
+      });
+    }
+    if (OV.lessons) LESSONS = RaffI18n.mergeById(MODULE_LESSONS, OV.lessons);
+    if (OV.glossary) GLOSSARY_ITEMS = RaffI18n.mergeById(GLOSSARY_ITEMS_DATA, OV.glossary, 'term');
+    if (OV.search) SEARCH = RaffI18n.mergeById(SEARCH_INDEX, OV.search);
+  }
+
   let appState = {
     theme: 'dark',
     activeLesson: 'lesson-0',
@@ -301,7 +319,7 @@
       btn.innerHTML = isCompleted ? S.completedBadge : S.markComplete;
     });
 
-    const totalChecks = Object.keys(QUESTIONS_DB).filter(id => ASSESSMENT_IDS.indexOf(id) === -1).length;
+    const totalChecks = Object.keys(QUESTIONS).filter(id => ASSESSMENT_IDS.indexOf(id) === -1).length;
     const answered = Object.keys(appState.answers || {}).length;
 
     return {
@@ -351,7 +369,7 @@
     }
 
     const selectedOpt = parseInt(selected.getAttribute('data-opt'), 10);
-    const qData = QUESTIONS_DB[qid];
+    const qData = QUESTIONS[qid];
     if (!qData) return;
 
     const isCorrect = (selectedOpt === qData.correct);
@@ -415,7 +433,7 @@
 
   function restoreQuestionState(qid, ans) {
     const group = document.querySelector(`.quiz-options[data-qid="${qid}"]`);
-    const qData = QUESTIONS_DB[qid];
+    const qData = QUESTIONS[qid];
     if (!group || !qData) return;
 
     const opt = group.querySelector(`.quiz-option[data-opt="${ans.selectedOpt}"]`);
@@ -449,7 +467,7 @@
 
     let html = '';
     ASSESSMENT_IDS.forEach((id, idx) => {
-      const q = QUESTIONS_DB[id];
+      const q = QUESTIONS[id];
       html += `
         <div class="exercise-card" id="${id}">
           <div class="exercise-header">
@@ -512,7 +530,7 @@
         unselectedCount++;
       } else {
         const optNum = parseInt(selected.getAttribute('data-opt'), 10);
-        const qData = QUESTIONS_DB[id];
+        const qData = QUESTIONS[id];
         const isCorrect = (optNum === qData.correct);
         if (isCorrect) correctCount++;
         answers[id] = { selected: optNum, isCorrect };
@@ -545,13 +563,13 @@
     const passed = score >= 80;
 
     for (const [qid, ans] of Object.entries(appState.assessment.answers)) {
-      const qData = QUESTIONS_DB[qid];
+      const qData = QUESTIONS[qid];
       displayQuestionFeedback(qid, ans.isCorrect, qData.exp, ans.selected, qData.correct);
     }
 
     const topics = {};
     for (const [qid, ans] of Object.entries(appState.assessment.answers)) {
-      const q = QUESTIONS_DB[qid];
+      const q = QUESTIONS[qid];
       if (!topics[q.topic]) topics[q.topic] = { total: 0, correct: 0 };
       topics[q.topic].total++;
       if (ans.isCorrect) topics[q.topic].correct++;
@@ -786,7 +804,7 @@
     RaffContent.boot({
       moduleId: 'module-01',
       storageKey: STORAGE_KEY,
-      lessons: MODULE_LESSONS,
+      lessons: LESSONS,
       startId: 'lesson-0',
 
       state: {
@@ -854,11 +872,11 @@
         minChars: 1,
         hint: S.searchHint,
         noMatch: S.searchNoMatch,
-        items: SEARCH_INDEX.map(it => ({ target: it.id, title: it.title, snippet: it.snippet }))
+        items: SEARCH.map(it => ({ target: it.id, title: it.title, snippet: it.snippet }))
       },
 
       glossary: {
-        items: GLOSSARY_ITEMS_DATA,
+        items: GLOSSARY_ITEMS,
         filtersMode: 'none',
         renderItem: (item) => `
           <div class="search-result-item">
