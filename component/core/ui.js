@@ -14,6 +14,8 @@
     openClosesOthers: false
   };
 
+  function T(key) { return window.RaffI18n ? RaffI18n.t(key) : key; }
+
   function $(sel, root) { return (root || document).querySelector(sel); }
   function $$(sel, root) {
     return Array.prototype.slice.call((root || document).querySelectorAll(sel));
@@ -84,7 +86,7 @@
     if (icon) icon.textContent = theme === 'dark' ? '☀️' : '🌙';
     var btn = resolve(o.button);
     if (btn && o.title) {
-      btn.title = 'Switch to ' + (theme === 'dark' ? 'Light' : 'Dark') + ' Theme';
+      btn.title = theme === 'dark' ? T('theme.switchToLight') : T('theme.switchToDark');
     }
     try { localStorage.setItem('raff_learn_theme', theme); } catch (e) { /* storage unavailable */ }
   }
@@ -102,7 +104,7 @@
 
   function initCopyButtons(options) {
     var o = options || {};
-    var fail = o.failToast || 'Could not copy to clipboard.';
+    var fail = o.failToast || T('code.copyFail');
 
     function bind(btn, getText) {
       btn.addEventListener('click', function () {
@@ -114,7 +116,7 @@
           if (!o.feedback) return;
           var original = btn.getAttribute('data-label') || btn.textContent;
           btn.setAttribute('data-label', original);
-          btn.textContent = '✓ Copied!';
+          btn.textContent = T('code.copied');
           if (o.colorFeedback) btn.style.color = 'var(--success)';
           setTimeout(function () {
             btn.textContent = original;
