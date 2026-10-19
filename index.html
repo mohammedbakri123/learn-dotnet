@@ -15,9 +15,9 @@ try{var l=localStorage.getItem('raff_lang');if(l!=='ar'&&l!=='en')l='en';documen
 <div class="hub-wrap">
   <header class="hub-head">
     <div>
-      <div class="hub-kicker">Raff Backend Academy</div>
-      <h1>Curriculum Modules</h1>
-      <p class="hub-lede">Pick a module to start learning. Progress is saved locally per module — use each module's Export button to back it up or move it between machines.</p>
+      <div class="hub-kicker" id="hub-kicker">Raff Backend Academy</div>
+      <h1 id="hub-title">Curriculum Modules</h1>
+      <p class="hub-lede" id="hub-lede">Pick a module to start learning. Progress is saved locally per module — use each module's Export button to back it up or move it between machines.</p>
     </div>
     <div style="display:flex; gap:0.5rem;">
       <button class="btn-icon btn-lang" id="hub-lang-toggle" type="button" title="Switch to Arabic">
@@ -34,7 +34,7 @@ try{var l=localStorage.getItem('raff_lang');if(l!=='ar'&&l!=='en')l='en';documen
   <main class="hub-grid" id="hub-grid" aria-label="Available modules"></main>
 
   <footer class="hub-foot">
-    <p>Each module is self-contained: lessons, knowledge checks, interactive labs, and a final assessment with a local progress file.</p>
+    <p id="hub-foot">Each module is self-contained: lessons, knowledge checks, interactive labs, and a final assessment with a local progress file.</p>
   </footer>
 </div>
 
@@ -46,19 +46,32 @@ try{var l=localStorage.getItem('raff_lang');if(l!=='ar'&&l!=='en')l='en';documen
   'use strict';
 
   function esc(s) { return RaffUI.escapeHtml(s); }
+  function t(key, vars) { return RaffI18n.t(key, vars); }
 
   function moduleStatus(m) {
     try {
       var raw = localStorage.getItem(m.storageKey);
-      if (!raw) return { label: 'Not started', cls: '' };
+      if (!raw) return { label: t('hub.status.notStarted'), cls: '' };
       var p = JSON.parse(raw);
       var cl = p && p.completedLessons;
       var n = Array.isArray(cl) ? cl.length : (cl ? Object.keys(cl).length : 0);
-      if (n > 0) return { label: n + ' lesson' + (n === 1 ? '' : 's') + ' completed', cls: ' in-progress' };
-      return { label: 'In progress', cls: ' in-progress' };
+      if (n > 0) return { label: t('hub.status.lessonsCompleted', { count: n }), cls: ' in-progress' };
+      return { label: t('hub.status.inProgress'), cls: ' in-progress' };
     } catch (e) {
-      return { label: 'Not started', cls: '' };
+      return { label: t('hub.status.notStarted'), cls: '' };
     }
+  }
+
+  function localizeStatic() {
+    document.title = t('hub.docTitle');
+    document.getElementById('hub-kicker').textContent = t('brand.kicker');
+    document.getElementById('hub-title').textContent = t('hub.title');
+    document.getElementById('hub-lede').textContent = t('hub.lede');
+    document.getElementById('hub-foot').textContent = t('hub.footer');
+    document.getElementById('hub-grid').setAttribute('aria-label', t('hub.gridAria'));
+    var themeBtn = document.getElementById('hub-theme-toggle');
+    themeBtn.title = t('header.themeTitle');
+    themeBtn.querySelector('.sr-only').textContent = t('header.themeTitle');
   }
 
   function render() {
@@ -68,13 +81,13 @@ try{var l=localStorage.getItem('raff_lang');if(l!=='ar'&&l!=='en')l='en';documen
       return '<a class="hub-card" href="' + esc(m.file) + '">' +
         '<div class="hub-card-top">' +
           '<span class="hub-card-icon" aria-hidden="true">' + esc(m.icon) + '</span>' +
-          '<span class="hub-card-num">Module ' + esc(m.number) + '</span>' +
+          '<span class="hub-card-num">' + esc(t('hub.moduleLabel', { number: m.number })) + '</span>' +
         '</div>' +
-        '<div class="hub-card-title">' + esc(m.title) + '</div>' +
-        '<div class="hub-card-sub">' + esc(m.subtitle) + '</div>' +
+        '<div class="hub-card-title">' + esc(RaffI18n.localized(m, 'title')) + '</div>' +
+        '<div class="hub-card-sub">' + esc(RaffI18n.localized(m, 'subtitle')) + '</div>' +
         '<div class="hub-card-foot">' +
           '<span class="hub-status' + st.cls + '">' + esc(st.label) + '</span>' +
-          '<span class="hub-open">Open →</span>' +
+          '<span class="hub-open">' + esc(t('hub.open')) + '</span>' +
         '</div></a>';
     }).join('');
   }
@@ -92,6 +105,7 @@ try{var l=localStorage.getItem('raff_lang');if(l!=='ar'&&l!=='en')l='en';documen
 
   RaffI18n.initToggle({ button: 'hub-lang-toggle' });
 
+  localizeStatic();
   render();
 })();
 </script>
