@@ -601,6 +601,279 @@ window.RAFF_MODULE_02_AR = {
 
   lessons: {
 
+    'lesson-5': {
+      nav: 'SaveChanges وSQL المُولَّد',
+      content: `
+      <div class="lesson-header-box">
+        <div class="lesson-badge-top">الدرس 5</div>
+        <h1 class="lesson-title">SaveChanges وانتقالات CRUD وSQL المُولَّد</h1>
+        <p class="lesson-subtitle">إزالة الغموض عمّا يحدث عند تنفيذ SaveChangesAsync، ودلالات القيمة المُعادة، والمعاملات، واستثناءات التزامن.</p>
+      </div>
+
+      <h2>1. حدود تنفيذ SaveChangesAsync</h2>
+      <p>حتى تستدعي <code>SaveChangesAsync()</code> تبقى كل الإضافات والتعديلات والحذوفات في ذاكرة كومة C# فحسب. وعند استدعاء <code>SaveChangesAsync()</code> ينفّذ EF Core التسلسل التالي:</p>
+
+      <div class="steps-container">
+        <div class="step-item">
+          <div class="step-num">1</div>
+          <div class="step-text"><strong>اكتشاف التغييرات:</strong> يقارن خصائص الكيانات الحالية باللقطات الأصلية لتحديد الخصائص المعدّلة.</div>
+        </div>
+        <div class="step-item">
+          <div class="step-num">2</div>
+          <div class="step-text"><strong>توليد SQL:</strong> يبني أوامر SQL معاملات لكل الكيانات <code>Added</code> و<code>Modified</code> و<code>Deleted</code>.</div>
+        </div>
+        <div class="step-item">
+          <div class="step-num">3</div>
+          <div class="step-text"><strong>فتح المعاملة:</strong> يبدأ معاملة قاعدة بيانات ضمنية على الاتصال (إن لم تكن هناك معاملة مفتوحة بالفعل).</div>
+        </div>
+        <div class="step-item">
+          <div class="step-num">4</div>
+          <div class="step-text"><strong>تنفيذ الدفعة:</strong> يرسل دفعة الأوامر عبر الشبكة إلى PostgreSQL بواسطة Npgsql.</div>
+        </div>
+        <div class="step-item">
+          <div class="step-num">5</div>
+          <div class="step-text"><strong>قراءة المفاتيح المُولَّدة:</strong> لأوامر <code>INSERT</code> يقرأ المفاتيح المُولَّدة من قاعدة البيانات (مثلًا عبر <code>RETURNING "Id"</code> في PostgreSQL) ويعبّئ خصائص كيان C#.</div>
+        </div>
+        <div class="step-item">
+          <div class="step-num">6</div>
+          <div class="step-text"><strong>إعادة ضبط الحالات:</strong> يثبّت المعاملة وينقل كيانات <code>Added</code>/<code>Modified</code> إلى <code>Unchanged</code>، وكيانات <code>Deleted</code> إلى <code>Detached</code>.</div>
+        </div>
+      </div>
+
+      <h2>2. ماذا تعني القيمة المُعادة؟</h2>
+      <div class="callout callout-info">
+        <div class="callout-title">💡 القيمة المُعادة عدد صحيح للصفوف المتأثرة</div>
+        <p><code>int affectedRows = await context.SaveChangesAsync();</code></p>
+        <p>العدد الصحيح الذي يعيده <code>SaveChangesAsync()</code> هو <strong>العدد الإجمالي لمدخلات الحالة المكتوبة في قاعدة البيانات</strong>. وهو <em>لا</em> يعيد معرّفًا، و<em>لا</em> يشير إلى ما إذا كان عنصر قد وُجد في استعلام سابق.</p>
+        <p>إذا عدّلت كتابًا واحدًا وأضفت مؤلفَين، يعيد <code>SaveChangesAsync()</code> القيمة <code>3</code>.</p>
+      </div>
+
+      <h2>3. استثناءات التزامن: عندما تتأثر 0 صفوف</h2>
+      <p>عندما يحدّث EF Core كيانًا متتبَّعًا أو يحذفه، يضيف شرطًا لضمان وجود الصف فعلًا في قاعدة البيانات:</p>
+      <code>UPDATE "Books" SET "Title" = @p0 WHERE "Id" = @p1;</code>
+      <p>ويتوقع EF Core أن يؤثر هذا الأمر في صف واحد بالضبط. فماذا يحدث إذا حذف مستخدم آخر الكتاب رقم 42 من PostgreSQL قبل عشر ثوانٍ؟</p>
+      <p>سيؤثر الأمر في <strong>0 صفوف</strong>. وعندما يكتشف EF Core أن 0 صفوف قد حُدّثت أو حُذفت، يطلق فورًا:</p>
+      <code>Microsoft.EntityFrameworkCore.DbUpdateConcurrencyException: Database operation expected to affect 1 row(s) but actually affected 0 row(s).</code>
+
+      
+    <div class="code-wrapper">
+      <div class="code-header">
+        <div class="code-badge-group">
+          <span class="code-lang-tag">C#</span>
+          <span class="code-filename">Services/BookService.cs</span>
+          <span class="code-type-pill pill-complete example">[مثال كامل]</span>
+        </div>
+        <button class="btn-copy" aria-label="نسخ الكود">📋 نسخ</button>
+      </div>
+      <pre><code class="language-c#">
+public async Task&lt;bool&gt; UpdateBookTitleAsync(int id, string newTitle)
+{
+    var book = await _context.Books.FindAsync(id);
+    if (book is null) return false;
+
+    book.Title = newTitle;
+
+    try
+    {
+        await _context.SaveChangesAsync();
+        return true;
+    }
+    catch (DbUpdateConcurrencyException)
+    {
+        // Handle concurrent delete or concurrency token mismatch
+        return false;
+    }
+}
+</code></pre>
+      <div class="code-expl">معالجة استثناءات سليمة حول SaveChangesAsync لتعارضات التزامن.</div>
+    </div>
+    
+
+      <h2>4. المعاملات الذرّية الضمنية</h2>
+      <p>في المزوّدات العلائقية مثل Npgsql لـ PostgreSQL، يغلّف <code>SaveChangesAsync()</code> كل أوامر SQL المُولَّدة تلقائيًا داخل معاملة ذرّية واحدة. فإذا أدخلت 5 كتب وخالف الكتاب الخامس قيدًا فريدًا على العنوان، فستتراجع PostgreSQL عن المعاملة بأكملها. ولن يُثبَّت أي كتاب!</p>
+
+      <h2>ملخص الدرس 5</h2>
+      <ul>
+        <li>‏<code>SaveChangesAsync()</code> هو حدّ التنفيذ الذي تتحول عنده انتقالات الحالة في الذاكرة إلى SQL.</li>
+        <li>القيمة المُعادة هي العدد الإجمالي للصفوف المتأثرة عبر كل العمليات.</li>
+        <li>إذا أثّر أمر UPDATE أو DELETE في 0 صفوف، يطلق EF Core استثناء <code>DbUpdateConcurrencyException</code>.</li>
+        <li>كل العمليات في استدعاء <code>SaveChangesAsync()</code> واحد تُنفَّذ داخل معاملة ذرّية.</li>
+      </ul>
+
+      <h2>اختبارات المعرفة</h2>
+      
+    <div class="exercise-card" id="qc-5-1">
+      <div class="exercise-header">
+        <div class="exercise-title-group">
+          <span class="exercise-badge">اختبار المعرفة</span>
+          <span style="font-weight:600; font-size:0.9rem;">دلالات SaveChangesAsync</span>
+        </div>
+      </div>
+      <div class="exercise-body">
+        <div class="exercise-prompt">ماذا تمثّل القيمة الصحيحة المُعادة من \`await context.SaveChangesAsync()\`؟</div>
+        <div class="quiz-options" data-qid="qc-5-1">
+          
+        <div class="quiz-option" data-opt="0">
+          <div class="option-indicator">A</div>
+          <div class="option-text">معرّف المفتاح الأساسي في قاعدة البيانات لآخر كيان أُدخل.</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="1">
+          <div class="option-indicator">B</div>
+          <div class="option-text">علامة منطقية حيث 1 تعني أن الكتاب المستهدف وُجد و0 تعني أنه لم يوجد.</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="2">
+          <div class="option-indicator">C</div>
+          <div class="option-text">العدد الإجمالي لمدخلات الحالة المكتوبة في قاعدة البيانات (الصفوف المتأثرة بأوامر INSERT وUPDATE وDELETE).</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="3">
+          <div class="option-indicator">D</div>
+          <div class="option-text">عدد المللي ثانية التي استغرقتها PostgreSQL لتنفيذ المعاملة.</div>
+        </div>
+        
+        </div>
+        <div class="exercise-actions">
+          <button class="btn-primary btn-submit-quiz" data-qid="qc-5-1">أرسل الإجابة</button>
+          <button class="btn-secondary btn-retry-quiz" data-qid="qc-5-1" style="display:none;">إعادة المحاولة</button>
+        </div>
+        <div class="quiz-feedback" id="feedback-qc-5-1"></div>
+      </div>
+    </div>
+    
+      
+    <div class="exercise-card" id="qc-5-2">
+      <div class="exercise-header">
+        <div class="exercise-title-group">
+          <span class="exercise-badge">اختبار المعرفة</span>
+          <span style="font-weight:600; font-size:0.9rem;">استثناءات التزامن</span>
+        </div>
+      </div>
+      <div class="exercise-body">
+        <div class="exercise-prompt">عندما ينفّذ \`SaveChangesAsync()\` أمر UPDATE لكيان، ما الذي يجعل EF Core يطلق استثناء \`DbUpdateConcurrencyException\`؟</div>
+        <div class="quiz-options" data-qid="qc-5-2">
+          
+        <div class="quiz-option" data-opt="0">
+          <div class="option-indicator">A</div>
+          <div class="option-text">رفض PostgreSQL كلمة مرور المستخدم.</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="1">
+          <div class="option-indicator">B</div>
+          <div class="option-text">أن أمر UPDATE أثّر في 0 صفوف (مثلًا حُذف الصف في PostgreSQL بعملية أخرى بعد استعلامه).</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="2">
+          <div class="option-indicator">C</div>
+          <div class="option-text">أن الكيان كان له أكثر من 5 خصائص معدّلة.</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="3">
+          <div class="option-indicator">D</div>
+          <div class="option-text">أن DbContext ثانيًا أُنشئ على جهاز آخر.</div>
+        </div>
+        
+        </div>
+        <div class="exercise-actions">
+          <button class="btn-primary btn-submit-quiz" data-qid="qc-5-2">أرسل الإجابة</button>
+          <button class="btn-secondary btn-retry-quiz" data-qid="qc-5-2" style="display:none;">إعادة المحاولة</button>
+        </div>
+        <div class="quiz-feedback" id="feedback-qc-5-2"></div>
+      </div>
+    </div>
+    
+      
+    <div class="exercise-card" id="qc-5-3">
+      <div class="exercise-header">
+        <div class="exercise-title-group">
+          <span class="exercise-badge">اختبار المعرفة</span>
+          <span style="font-weight:600; font-size:0.9rem;">حدود المعاملة</span>
+        </div>
+      </div>
+      <div class="exercise-body">
+        <div class="exercise-prompt">إذا احتاج \`SaveChangesAsync()\` إلى إدراج كتابين جديدين وتحديث كتاب موجود، فكيف يدير EF Core معاملات قاعدة البيانات افتراضيًا؟</div>
+        <div class="quiz-options" data-qid="qc-5-3">
+          
+        <div class="quiz-option" data-opt="0">
+          <div class="option-indicator">A</div>
+          <div class="option-text">يُنفَّذ كل أمر في معاملة معزولة مستقلة تُثبَّت تباعًا.</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="1">
+          <div class="option-indicator">B</div>
+          <div class="option-text">يغلّف EF Core كل العمليات في معاملة ذرّية واحدة؛ فإذا فشل أي أمر يتراجع عن الدفعة بأكملها.</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="2">
+          <div class="option-indicator">C</div>
+          <div class="option-text">لا يستخدم EF Core معاملات أبدًا إلا إذا استدعى المطوّر \`context.Database.BeginTransaction()\`.</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="3">
+          <div class="option-indicator">D</div>
+          <div class="option-text">تثبّت PostgreSQL كل صف تلقائيًا كل 10 مللي ثانية بصرف النظر عن EF Core.</div>
+        </div>
+        
+        </div>
+        <div class="exercise-actions">
+          <button class="btn-primary btn-submit-quiz" data-qid="qc-5-3">أرسل الإجابة</button>
+          <button class="btn-secondary btn-retry-quiz" data-qid="qc-5-3" style="display:none;">إعادة المحاولة</button>
+        </div>
+        <div class="quiz-feedback" id="feedback-qc-5-3"></div>
+      </div>
+    </div>
+    
+      
+    <div class="exercise-card" id="qc-5-4">
+      <div class="exercise-header">
+        <div class="exercise-title-group">
+          <span class="exercise-badge">اختبار المعرفة</span>
+          <span style="font-weight:600; font-size:0.9rem;">تنفيذ Remove()</span>
+        </div>
+      </div>
+      <div class="exercise-body">
+        <div class="exercise-prompt">يكتب مطوّر: \`context.Books.Remove(book);\`. هل يحذف هذا الصف من PostgreSQL فورًا؟</div>
+        <div class="quiz-options" data-qid="qc-5-4">
+          
+        <div class="quiz-option" data-opt="0">
+          <div class="option-indicator">A</div>
+          <div class="option-text">نعم، ينفّذ Remove() استعلام \`DELETE\` فوريًا في SQL عبر الشبكة.</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="1">
+          <div class="option-indicator">B</div>
+          <div class="option-text">لا، ينقل Remove() حالة الكيان في متتبّع التغييرات المحلي إلى \`Deleted\` فقط؛ ولا يُرسل أمر \`DELETE\` في SQL حتى يُنتظر \`SaveChangesAsync()\`.</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="2">
+          <div class="option-indicator">C</div>
+          <div class="option-text">نعم، لكن فقط إذا كان التثبيت التلقائي (auto-commit) مفعّلًا في Npgsql.</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="3">
+          <div class="option-indicator">D</div>
+          <div class="option-text">لا، يزيل Remove() الكيان من قوائم C# في الذاكرة فقط ولا يمس قاعدة البيانات أبدًا.</div>
+        </div>
+        
+        </div>
+        <div class="exercise-actions">
+          <button class="btn-primary btn-submit-quiz" data-qid="qc-5-4">أرسل الإجابة</button>
+          <button class="btn-secondary btn-retry-quiz" data-qid="qc-5-4" style="display:none;">إعادة المحاولة</button>
+        </div>
+        <div class="quiz-feedback" id="feedback-qc-5-4"></div>
+      </div>
+    </div>
+    
+
+      <div class="lesson-footer-nav">
+        <button class="btn-secondary" onclick="switchLesson('lesson-4')">→ الدرس السابق</button>
+        <button class="btn-complete-lesson" data-lesson="lesson-5">أكمل الدرس 5 ✓</button>
+        <button class="btn-primary" onclick="switchLesson('lesson-6')">التالي: ‏LINQ وتنفيذ الاستعلامات ←</button>
+      </div>
+    `
+    },
+
     'lesson-4': {
       nav: 'التتبّع مقابل عدم التتبّع',
       content: `
