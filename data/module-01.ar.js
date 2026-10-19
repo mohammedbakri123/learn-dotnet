@@ -1557,6 +1557,334 @@ public IActionResult GetBySlug(string slug) { ... }</code></pre>
 `
     },
 
+    'lesson-4': {
+      nav: 'ربط النماذج وبيانات الطلب',
+      content: `
+  <div class="lesson-header-box">
+    <div class="lesson-meta-bar">
+      <span class="lesson-pill">الدرس 4</span>
+      <span class="badge-time">قراءة وتمارين في 30 دقيقة</span>
+    </div>
+    <h1 class="lesson-h1">ربط النماذج وبيانات الطلب</h1>
+    <p class="lesson-lead">
+      اكتشف كيف يجسر ASP.NET Core الفجوة بين نص HTTP الخام ومعاملات C# قوية الأنواع، وكيف يعمل استنتاج مصادر الربط، وكيف تؤدي أعطال فكّ تسلسل JSON إلى ردود 400 ProblemDetails تلقائية.
+    </p>
+  </div>
+
+  <div class="content-body">
+    <h2>1. محرّك ربط النماذج</h2>
+    <p>
+      عندما يصطدم طلب HTTP بإجراء، يستجوب <strong>محرّك ربط النماذج</strong> في ASP.NET Core رسالة HTTP الواردة ويستخرج القيم من مواقع مختلفة ويحوّلها إلى معاملات دالّات .NET قوية الأنواع.
+    </p>
+
+    <h3>سمات مصادر الربط الصريحة</h3>
+    <p>
+      يوفّر ASP.NET Core سمات مخصصة في <code>Microsoft.AspNetCore.Mvc</code> لتحديد مصدر كل معامل بدقة:
+    </p>
+
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>السمة</th>
+            <th>مصدر البيانات</th>
+            <th>مثال في رسالة HTTP</th>
+            <th>الاستخدام الأساسي في Raff</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>[FromRoute]</code></td>
+            <td>بيانات مسار URL</td>
+            <td><code>/api/books/<strong>42</strong></code></td>
+            <td>معرّفات الموارد (مثل <code>int id</code>)</td>
+          </tr>
+          <tr>
+            <td><code>[FromQuery]</code></td>
+            <td>سلسلة استعلام URL</td>
+            <td><code>/api/books?<strong>page=2&amp;pageSize=10</strong></code></td>
+            <td>الترشيح والفرز وترقيم الصفحات وأعلام الإسقاط</td>
+          </tr>
+          <tr>
+            <td><code>[FromBody]</code></td>
+            <td>جسم رسالة الطلب</td>
+            <td><code>{"title": "Al-Kutub", ...}</code></td>
+            <td>الكائنات المعقّدة وDTO وحمولات JSON</td>
+          </tr>
+          <tr>
+            <td><code>[FromHeader]</code></td>
+            <td>ترويسات طلب HTTP</td>
+            <td><code>X-Tenant-Id: raff-sa</code></td>
+            <td>البيانات الوصفية ورموز التفرّد ومعرّفات المستأجرين</td>
+          </tr>
+          <tr>
+            <td><code>[FromForm]</code></td>
+            <td>بيانات النماذج / المتعدد الأجزاء</td>
+            <td><code>Content-Type: multipart/form-data</code></td>
+            <td>رفع الملفات (مثل <code>IFormFile coverImage</code>)</td>
+          </tr>
+          <tr>
+            <td><code>[FromServices]</code></td>
+            <td>حاوية حقن التبعية</td>
+            <td>يُحقن من <code>IServiceProvider</code></td>
+            <td>حلّ الخدمات لكل إجراء بدل الباني</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2>2. قواعد استنتاج المعاملات في <code>[ApiController]</code></h2>
+    <p>
+      عندما يحمل متحكّمك سمة <code>[ApiController]</code>، يطبّق ASP.NET Core <strong>قواعد استنتاج تلقائية للمعاملات</strong>:
+    </p>
+    <ul>
+      <li><strong>الأنواع المعقّدة:</strong> أي فئة أو record (مثل <code>createBookDto dto</code>) يُستنتج لها <code>[FromBody]</code>.</li>
+      <li><strong>معاملات المسار:</strong> أي نوع بسيط يطابق اسمه معامل في قالب المسار (مثل <code>int id</code> المطابق لـ <code>"{id:int}"</code>) يُستنتج له <code>[FromRoute]</code>.</li>
+      <li><strong>أنواع بسيطة أخرى:</strong> أي نوع بسيط (مثل <code>int page</code> و<code>string? search</code> و<code>bool includeAuthors</code>) غير موجود في قالب المسار يُستنتج له <code>[FromQuery]</code>.</li>
+      <li><strong>‏IFormFile:</strong> يُستنتج له <code>[FromForm]</code>.</li>
+    </ul>
+
+    <div class="callout callout-important">
+      <div class="callout-icon">⭐</div>
+      <div class="callout-content">
+        <div class="callout-title">لماذا تحسّن السمات الصريحة وضوح الكود وOpenAPI</div>
+        <p>
+          مع أن الاستنتاج يعمل، فإن إضافة <code>[FromRoute]</code> و<code>[FromQuery]</code> و<code>[FromBody]</code> صراحةً ممارسة مهنية قياسية:
+        </p>
+        <ol style="margin-top:0.5rem;">
+          <li>تجعل الكود موثّقًا لذاته أثناء مراجعات الأقران.</li>
+          <li>تمنع تغييرات كاسرة عرضية إذا تغيّرت قوالب المسار.</li>
+          <li>تضمن وسْم مخططات OpenAPI / Swagger للمعاملات بدقة عند توليد SDK للعملاء.</li>
+          <li><strong>قاعدة الجسم الجوهرية:</strong> يمكن ربط معامل <em>واحد</em> فقط بـ <code>[FromBody]</code> لكل إجراء، لأن تيار طلب HTTP أحادي الاتجاه افتراضيًا ولا يمكن قراءته مرتين.</li>
+        </ol>
+      </div>
+    </div>
+
+    <h2>3. مثال تشريحي: تفكيك <code>GetBook</code></h2>
+    <p>
+      افحص هذا الإجراء الواقعي من Raff:
+    </p>
+
+    <div class="code-container">
+      <div class="code-header">
+        <div class="code-badge-group">
+          <span class="code-lang-tag">C#</span>
+          <span class="code-filename">Controllers/BookController.cs</span>
+          <span class="code-type-pill">Action Signature</span>
+        </div>
+        <button class="btn-copy-code" data-code="[HttpGet(&quot;{id:int}&quot;)]
+public async Task&lt;IActionResult&gt; GetBook(
+    [FromRoute] int id,
+    [FromQuery] bool includeAuthors = false)
+{
+    var book = await _bookService.GetBookByIdAsync(id, includeAuthors);
+    return Ok(book);
+}">Copy Action</button>
+      </div>
+      <pre><code class="language-csharp">[HttpGet("{id:int}")]
+public async Task&lt;IActionResult&gt; GetBook(
+    [FromRoute] int id,
+    [FromQuery] bool includeAuthors = false)
+{
+    var book = await _bookService.GetBookByIdAsync(id, includeAuthors);
+    return Ok(book);
+}</code></pre>
+      <div class="code-explanation">
+        <strong>التتبّع:</strong> عندما يرسل عميل <code>GET /api/books/42?includeAuthors=true</code> يستخرج محرّك الربط القيمة <code>42</code> من مقطع URL المطابق لـ <code>{id:int}</code> ويحلّلها إلى <code>int id</code>، ويحلّل سلسلة الاستعلام <code>?includeAuthors=true</code> إلى القيمة المنطقية <code>true</code>.
+      </div>
+    </div>
+
+    <h2>4. سلاسل الاستعلام مقابل معاملات المسار مقابل أجسام الطلبات</h2>
+    <p>
+      عند تصميم واجهات REST، كيف تقرّر أين ينتمي كل جزء من المعلومة؟
+    </p>
+    <ul>
+      <li><strong>معامل المسار (<code>/api/books/{id}</code>):</strong> يُستخدم لـ<em>هوية المورد</em>؛ أي كتاب أو مؤلف بعينه تستهدف؟</li>
+      <li><strong>سلسلة الاستعلام (<code>?page=1&amp;pageSize=10&amp;includeAuthors=true</code>):</strong> تُستخدم لـ<em>المعدِّلات</em>: ترقيم الصفحات والترشيح والبحث والفرز وأعلام الإسقاط، ويجب أن يكون لها قيم افتراضية معقولة دائمًا.</li>
+      <li><strong>جسم الطلب:</strong> يُستخدم لـ<em>حمولات البيانات</em> المنشأة أو المعدَّلة، أو لمعايير ترشيح معقّدة تتجاوز حدود طول URL (مع أن طلبات GET القياسية ينبغي أن تتجنب أجسام الطلبات).</li>
+    </ul>
+
+    <h2>5. فكّ تسلسل JSON وماذا يحدث عند فشل الأنواع</h2>
+    <p>
+      في ASP.NET Core تُفكّ أجسام الطلبات باستخدام <code>System.Text.Json</code>. لكن ماذا يحدث إذا تعذّر تحويل البيانات الواردة إلى النوع المتوقع؟
+    </p>
+
+    <div class="code-container">
+      <div class="code-header">
+        <div class="code-badge-group">
+          <span class="code-lang-tag">HTTP</span>
+          <span class="code-filename">Malformed Request</span>
+          <span class="code-type-pill">Invalid Type</span>
+        </div>
+      </div>
+      <pre><code class="language-http">GET /api/books/42?includeAuthors=yesterday HTTP/1.1
+Host: api.raff.local</code></pre>
+      <div class="code-explanation">
+        <strong>مسار التنفيذ:</strong> يحاول موفّر القيم تحليل <code>"yesterday"</code> إلى <code>bool</code> في C#، فيفشل ويسجّل خطأً في <code>ModelState</code>.
+      </div>
+    </div>
+
+    <p>
+      ولأن <code>BookController</code> يحمل سمة <code>[ApiController]</code>، يسجّل ASP.NET Core مرشّح إجراء تلقائيًا (<code>ModelStateInvalidFilter</code>). وعندما تصبح <code>ModelState.IsValid == false</code>، <strong>يقطع ASP.NET Core خط الأنابيب فورًا</strong>:
+    </p>
+    <ol>
+      <li>إجراءك <code>GetBook</code> <strong>لا يُنفَّذ أبدًا</strong>.</li>
+      <li>يبني إطار العمل كائن <code>ProblemDetails</code> وفق RFC 7807 يبيّن الحقول غير الصالحة.</li>
+      <li>يعيد الخادم استجابة <span class="status-badge status-4xx">400 Bad Request</span>:</li>
+    </ol>
+
+    <div class="code-container">
+      <div class="code-header">
+        <div class="code-badge-group">
+          <span class="code-lang-tag">JSON</span>
+          <span class="code-filename">Automatic ProblemDetails 400 Response</span>
+          <span class="code-type-pill">RFC 7807</span>
+        </div>
+      </div>
+      <pre><code class="language-json">{
+  "type": "https://tools.ietf.org/html/rfc9110#section-15.5.1",
+  "title": "One or more validation errors occurred.",
+  "status": 400,
+  "errors": {
+    "includeAuthors": [
+      "The value 'yesterday' is not valid for Boolean."
+    ]
+  },
+  "traceId": "00-84a27364b9981f4a-b94f6c469b61d33d-00"
+}</code></pre>
+    </div>
+
+    <!-- Knowledge Check 4.1 -->
+    <div class="exercise-card" id="qc-4-1">
+      <div class="exercise-header">
+        <div class="exercise-title-group">
+          <span class="exercise-badge">اختبار المعرفة 4.1</span>
+          <span>اختيار مصدر الربط</span>
+        </div>
+      </div>
+      <div class="exercise-body">
+        <div class="exercise-prompt">
+          في Raff تنفّذ نقطة نهاية لترشيح الكتب حسب سنة النشر والفئة: <code>GET /api/books?year=2024&amp;category=fiction</code>. أي سمة ربط هي الأنسب لمعاملَي الإجراء <code>int? year</code> و<code>string? category</code>؟
+        </div>
+        <div class="quiz-options" data-qid="qc-4-1">
+          <div class="quiz-option" data-opt="0">
+            <div class="option-indicator">A</div>
+            <div class="option-text"><code>[FromBody]</code>، لأنهما يرشّحان مجموعة كتب.</div>
+          </div>
+          <div class="quiz-option" data-opt="1">
+            <div class="option-indicator">B</div>
+            <div class="option-text"><code>[FromRoute]</code>، لأن السنة والفئة مخزّنتان في قاعدة البيانات.</div>
+          </div>
+          <div class="quiz-option" data-opt="2">
+            <div class="option-indicator">C</div>
+            <div class="option-text"><code>[FromQuery]</code>، لأنهما معدِّلان اختياريان يُمرَّران عبر معاملات سلسلة استعلام URL.</div>
+          </div>
+          <div class="quiz-option" data-opt="3">
+            <div class="option-indicator">D</div>
+            <div class="option-text"><code>[FromHeader]</code>، لأن معاملات الاستعلام يجب تمريرها في ترويسات HTTP.</div>
+          </div>
+        </div>
+        <div class="exercise-footer">
+          <button class="btn-primary btn-submit-quiz" data-qid="qc-4-1">أرسل الإجابة</button>
+          <button class="btn-secondary btn-retry-quiz" data-qid="qc-4-1" style="display:none;">إعادة المحاولة</button>
+        </div>
+        <div class="quiz-feedback" id="feedback-qc-4-1"></div>
+      </div>
+    </div>
+
+    <!-- Knowledge Check 4.2 -->
+    <div class="exercise-card" id="qc-4-2">
+      <div class="exercise-header">
+        <div class="exercise-title-group">
+          <span class="exercise-badge">اختبار المعرفة 4.2</span>
+          <span>قاعدة معامل الجسم الواحد</span>
+        </div>
+      </div>
+      <div class="exercise-body">
+        <div class="exercise-prompt">
+          يكتب مطوّر إجراء المتحكم التالي:
+          <br>
+          <code>public IActionResult Create([FromBody] BookDto book, [FromBody] AuthorDto author)</code>
+          <br>
+          فماذا يحدث عندما يرسل عميل طلبًا إلى نقطة النهاية هذه في ASP.NET Core؟
+        </div>
+        <div class="quiz-options" data-qid="qc-4-2">
+          <div class="quiz-option" data-opt="0">
+            <div class="option-indicator">A</div>
+            <div class="option-text">يدمج ASP.NET Core الكائنين تلقائيًا من حمولة JSON.</div>
+          </div>
+          <div class="quiz-option" data-opt="1">
+            <div class="option-indicator">B</div>
+            <div class="option-text">يُرمى استثناء أو يفشل ربط النموذج، لأن ASP.NET Core يدعم افتراضيًا معامل <code>[FromBody]</code> واحدًا فقط لكل إجراء بسبب قراءة تيار الطلب أحاديّ الاتجاه.</div>
+          </div>
+          <div class="quiz-option" data-opt="2">
+            <div class="option-indicator">C</div>
+            <div class="option-text">يُربط المعامل الأول من الجسم والثاني من سلسلة الاستعلام تلقائيًا.</div>
+          </div>
+          <div class="quiz-option" data-opt="3">
+            <div class="option-indicator">D</div>
+            <div class="option-text">يقسّم ASP.NET Core جسم HTTP إلى نصفين حسب عدد البايتات.</div>
+          </div>
+        </div>
+        <div class="exercise-footer">
+          <button class="btn-primary btn-submit-quiz" data-qid="qc-4-2">أرسل الإجابة</button>
+          <button class="btn-secondary btn-retry-quiz" data-qid="qc-4-2" style="display:none;">إعادة المحاولة</button>
+        </div>
+        <div class="quiz-feedback" id="feedback-qc-4-2"></div>
+      </div>
+    </div>
+
+    <!-- Knowledge Check 4.3 -->
+    <div class="exercise-card" id="qc-4-3">
+      <div class="exercise-header">
+        <div class="exercise-title-group">
+          <span class="exercise-badge">اختبار المعرفة 4.3</span>
+          <span>سلوك 400 ProblemDetails التلقائي</span>
+        </div>
+      </div>
+      <div class="exercise-body">
+        <div class="exercise-prompt">
+          إذا أرسل عميل <code>publishedYear: "not-a-number"</code> إلى إجراء يستقبل <code>createBookDto dto</code> (حيث publishedYear من النوع <code>int</code>) في فئة تحمل <code>[ApiController]</code>، فلماذا لا يُنفَّذ كود الإجراء أبدًا؟
+        </div>
+        <div class="quiz-options" data-qid="qc-4-3">
+          <div class="quiz-option" data-opt="0">
+            <div class="option-indicator">A</div>
+            <div class="option-text">تعترض PostgreSQL الاستعلام قبل أن يستلمه Kestrel.</div>
+          </div>
+          <div class="quiz-option" data-opt="1">
+            <div class="option-indicator">B</div>
+            <div class="option-text">تسجّل سمة <code>[ApiController]</code> تلقائيًا مرشّح إجراء يقطع خط الأنابيب ويعيد 400 ProblemDetails عندما تكون <code>ModelState.IsValid</code> مساوية لـ false.</div>
+          </div>
+          <div class="quiz-option" data-opt="2">
+            <div class="option-indicator">C</div>
+            <div class="option-text">يرمي مترجم C# خطأ صياغة وقت الترجمة على الخادم.</div>
+          </div>
+          <div class="quiz-option" data-opt="3">
+            <div class="option-indicator">D</div>
+            <div class="option-text">ينهي خادم Kestrel مقبس TCP بحزمة إعادة تعيين (reset).</div>
+          </div>
+        </div>
+        <div class="exercise-footer">
+          <button class="btn-primary btn-submit-quiz" data-qid="qc-4-3">أرسل الإجابة</button>
+          <button class="btn-secondary btn-retry-quiz" data-qid="qc-4-3" style="display:none;">إعادة المحاولة</button>
+        </div>
+        <div class="quiz-feedback" id="feedback-qc-4-3"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="lesson-nav-footer">
+    <button class="btn-complete-lesson" data-lesson="lesson-4">
+      <span class="complete-checkbox">✓</span> أكمل الدرس 4
+    </button>
+    <button class="btn-primary btn-next-lesson" data-target="lesson-5">
+      التالي: الكيانات وDTO وعقود الواجهة ←
+    </button>
+  </div>
+`
+    },
+
     'assessment': {
       nav: 'التقييم الختامي (80%)',
       content: `
