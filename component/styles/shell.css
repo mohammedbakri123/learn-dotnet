@@ -1,0 +1,21 @@
+/* Raff Backend Academy — shared app shell layout (all pages) */
+
+header.app-header {background-color: var(--bg-secondary); border-bottom: 1px solid var(--border-color); position: sticky; top: 0; z-index: 100; display: flex; flex-direction: column;}
+.header-top {display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 1.5rem; gap: 1rem;}
+.app-title {font-size: 1.15rem; font-weight: 700; color: var(--text-primary);}
+.progress-bar-container {height: 4px; background: var(--bg-tertiary); width: 100%; position: relative;}
+.progress-bar-fill {height: 100%; background: var(--accent); width: 0%; transition: width 0.3s ease;}
+.app-container {display: flex; flex: 1; min-height: calc(100vh - 65px);}
+aside.app-sidebar {width: 320px; background-color: var(--bg-secondary); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; flex-shrink: 0; overflow-y: auto; position: sticky; top: 61px; height: calc(100vh - 61px); transition: transform 0.3s ease;}
+.sidebar-section-title {font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; letter-spacing: 0.05em; padding: 1rem 1.25rem 0.5rem;}
+.nav-item:hover {background: var(--bg-tertiary); color: var(--text-primary);}
+.nav-item.active {background: var(--bg-accent-subtle); color: var(--accent-light); border-left-color: var(--accent); font-weight: 600;}
+.nav-item-left {display: flex; align-items: center; gap: 0.6rem;}
+.nav-check {color: var(--success); font-size: 0.95rem; opacity: 0;}
+.nav-item.completed .nav-check {opacity: 1;}
+.sidebar-footer {margin-top: auto; padding: 1rem 1.25rem; border-top: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 0.5rem;}
+@media (max-width: 768px) {
+  aside.app-sidebar.open {transform: translateX(0); box-shadow: 4px 0 24px rgba(0,0,0,0.5);}
+  main.app-main {padding: 1.5rem 1rem 4rem;}
+}
+.lesson-footer-nav {display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-top: 3.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border-color);}
