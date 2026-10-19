@@ -601,6 +601,347 @@ window.RAFF_MODULE_02_AR = {
 
   lessons: {
 
+    'lesson-2': {
+      nav: 'DbContext ونمط Unit of Work',
+      content: `
+      <div class="lesson-header-box">
+        <div class="lesson-badge-top">الدرس 2</div>
+        <h1 class="lesson-title">DbContext وDbSet ونمط Unit of Work</h1>
+        <p class="lesson-subtitle">فهم أعمار السياق في حاوية DI في ASP.NET Core، وقواعد سلامة الخيوط، وتجميع الاتصالات، وتحرير الموارد.</p>
+      </div>
+
+      <h2>1. نمط وحدة العمل (Unit of Work)</h2>
+      <p>يعرّف مارتن فاولر <strong>وحدة العمل</strong> بأنها كائن يحتفظ بقائمة الكائنات المتأثرة بمعاملة تجارية وينسّق كتابة التغييرات وحل مشكلات التزامن. وفي EF Core يُجسّد <code>DbContext</code> هذا النمط.</p>
+      
+      <p>تتكوّن دورة الحياة القياسية لوحدة العمل من خمس خطوات:</p>
+      <div class="steps-container">
+        <div class="step-item">
+          <div class="step-num">1</div>
+          <div class="step-text"><strong>الحصول على السياق:</strong> تحقن حاوية DI في ASP.NET Core سياق <code>BooksContext</code> بعمر Scoped في المتحكم أو الخدمة.</div>
+        </div>
+        <div class="step-item">
+          <div class="step-num">2</div>
+          <div class="step-text"><strong>الاستعلام / الإرفاق:</strong> حمّل الكيانات إلى الذاكرة باستخدام <code>DbSet&lt;Book&gt;</code>. ويسجّلها EF Core في <code>ChangeTracker</code>.</div>
+        </div>
+        <div class="step-item">
+          <div class="step-num">3</div>
+          <div class="step-text"><strong>التعديل في الذاكرة:</strong> يحدّث منطق العمل الخصائص أو يضيف سجلات جديدة أو يعلّم كيانات للحذف.</div>
+        </div>
+        <div class="step-item">
+          <div class="step-num">4</div>
+          <div class="step-text"><strong>تثبيت وحدة العمل:</strong> يجمع <code>await context.SaveChangesAsync()</code> كل التغييرات المعلّقة في معاملة ذرّية.</div>
+        </div>
+        <div class="step-item">
+          <div class="step-num">5</div>
+          <div class="step-text"><strong>التحرير:</strong> ينتهي طلب HTTP؛ فتحرّر حاوية DI في ASP.NET Core السياق وتعيد الاتصال الأساسي إلى تجمّع Npgsql.</div>
+        </div>
+      </div>
+
+      <h2>2. حقن التبعيات وعمر Scoped</h2>
+      <p>في <code>Program.cs</code> تهيّئ سياقك هكذا:</p>
+
+      
+    <div class="code-wrapper">
+      <div class="code-header">
+        <div class="code-badge-group">
+          <span class="code-lang-tag">C#</span>
+          <span class="code-filename">Program.cs</span>
+          <span class="code-type-pill pill-complete example">[مثال كامل]</span>
+        </div>
+        <button class="btn-copy" aria-label="نسخ الكود">📋 نسخ</button>
+      </div>
+      <pre><code class="language-c#">
+builder.Services.AddDbContext&lt;BooksContext&gt;(options =&gt;
+{
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"));
+});
+</code></pre>
+      <div class="code-expl">يسجّل AddDbContext سياق BooksContext بعمر Scoped في حاوية Microsoft.Extensions.DependencyInjection.</div>
+    </div>
+    
+
+      <div class="callout callout-info">
+        <div class="callout-title">💡 لماذا Scoped وليس Transient أو Singleton؟</div>
+        <ul>
+          <li><strong>لماذا لا Singleton؟</strong> سيعيش سياق DbContext الواحد طوال عمر خادم الويب. وسيحتفظ <code>ChangeTracker</code> بكل كيان حُمّل يومًا، مستهلكًا جيجابايتات من الذاكرة. وأكثر من ذلك، ولأن طلبات HTTP متعددة تصل متزامنة على خيوط مختلفة، فسيطلق السياق الواحد استثناءات تزامن باستمرار.</li>
+          <li><strong>لماذا لا Transient؟</strong> لو حصلت خدمات مختلفة في الطلب نفسه على نسخ DbContext منفصلة فسيكون لكل منها متتبّع تغييرات مستقل؛ ولن تكون التغييرات في خدمة مرئية أو منسّقة مع الأخرى، ما يهدم ضمان وحدة العمل.</li>
+          <li><strong>‏Scoped هو الخيار الأمثل:</strong> يوجد <code>BooksContext</code> واحد فقط لكل طلب HTTP، بما يطابق حدود وحدة العمل تمامًا.</li>
+        </ul>
+      </div>
+
+      <h2>3. سلامة الخيوط: لماذا لا يمكن مشاركة DbContext؟</h2>
+      <div class="callout callout-danger">
+        <div class="callout-title">🚨 قاعدة صارمة: DbContext ليس آمنًا للخيوط</div>
+        <p>لا يدعم EF Core تنفيذ عمليات متزامنة متعددة على نسخة السياق نفسها. فإذا حاول خيطان (أو مهمتان غير متزامنتين دون <code>await</code>) الوصول إلى نسخة <code>BooksContext</code> واحدة معًا، فسيطلق EF Core:</p>
+        <code>System.InvalidOperationException: A second operation was started on this context instance before a previous operation completed. This is usually caused by different threads concurrently using the same instance of DbContext.</code>
+      </div>
+
+      <p>تأمّل هذا النمط المضاد الذي يكتبه المبتدئون كثيرًا محاولةً «تحسين» الأداء:</p>
+
+      
+    <div class="code-wrapper">
+      <div class="code-header">
+        <div class="code-badge-group">
+          <span class="code-lang-tag">C#</span>
+          <span class="code-filename">Services/BookService.cs</span>
+          <span class="code-type-pill pill-anti-pattern">[نمط مضاد]</span>
+        </div>
+        <button class="btn-copy" aria-label="نسخ الكود">📋 نسخ</button>
+      </div>
+      <pre><code class="language-c#">
+// ❌ DANGEROUS ANTI-PATTERN: Running parallel tasks on the same DbContext instance
+public async Task&lt;(List&lt;Book&gt;, int)&gt; GetDashboardDataAsync()
+{
+    // Both queries start concurrently on the same context instance!
+    var booksTask = _context.Books.ToListAsync();
+    var countTask = _context.Books.CountAsync();
+
+    // Boom! System.InvalidOperationException thrown immediately
+    await Task.WhenAll(booksTask, countTask);
+
+    return (await booksTask, await countTask);
+</code></pre>
+      <div class="code-expl">لا تستخدم Task.WhenAll أبدًا مع عمليات على نسخة DbContext واحدة. فلا يستطيع DbContext واتصالات ADO.NET تنفيذ أوامر متداخلة.</div>
+    </div>
+    
+
+      <p>الأسلوب الصحيح الآمن هو إما استدعاءات غير متزامنة متتابعة، أو حقن <code>IDbContextFactory&lt;BooksContext&gt;</code> إن كنت تحتاج فعلًا سياقات متوازية:</p>
+
+      
+    <div class="code-wrapper">
+      <div class="code-header">
+        <div class="code-badge-group">
+          <span class="code-lang-tag">C#</span>
+          <span class="code-filename">Services/BookService.cs</span>
+          <span class="code-type-pill pill-complete example">[مثال كامل]</span>
+        </div>
+        <button class="btn-copy" aria-label="نسخ الكود">📋 نسخ</button>
+      </div>
+      <pre><code class="language-c#">
+// ✅ SAFE &amp; CORRECT: Sequential asynchronous execution
+public async Task&lt;(List&lt;Book&gt;, int)&gt; GetDashboardDataAsync()
+{
+    var books = await _context.Books.ToListAsync();
+    var count = await _context.Books.CountAsync();
+
+    return (books, count);
+}
+</code></pre>
+      <div class="code-expl">تكتمل كل عملية غير متزامنة تمامًا قبل أن تبدأ التالية على نسخة السياق الواحدة.</div>
+    </div>
+    
+
+      <h2>4. السياق مقابل الاتصال مقابل قاعدة البيانات</h2>
+      <p>احرص على التمييز بين ثلاثة مفاهيم منفصلة:</p>
+      <table class="concept-table">
+        <thead>
+          <tr>
+            <th>المفهوم</th>
+            <th>ما هو</th>
+            <th>العمر</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>BooksContext</strong></td>
+            <td>كائن وحدة عمل في C# يحمل متتبّع التغييرات وتهيئة النموذج.</td>
+            <td>بعمر Scoped مرتبط بطلب HTTP (يُنشأ عند بداية الطلب ويُحرَّر عند نهايته).</td>
+          </tr>
+          <tr>
+            <td><strong>NpgsqlConnection</strong></td>
+            <td>اتصال مقبس شبكة ADO.NET الأساسي بـ PostgreSQL.</td>
+            <td>يديره تجمّع اتصالات Npgsql. يُفتح فقط عند تنفيذ استعلامات أو حفظ التغييرات، ويُعاد فورًا إلى التجمّع.</td>
+          </tr>
+          <tr>
+            <td><strong>خادم PostgreSQL</strong></td>
+            <td>الخادم العلائقي المستقل الذي يخزّن البيانات على قرص دائم.</td>
+            <td>يعمل باستمرار كخدمة نظام تشغيل أو حاوية.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>ملخص الدرس 2</h2>
+      <ul>
+        <li>ينسّق <code>DbContext</code> العمليات كـ<strong>وحدة عمل</strong> ذرّية.</li>
+        <li>يسجّل ASP.NET Core سياق <code>DbContext</code> بعمر <strong>Scoped</strong> ليتوافق مع حدود طلب HTTP.</li>
+        <li>‏<code>DbContext</code> <strong>غير آمن للخيوط</strong> قطعًا. والتنفيذ المتوازي على النسخة نفسها يطلق <code>InvalidOperationException</code>.</li>
+        <li>يحرّر التخلص من السياق حالة التتبّع ويعيد الاتصال الأساسي إلى تجمّع الاتصالات.</li>
+      </ul>
+
+      <h2>اختبارات المعرفة</h2>
+      
+    <div class="exercise-card" id="qc-2-1">
+      <div class="exercise-header">
+        <div class="exercise-title-group">
+          <span class="exercise-badge">اختبار المعرفة</span>
+          <span style="font-weight:600; font-size:0.9rem;">عمر DbContext</span>
+        </div>
+      </div>
+      <div class="exercise-body">
+        <div class="exercise-prompt">لماذا يسجّل ASP.NET Core سياق \`BooksContext\` بعمر Scoped افتراضيًا عند استخدام \`AddDbContext&lt;BooksContext&gt;()\`؟</div>
+        <div class="quiz-options" data-qid="qc-2-1">
+          
+        <div class="quiz-option" data-opt="0">
+          <div class="option-indicator">A</div>
+          <div class="option-text">لأن نسخ DbContext كائنات Singleton مكلفة يجب مشاركتها طوال دورة حياة خادم الويب بأكمله.</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="1">
+          <div class="option-indicator">B</div>
+          <div class="option-text">لأن كل طلب HTTP وارد يمثّل وحدة عمل مستقلة ينبغي أن تملك متتبّع تغييرات وحالة اتصال وذاكرة تخزين مؤقت خاصة بها.</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="2">
+          <div class="option-indicator">C</div>
+          <div class="option-text">لأن الخدمات Transient لا تستطيع قراءة سلاسل اتصال قاعدة البيانات من IConfiguration.</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="3">
+          <div class="option-indicator">D</div>
+          <div class="option-text">لأن PostgreSQL يُسقط مقابس العملاء إذا بقي الاتصال مفتوحًا أكثر من طلب HTTP واحد.</div>
+        </div>
+        
+        </div>
+        <div class="exercise-actions">
+          <button class="btn-primary btn-submit-quiz" data-qid="qc-2-1">أرسل الإجابة</button>
+          <button class="btn-secondary btn-retry-quiz" data-qid="qc-2-1" style="display:none;">إعادة المحاولة</button>
+        </div>
+        <div class="quiz-feedback" id="feedback-qc-2-1"></div>
+      </div>
+    </div>
+    
+      
+    <div class="exercise-card" id="qc-2-2">
+      <div class="exercise-header">
+        <div class="exercise-title-group">
+          <span class="exercise-badge">اختبار المعرفة</span>
+          <span style="font-weight:600; font-size:0.9rem;">تزامن DbContext</span>
+        </div>
+      </div>
+      <div class="exercise-body">
+        <div class="exercise-prompt">ماذا يحدث إذا حاول مطوّر تنفيذ استعلامين متوازيين باستخدام \`Task.WhenAll\` على نسخة \`BooksContext\` نفسها (مثل \`Task.WhenAll(context.Books.ToListAsync(), context.Authors.ToListAsync())\`)؟</div>
+        <div class="quiz-options" data-qid="qc-2-2">
+          
+        <div class="quiz-option" data-opt="0">
+          <div class="option-indicator">A</div>
+          <div class="option-text">يصفّ EF Core الاستعلام الثاني بسلاسة وينفّذ كليهما بالتوازي عبر مقابس متعددة الإرسال.</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="1">
+          <div class="option-indicator">B</div>
+          <div class="option-text">يطلق EF Core الاستثناء \`InvalidOperationException: A second operation was started on this context instance before a previous operation completed\`.</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="2">
+          <div class="option-indicator">C</div>
+          <div class="option-text">ينفّذ PostgreSQL الاستعلامين بالتوازي ويدمج مجموعتي النتائج في صف واحد.</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="3">
+          <div class="option-indicator">D</div>
+          <div class="option-text">ينجح الاستعلام الأول، لكن الاستعلام الثاني يعيد نتائج فارغة بصمت.</div>
+        </div>
+        
+        </div>
+        <div class="exercise-actions">
+          <button class="btn-primary btn-submit-quiz" data-qid="qc-2-2">أرسل الإجابة</button>
+          <button class="btn-secondary btn-retry-quiz" data-qid="qc-2-2" style="display:none;">إعادة المحاولة</button>
+        </div>
+        <div class="quiz-feedback" id="feedback-qc-2-2"></div>
+      </div>
+    </div>
+    
+      
+    <div class="exercise-card" id="qc-2-3">
+      <div class="exercise-header">
+        <div class="exercise-title-group">
+          <span class="exercise-badge">اختبار المعرفة</span>
+          <span style="font-weight:600; font-size:0.9rem;">عمر DbContext</span>
+        </div>
+      </div>
+      <div class="exercise-body">
+        <div class="exercise-prompt">في خدمة عامل خلفية (\`BackgroundService\`)، لماذا لا ينبغي حقن \`BooksContext\` بعمر Scoped مباشرة في مُنشئ الخدمة الخلفية الواحدة (Singleton)؟</div>
+        <div class="quiz-options" data-qid="qc-2-3">
+          
+        <div class="quiz-option" data-opt="0">
+          <div class="option-indicator">A</div>
+          <div class="option-text">لأن EF Core سيطلق استثناء عند بدء التشغيل بسبب التبعية الأسيرة (كائن Singleton يحتفظ بخدمة Scoped).</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="1">
+          <div class="option-indicator">B</div>
+          <div class="option-text">لأن الخدمات الخلفية يُحظر عليها تنفيذ استعلامات SQL.</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="2">
+          <div class="option-indicator">C</div>
+          <div class="option-text">لأن Npgsql يتطلب HttpContext نشطًا لتحليل سلاسل الاتصال.</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="3">
+          <div class="option-indicator">D</div>
+          <div class="option-text">لأن PostgreSQL سينهي التطبيق بعد 60 ثانية من عدم النشاط.</div>
+        </div>
+        
+        </div>
+        <div class="exercise-actions">
+          <button class="btn-primary btn-submit-quiz" data-qid="qc-2-3">أرسل الإجابة</button>
+          <button class="btn-secondary btn-retry-quiz" data-qid="qc-2-3" style="display:none;">إعادة المحاولة</button>
+        </div>
+        <div class="quiz-feedback" id="feedback-qc-2-3"></div>
+      </div>
+    </div>
+    
+      
+    <div class="exercise-card" id="qc-2-4">
+      <div class="exercise-header">
+        <div class="exercise-title-group">
+          <span class="exercise-badge">اختبار المعرفة</span>
+          <span style="font-weight:600; font-size:0.9rem;">عمر DbContext</span>
+        </div>
+      </div>
+      <div class="exercise-body">
+        <div class="exercise-prompt">ما العلاقة بين نسخة \`BooksContext\` النشطة واتصال قاعدة بيانات PostgreSQL الأساسي؟</div>
+        <div class="quiz-options" data-qid="qc-2-4">
+          
+        <div class="quiz-option" data-opt="0">
+          <div class="option-indicator">A</div>
+          <div class="option-text">يفتح DbContext اتصال TCP دائمًا عند إنشائه ويحتفظ به حتى انتهاء عملية نظام التشغيل.</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="1">
+          <div class="option-indicator">B</div>
+          <div class="option-text">يدير DbContext كائن DbConnection أساسيًا (غالبًا من تجمّع اتصالات ADO.NET)، فيفتحه عند الطلب للاستعلامات أو الحفظ ويغلقه عند اكتمال العملية أو السياق.</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="2">
+          <div class="option-indicator">C</div>
+          <div class="option-text">يتجاوز DbContext اتصالات ADO.NET تمامًا ويكتب مباشرة في الأنابيب المسمّاة (named pipes).</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="3">
+          <div class="option-indicator">D</div>
+          <div class="option-text">كل DbSet داخل DbContext يملك اتصال قاعدة بيانات فيزيائيًا مستقلًا.</div>
+        </div>
+        
+        </div>
+        <div class="exercise-actions">
+          <button class="btn-primary btn-submit-quiz" data-qid="qc-2-4">أرسل الإجابة</button>
+          <button class="btn-secondary btn-retry-quiz" data-qid="qc-2-4" style="display:none;">إعادة المحاولة</button>
+        </div>
+        <div class="quiz-feedback" id="feedback-qc-2-4"></div>
+      </div>
+    </div>
+    
+
+      <div class="lesson-footer-nav">
+        <button class="btn-secondary" onclick="switchLesson('lesson-1')">→ الدرس السابق</button>
+        <button class="btn-complete-lesson" data-lesson="lesson-2">أكمل الدرس 2 ✓</button>
+        <button class="btn-primary" onclick="switchLesson('lesson-3')">التالي: حالات الكيان وتتبّع التغييرات ←</button>
+      </div>
+    `
+    },
+
     'lesson-1': {
       nav: 'النموذج الذهني لـ EF Core',
       content: `
