@@ -36,5 +36,14 @@ window.RAFF_MODULES = [
     subtitle_ar: 'خصائص التنقل، واستراتيجيات التحميل، ومشكلة N+1، والإسقاطات، وربط الكيانات (fix-up)',
     file: 'pages/module-03.html',
     storageKey: 'raff_efcore_module_03_state'
+  },
+  {
+    id: 'module-04',
+    number: '4',
+    icon: '🛡️',
+    title: 'Validation, PATCH & Error Handling',
+    subtitle: 'ModelState, validation attributes, rule layers, PATCH, and ProblemDetails',
+    file: 'pages/module-04.html',
+    storageKey: 'raff_aspnet_module_04_state'
   }
 ];
