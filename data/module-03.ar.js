@@ -2875,6 +2875,199 @@ var books = await context.Books
         <button class="btn-primary" data-nav-target="lesson-7" type="button">التالي: الانفجار الديكارتي ←</button>
       </div>
     `
+    },
+    "lesson-7": {
+      nav: "استعلام واحد مقابل استعلامات مقسَّمة",
+      content: `
+      <div class="lesson-header-box">
+        <div class="lesson-badge-top">الدرس 7</div>
+        <h1 class="lesson-title">الانفجار الديكارتي والاستعلامات المقسَّمة والضبط</h1>
+        <p class="lesson-subtitle">حين يتحول استعلام واحد بضمّتين إلى قنبلة صفوف — وعدة الأدوات العملية لإبقاء عددَي الاستعلامات والصفوف تحت السيطرة.</p>
+      </div>
+
+      <h2>1. التوسع: ما الذي يفعله JOIN بالصفوف</h2>
+      <p>كل <code>Include</code> لمجموعة يضيف JOIN يضاعف الصفوف. وضمّ <strong>مجموعتين شقيقتين</strong> على الكيان نفسه يجعل المضاعفة تراكبية: صف واحد لكل توليفة (الأب × الابن-أ × الابن-ب).</p>
+
+      <div class="code-wrapper">
+        <div class="code-header">
+          <div class="code-badge-group">
+            <span class="code-lang-tag">C#</span>
+            <span class="code-filename">الاستعلام الخطِر (بنمط Raff)</span>
+            <span class="code-type-pill pill-anti-pattern">نمط مضاد</span>
+          </div>
+          <button class="btn-copy" type="button" aria-label="نسخ الكود">📋 نسخ</button>
+        </div>
+        <pre><code class="language-c#">
+var books = await context.Books
+    .Include(b =&gt; b.Authors)          // join #1: 3 author rows per book
+    .Include(b =&gt; b.ReadingEntries)   // join #2: 2 entry rows per book
+    .ToListAsync();
+</code></pre>
+        <div class="code-expl">مع 50 كتابًا و3 مؤلفين و2 من إدخالات القراءة لكل كتاب، تكون مجموعة نتائج الاستعلام الواحد <strong>50 × 3 × 2 = 300 صف</strong>. وتتكرر أعمدة كل كتاب في كل صف من تلك الصفوف؛ ويزيل EF Core تكرار الكيانات في الذاكرة، لكن قاعدة البيانات أدّت عمل الضرب التقاطعي والشبكة حملته.</div>
+      </div>
+
+      <p>راقب ما يحدث للأعداد مع نمو المجموعات — وقارن عدد صفوف الاستعلام الواحد باستراتيجية الاستعلامات المقسَّمة (استعلام واحد لكل مجموعة):</p>
+
+      <div class="simulator-box" id="cartesian-calc">
+        <div class="simulator-header">
+          <div class="simulator-title">🧮 حاسبة الانفجار الديكارتي</div>
+          <div class="simulator-controls">
+            <button class="btn-sim" id="calc-reset" type="button">↺ إعادة ضبط</button>
+          </div>
+        </div>
+        <div class="simulator-body">
+          <div class="calc-grid">
+            <div class="calc-control">
+              <label class="calc-label" for="calc-books">الكتب <span id="calc-books-val">50</span></label>
+              <input class="calc-range" id="calc-books" type="range" min="1" max="200" value="50" step="1">
+            </div>
+            <div class="calc-control">
+              <label class="calc-label" for="calc-authors">مؤلفون لكل كتاب <span id="calc-authors-val">3</span></label>
+              <input class="calc-range" id="calc-authors" type="range" min="1" max="10" value="3" step="1">
+            </div>
+            <div class="calc-control">
+              <label class="calc-label" for="calc-entries">إدخالات قراءة لكل كتاب <span id="calc-entries-val">2</span></label>
+              <input class="calc-range" id="calc-entries" type="range" min="1" max="10" value="2" step="1">
+            </div>
+          </div>
+          <div class="metric-grid">
+            <div class="metric-card"><div class="metric-value" id="calc-single-rows">—</div><div class="metric-label">صفوف — استعلام واحد</div><div class="metric-sub">كتب × مؤلفون × إدخالات</div></div>
+            <div class="metric-card"><div class="metric-value" id="calc-split-rows">—</div><div class="metric-label">صفوف — استعلامات مقسَّمة</div><div class="metric-sub">كتب + مؤلفون + إدخالات</div></div>
+            <div class="metric-card"><div class="metric-value" id="calc-ratio">—</div><div class="metric-label">نسبة التوسع</div><div class="metric-sub">صفوف الواحد ÷ المقسَّمة</div></div>
+          </div>
+          <div class="sim-verdict" id="calc-verdict">اضبط المنزلقات لترى كيف تتباعد أعداد الصفوف.</div>
+        </div>
+      </div>
+
+      <h2>2. <code>AsSplitQuery()</code> — استعلام واحد لكل مجموعة</h2>
+      <p>تنفّذ الاستعلامات المقسَّمة عبارة SQL واحدة لكل تنقل مجموعي بدل JOIN عملاق واحد. وتعود أعداد الصفوف إلى مجاميع خطية.</p>
+
+      <div class="code-wrapper">
+        <div class="code-header">
+          <div class="code-badge-group">
+            <span class="code-lang-tag">C#</span>
+            <span class="code-filename">استعلام مقسَّم (بنمط Raff)</span>
+            <span class="code-type-pill pill-fragment">مقتطف</span>
+          </div>
+          <button class="btn-copy" type="button" aria-label="نسخ الكود">📋 نسخ</button>
+        </div>
+        <pre><code class="language-c#">
+var books = await context.Books
+    .Include(b =&gt; b.Authors)
+    .Include(b =&gt; b.ReadingEntries)
+    .AsSplitQuery()                   // 3 statements instead of 1
+    .ToListAsync();
+</code></pre>
+        <div class="code-expl">يضمن EF Core fix-up متسقًا: فالاستعلامات مترابطة فيحصل كل كتاب على مؤلفيه وإدخالاته بالضبط. وأنت تقايض رحلة ذهاب وإياب واحدة بعدة رحلات — وهذا يفوز عادةً حين تكون المجموعات كبيرة، ويخسر حين تكون صغيرة.</div>
+      </div>
+
+      <div class="code-wrapper">
+        <div class="code-header">
+          <div class="code-badge-group">
+            <span class="code-lang-tag">C#</span>
+            <span class="code-filename">تهيئة عامة — تفعيلها لكل الاستعلامات افتراضيًّا</span>
+            <span class="code-type-pill pill-fragment">مقتطف</span>
+          </div>
+          <button class="btn-copy" type="button" aria-label="نسخ الكود">📋 نسخ</button>
+        </div>
+        <pre><code class="language-c#">
+options.UseNpgsql(connectionString, npgsql =&gt;
+    npgsql.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery));
+</code></pre>
+        <div class="code-expl">الفرق التي تفضّل المقسَّم افتراضيًّا تهيّئه عامًّا ثم تعود إلى الاستعلامات الواحدة بـ <code>.AsSingleQuery()</code> حين تكون الوصلات أرخص. ولا يوجد افتراضي صحيح عالميًّا — فقِس الأشكال الفعلية.</div>
+      </div>
+
+      <div class="callout callout-warning">
+        <div class="callout-title">⚠️ محاذير الاستعلامات المقسَّمة</div>
+        <ul>
+          <li><strong>اتساق البيانات:</strong> عبارات SQL المتعددة <em>لا</em> تُغلَّف افتراضيًّا في معاملة، فقد تنتج كتابات متزامنة بين العبارات مخططًا لم يوجد في أي لحظة واحدة. ويوثّق EF Core تغليف الاستعلامات المقسَّمة في معاملة قابلة للتسلسل إذا لزم اتساق صارم (بتكلفة).</li>
+          <li><strong>رحلات إضافية:</strong> على الاتصالات عالية الكمون، قد تكون عدة استعلامات صغيرة أبطأ من استعلام عريض واحد.</li>
+          <li><strong>ليست علاجًا لتقسيم الصفحات:</strong> بلا <code>Take</code>/<code>Skip</code> على الاستعلام الأساسي، مقسَّمًا كان أو لا، ما زلت تحمّل كل الآباء. قسّم الصفحات أولًا (الدرس 5 في الوحدة 2)، ثم ضُمّ.</li>
+        </ul>
+      </div>
+
+      <h2>3. التتبّع ودقة الهوية ومسارات القراءة</h2>
+      <div class="code-wrapper">
+        <div class="code-header">
+          <div class="code-badge-group">
+            <span class="code-lang-tag">C#</span>
+            <span class="code-filename">ثلاثة مستويات لمسار القراءة (بنمط Raff)</span>
+            <span class="code-type-pill pill-fragment">مقتطف</span>
+          </div>
+          <button class="btn-copy" type="button" aria-label="نسخ الكود">📋 نسخ</button>
+        </div>
+        <pre><code class="language-c#">
+// 1. Full tracking — needed when you will modify and save
+var tracked = await context.Books.Include(b =&gt; b.Authors).ToListAsync();
+
+// 2. No tracking — read-only, single instance per row, no identity map
+var readOnly = await context.Books.AsNoTracking().Include(b =&gt; b.Authors).ToListAsync();
+
+// 3. No tracking with identity resolution — dedupe shared references, no snapshots
+var resolved = await context.Books
+    .AsNoTrackingWithIdentityResolution()
+    .Include(b =&gt; b.Authors)
+    .ToListAsync();
+</code></pre>
+        <div class="code-expl">المستوى 1 يدفع الأكثر (لقطة + كشف تغييرات). والمستوى 2 الأرخص لكنه قد يجسّد المؤلف نفسه مرتين إذا ظهر في مجموعتي كتابين — وهذا مقبول عند الربط إلى DTOs، وخاطئ إذا كانت الشيفرة تقارن هوية النسخ. والمستوى 3 يدفع كلفة وسطى ليضمن نسخة واحدة لكل كيان مع تخطي اللقطات.</div>
+      </div>
+
+      <h2>4. قائمة الضبط المرجعية</h2>
+      <p>العمل على أداء الاستعلامات حلقة: قِس، غيّر شيئًا واحدًا، قِس مجددًا. وهذه قائمة مرتّبة لواجهات بنمط Raff:</p>
+      <div class="steps-container">
+        <div class="step-item">
+          <div class="step-num">1</div>
+          <div class="step-text"><strong>الشكل أولًا.</strong> أسقط ما يحتاجه العقد (الدرس 6). وهنا تموت معظم تذاكر "نقطة النهاية بطيئة": أعمدة أقل، ولا تتبّع، ولا توسّع.</div>
+        </div>
+        <div class="step-item">
+          <div class="step-num">2</div>
+          <div class="step-text"><strong>أصلح N+1 بإعادة الهيكلة</strong> (الدرس 5) — لا بتحسين الحلقة تحسينًا دقيقًا.</div>
+        </div>
+        <div class="step-item">
+          <div class="step-num">3</div>
+          <div class="step-text"><strong>تحكّم في مضاعفة الصفوف</strong>: استعلامات مقسَّمة أو إعادة تصميم، وتأكد من فهارس المفاتيح الأجنبية التي تعتمد عليها أصلًا (فترحيلات Raff تنشئ فهارس المفاتيح الأجنبية وفهرس <code>unique_user_book</code> عنك).</div>
+        </div>
+        <div class="step-item">
+          <div class="step-num">4</div>
+          <div class="step-text"><strong>خفّف القراءات:</strong> <code>AsNoTracking</code> (مفعَّل أصلًا في BookService في Raff)، وInclude مُرشَّحة بعينين مفتوحتين فقط (الدرس 4).</div>
+        </div>
+        <div class="step-item">
+          <div class="step-num">5</div>
+          <div class="step-text"><strong>لا تصعد إلى الأدوات المتقدمة إلا بدليل:</strong> الاستعلامات المُصرَّفة (<code>EF.CompileAsyncQuery</code>) وSQL الخام للمسارات الساخنة التي تظل مختنقات مُثبَتة بعد ما سبق. ولا تبدأ من هنا.</div>
+        </div>
+      </div>
+
+      <div class="callout callout-info">
+        <div class="callout-title">💡 أين يكمن الاختناق الحقيقي عادةً</div>
+        <p>شكل الاستعلام أول ما تفحصه، لكنه ليس السبب الوحيد الممكن لنقطة نهاية بطيئة. فإن أظهرت القائمة أعلاه استعلامًا نظيفًا واحدًا مُسقَطًا وظلت نقطة النهاية بطيئة، فابحث في: فهارس ناقصة على أعمدة الشرط الفعلية، وكمون الشبكة إلى قاعدة البيانات، وكلفة التسلسل، وخطة استعلام قاعدة البيانات نفسها (<code>EXPLAIN ANALYZE</code> في PostgreSQL). فعمل EF Core ينتهي عند ترجمة LINQ؛ وما تفعله PostgreSQL به تحقيق ثانٍ منفصل.</p>
+      </div>
+
+      <h2>فحوص المعرفة</h2>
+      <div class="kc-mount" data-kc-group="lesson-7"></div>
+
+      <h2>خلاصة الدرس 7</h2>
+      <ul>
+        <li>ضمتا مجموعتين شقيقتين تضاعفان الصفوف (الآباء × الأبناء-أ × الأبناء-ب)؛ ويزيل EF Core التكرار في الذاكرة لكنه يدفع كلفة الجلب.</li>
+        <li><code>AsSplitQuery()</code> يحمّل كل مجموعة بعبارتها الخاصة: صفوف أقل، ورحلات أكثر، ومحذور اتساق موثَّق بلا معاملة صريحة.</li>
+        <li>اختر التتبّع بوعي: تتبّع كامل للكتابة، و<code>AsNoTracking</code> للربط للقراءة فقط، و<code>AsNoTrackingWithIdentityResolution</code> حين تهم الهوية في الذاكرة.</li>
+        <li>اضبط بالترتيب: الشكل ← N+1 ← مضاعفة الصفوف ← وزن مسار القراءة ← الأدوات المتقدمة بدليل فقط.</li>
+        <li>الفهارس وخطط الاستعلام ميدان PostgreSQL — وترجمة EF Core نصف القصة فقط.</li>
+      </ul>
+
+      <div class="refs-block">
+        <div class="refs-title">مراجع رسمية لهذا الدرس</div>
+        <ul>
+          <li><a href="https://learn.microsoft.com/en-us/ef/core/querying/single-split-queries" target="_blank" rel="noopener noreferrer">EF Core — الاستعلامات الواحدة مقابل المقسَّمة</a></li>
+          <li><a href="https://learn.microsoft.com/en-us/ef/core/performance/efficient-querying" target="_blank" rel="noopener noreferrer">EF Core — الاستعلام الكفء (عدم التتبع، دقة الهوية)</a></li>
+        </ul>
+      </div>
+
+      <div class="lesson-footer-nav">
+        <button class="btn-secondary" data-nav-target="lesson-6" type="button">→ الدرس 6</button>
+        <button class="btn-complete-lesson" data-lesson="lesson-7" type="button">أكمل الدرس 7 ✓</button>
+        <button class="btn-primary" data-nav-target="lesson-challenge" type="button">التالي: التحدي ←</button>
+      </div>
+    `
     }
   }
 };
