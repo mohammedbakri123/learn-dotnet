@@ -1,0 +1,61 @@
+/* Raff Backend Academy — RTL overrides for Arabic (html[dir="rtl"])
+   Loaded after tokens/shell/components on every page. */
+
+/* ---------------- Arabic typography ---------------- */
+
+html[lang="ar"] {
+  --font-sans: system-ui, 'Segoe UI', Tahoma, 'Noto Sans Arabic', 'Noto Kufi Arabic', 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* Code, identifiers, and SQL keep their natural left-to-right flow */
+html[dir="rtl"] pre,
+html[dir="rtl"] code,
+html[dir="rtl"] .mini-code {
+  direction: ltr;
+  text-align: left;
+  unicode-bidi: isolate;
+}
+
+/* ---------------- sidebar mirrors to the right ---------------- */
+
+html[dir="rtl"] aside.app-sidebar,
+html[dir="rtl"] .app-sidebar {
+  border-right: none;
+  border-left: 1px solid var(--border-color);
+}
+@media (max-width: 900px) {
+  html[dir="rtl"] .app-sidebar {left: auto; right: 0; transform: translateX(100%);}
+  html[dir="rtl"] .app-sidebar.open {transform: translateX(0); box-shadow: -4px 0 24px rgba(0, 0, 0, 0.5);}
+}
+@media (max-width: 768px) {
+  html[dir="rtl"] aside.app-sidebar {left: auto; right: 0; transform: translateX(100%); box-shadow: none;}
+  html[dir="rtl"] aside.app-sidebar.open {transform: translateX(0); box-shadow: -4px 0 24px rgba(0, 0, 0, 0.5);}
+}
+
+/* ---------------- accent bars and callout borders flip sides ---------------- */
+
+html[dir="rtl"] .nav-item {border-left: none; border-right: 3px solid transparent;}
+html[dir="rtl"] .nav-item.active {border-right-color: var(--accent);}
+html[dir="rtl"] .callout {border-left: none; border-right: 4px solid;}
+html[dir="rtl"] .callout-info {border-right-color: var(--accent);}
+html[dir="rtl"] .callout-warning {border-right-color: var(--warning);}
+html[dir="rtl"] .callout-danger {border-right-color: var(--danger);}
+html[dir="rtl"] .callout-success {border-right-color: var(--success);}
+html[dir="rtl"] .sim-verdict {border-left: none; border-right: 4px solid var(--accent);}
+
+/* ---------------- text alignment ---------------- */
+
+html[dir="rtl"] .header-title-box,
+html[dir="rtl"] .nav-item,
+html[dir="rtl"] .quiz-option,
+html[dir="rtl"] .search-result-item {text-align: right;}
+html[dir="rtl"] table,
+html[dir="rtl"] .concept-table th, html[dir="rtl"] .concept-table td,
+html[dir="rtl"] .lab-table th, html[dir="rtl"] .lab-table td,
+html[dir="rtl"] .sim-table th, html[dir="rtl"] .sim-table td,
+html[dir="rtl"] .topic-breakdown-table {text-align: right;}
+
+/* ---------------- spacing and floating elements ---------------- */
+
+html[dir="rtl"] .exercise-badge {margin-right: 0; margin-left: 0.5rem;}
+html[dir="rtl"] .toast-container {right: auto; left: 2rem;}

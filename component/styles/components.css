@@ -103,6 +103,7 @@ html {scroll-behavior: smooth;}
 @media (max-width: 900px) {
   #btn-mobile-menu {display: inline-flex;}
   .btn-icon .btn-label {display: none;}
+  .btn-icon.btn-lang .btn-label {display: inline;}
 }
 .nav-item {display: flex; align-items: center; justify-content: space-between; padding: 0.65rem 1.25rem; color: var(--text-secondary); text-decoration: none; cursor: pointer; border-left: 3px solid transparent; font-size: 0.9rem; transition: background-color 0.15s, color 0.15s; background: none; border-top: none; border-right: none; border-bottom: none; width: 100%; text-align: left; font-family: inherit;}
 .nav-item-badge {font-size: 0.75rem; background: var(--bg-tertiary); color: var(--text-muted); padding: 0.1rem 0.4rem; border-radius: var(--radius-sm); flex-shrink: 0;}
