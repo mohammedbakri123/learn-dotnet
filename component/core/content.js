@@ -26,6 +26,10 @@
 
   function esc(s) { return window.RaffUI ? RaffUI.escapeHtml(s) : String(s); }
 
+  function T(key, vars) { return window.RaffI18n ? RaffI18n.t(key, vars) : key; }
+
+  function L(obj, field) { return window.RaffI18n ? RaffI18n.localized(obj, field) : (obj ? obj[field] : ''); }
+
   /* ---------------- block rendering ---------------- */
 
   function codeBlockHtml(b) {
@@ -35,10 +39,10 @@
     return (
       '<div class="code-wrapper">' +
       '<div class="code-header">' +
-      '<span class="code-filename">' + esc(b.filename || langTag + ' snippet') + '</span>' +
+      '<span class="code-filename">' + esc(b.filename || T('code.snippet', { lang: langTag })) + '</span>' +
       '<div class="code-badge-group">' +
       '<span class="code-lang-tag">' + esc(langTag) + '</span>' +
-      '<button class="btn-copy" type="button">📋 Copy</button>' +
+      '<button class="btn-copy" type="button">' + esc(T('code.copy')) + '</button>' +
       '</div>' +
       '</div>' +
       '<pre><code class="language-' + esc(lang) + '">' + inner + '</code></pre>' +
@@ -89,7 +93,7 @@
 
   function renderWidget(b) {
     var def = widgets[b.name];
-    if (!def) return '<div class="callout callout-warning"><div class="callout-title">⚠️ Widget unavailable</div><p>No renderer registered for <code>' + esc(b.name) + '</code>.</p></div>';
+    if (!def) return '<div class="callout callout-warning"><div class="callout-title">' + esc(T('widget.unavailable')) + '</div><p>' + T('widget.noRenderer', { name: '<code>' + esc(b.name) + '</code>' }) + '</p></div>';
     return def.render ? def.render(b.config || {}) : '';
   }
 
@@ -132,9 +136,10 @@
     /* ---------- shell markup ---------- */
 
     var navHtml = lessons.map(function (l) {
+      var navLabel = L(l, 'nav') || L(l, 'title') || l.id;
       return '<button class="nav-item" data-target="' + esc(l.id) + '" type="button">' +
-        '<span class="nav-item-left"><span class="nav-item-badge">' + esc(l.badge || '') + '</span>' +
-        '<span>' + (l.nav || l.title || l.id) + '</span></span>' +
+        '<span class="nav-item-left"><span class="nav-item-badge">' + esc(L(l, 'badge') || '') + '</span>' +
+        '<span>' + esc(navLabel) + '</span></span>' +
         '<span class="nav-check" aria-hidden="true">✓</span>' +
         '</button>';
     }).join('');
@@ -142,34 +147,34 @@
     var header =
       '<header class="app-header">' +
       '<div class="header-top">' +
-      '<button class="header-title-box" id="header-home" type="button" title="Back to all modules">' +
-      '<span class="app-badge">Raff Curriculum</span>' +
-      '<span class="app-title">' + esc(reg.icon || '📘') + ' ' + esc(reg.title) + (reg.number ? ' • Module ' + esc(reg.number) : '') + '</span>' +
+      '<button class="header-title-box" id="header-home" type="button" title="' + esc(T('header.backHome')) + '">' +
+      '<span class="app-badge">' + esc(T('brand.curriculumBadge')) + '</span>' +
+      '<span class="app-title">' + esc(reg.icon || '📘') + ' ' + esc(L(reg, 'title')) + (reg.number ? esc(T('header.moduleSuffix', { number: reg.number })) : '') + '</span>' +
       '</button>' +
       '<div class="header-actions">' +
-      '<button class="btn-icon" id="btn-open-search" title="Search lessons and glossary (Ctrl+K)" type="button"><span aria-hidden="true">🔍</span> <span class="btn-label">Search</span></button>' +
-      (config.glossary ? '<button class="btn-icon" id="btn-open-glossary" title="Searchable glossary" type="button"><span aria-hidden="true">📖</span> <span class="btn-label">Glossary</span></button>' : '') +
-      '<button class="btn-icon" id="btn-theme-toggle" title="Toggle light/dark theme" type="button"><span id="theme-icon" aria-hidden="true">☀️</span> <span class="sr-only">Toggle theme</span></button>' +
-      '<button class="btn-icon btn-lang" id="btn-lang-toggle" title="Switch to Arabic" type="button"><span aria-hidden="true">🌐</span> <span class="btn-label" data-lang-label>AR</span></button>' +
-      '<button class="btn-icon" id="btn-mobile-menu" title="Toggle navigation menu" type="button"><span aria-hidden="true">☰</span> <span class="sr-only">Toggle navigation</span></button>' +
+      '<button class="btn-icon" id="btn-open-search" title="' + esc(T('header.searchTitle')) + '" type="button"><span aria-hidden="true">🔍</span> <span class="btn-label">' + esc(T('common.search')) + '</span></button>' +
+      (config.glossary ? '<button class="btn-icon" id="btn-open-glossary" title="' + esc(T('header.glossaryTitle')) + '" type="button"><span aria-hidden="true">📖</span> <span class="btn-label">' + esc(T('common.glossary')) + '</span></button>' : '') +
+      '<button class="btn-icon" id="btn-theme-toggle" title="' + esc(T('header.themeTitle')) + '" type="button"><span id="theme-icon" aria-hidden="true">☀️</span> <span class="sr-only">' + esc(T('header.themeTitle')) + '</span></button>' +
+      '<button class="btn-icon btn-lang" id="btn-lang-toggle" title="' + esc(T('lang.toggleTitle')) + '" type="button"><span aria-hidden="true">🌐</span> <span class="btn-label" data-lang-label>' + esc(T('lang.toggleLabel')) + '</span></button>' +
+      '<button class="btn-icon" id="btn-mobile-menu" title="' + esc(T('header.menuTitle')) + '" type="button"><span aria-hidden="true">☰</span> <span class="sr-only">' + esc(T('header.menuTitle')) + '</span></button>' +
       '</div></div>' +
-      '<div class="progress-bar-container" role="progressbar" aria-label="Module progress" aria-valuemin="0" aria-valuemax="100" id="global-progress-bar"><div class="progress-bar-fill" id="global-progress-fill"></div></div>' +
+      '<div class="progress-bar-container" role="progressbar" aria-label="' + esc(T('header.moduleProgress')) + '" aria-valuemin="0" aria-valuemax="100" id="global-progress-bar"><div class="progress-bar-fill" id="global-progress-fill"></div></div>' +
       '</header>';
 
     var labels = config.labels || {};
     var sidebarHtml =
-      '<aside class="app-sidebar" id="app-sidebar" aria-label="Curriculum navigation">' +
-      '<div class="sidebar-section-title">' + esc(labels.navTitle || 'Curriculum Navigation') + '</div>' +
+      '<aside class="app-sidebar" id="app-sidebar" aria-label="' + esc(T('sidebar.navAria')) + '">' +
+      '<div class="sidebar-section-title">' + esc(labels.navTitle || T('sidebar.title')) + '</div>' +
       navHtml +
       '<div class="sidebar-footer">' +
       '<div class="progress-summary-box">' +
-      '<div class="progress-summary-row"><span style="color:var(--text-muted);">' + esc(labels.lessons || 'Lessons') + ':</span> <strong id="sidebar-progress-label">0 / 0</strong></div>' +
-      '<div class="progress-summary-row"><span style="color:var(--text-muted);">' + esc(labels.checks || 'Checks answered') + ':</span> <strong id="sidebar-checks-label">0 / 0</strong></div>' +
+      '<div class="progress-summary-row"><span style="color:var(--text-muted);">' + esc(labels.lessons || T('common.lessons')) + ':</span> <strong id="sidebar-progress-label">0 / 0</strong></div>' +
+      '<div class="progress-summary-row"><span style="color:var(--text-muted);">' + esc(labels.checks || T('common.checksAnswered')) + ':</span> <strong id="sidebar-checks-label">0 / 0</strong></div>' +
       '</div>' +
       '<div style="display:flex; gap:0.5rem; margin-top:0.5rem;">' +
-      '<button class="btn-icon" style="flex:1; justify-content:center; font-size:0.78rem;" id="btn-export-progress" type="button">💾 Export</button>' +
-      '<button class="btn-icon" style="flex:1; justify-content:center; font-size:0.78rem;" id="btn-import-progress" type="button">📂 Import</button>' +
-      '<button class="btn-icon" style="color:var(--danger); font-size:0.78rem;" id="btn-reset-progress" title="Reset progress" type="button">🗑️</button>' +
+      '<button class="btn-icon" style="flex:1; justify-content:center; font-size:0.78rem;" id="btn-export-progress" type="button">💾 ' + esc(T('common.export')) + '</button>' +
+      '<button class="btn-icon" style="flex:1; justify-content:center; font-size:0.78rem;" id="btn-import-progress" type="button">📂 ' + esc(T('common.import')) + '</button>' +
+      '<button class="btn-icon" style="color:var(--danger); font-size:0.78rem;" id="btn-reset-progress" title="' + esc(T('sidebar.resetTitle')) + '" type="button">🗑️</button>' +
       '</div></div></aside>';
 
     var startLesson = startId;
@@ -191,45 +196,45 @@
       (config.search !== false ? (
         '<div class="modal-overlay" id="modal-search" role="dialog" aria-modal="true" aria-labelledby="search-modal-title">' +
         '<div class="modal-dialog"><div class="modal-header">' +
-        '<div class="modal-title" id="search-modal-title">🔍 ' + esc((config.search && config.search.title) || 'Search the module') + '</div>' +
-        '<button class="btn-secondary" data-close-modal="modal-search" type="button">Close ✕</button>' +
+        '<div class="modal-title" id="search-modal-title">🔍 ' + esc((config.search && config.search.title) || T('search.title')) + '</div>' +
+        '<button class="btn-secondary" data-close-modal="modal-search" type="button">' + esc(T('common.close')) + '</button>' +
         '</div><div class="modal-body">' +
-        '<input type="text" class="search-input" id="search-input" placeholder="' + esc((config.search && config.search.placeholder) || 'Search lessons, topics, exercises, and glossary terms…') + '" autocomplete="off">' +
+        '<input type="text" class="search-input" id="search-input" placeholder="' + esc((config.search && config.search.placeholder) || T('search.placeholder')) + '" autocomplete="off">' +
         '<div id="search-results" aria-live="polite"></div>' +
         '</div></div></div>'
       ) : '') +
       (config.glossary ? (
         '<div class="modal-overlay" id="modal-glossary" role="dialog" aria-modal="true" aria-labelledby="glossary-modal-title">' +
         '<div class="modal-dialog"><div class="modal-header">' +
-        '<div class="modal-title" id="glossary-modal-title">📖 Glossary</div>' +
-        '<button class="btn-secondary" data-close-modal="modal-glossary" type="button">Close ✕</button>' +
+        '<div class="modal-title" id="glossary-modal-title">📖 ' + esc(T('glossary.title')) + '</div>' +
+        '<button class="btn-secondary" data-close-modal="modal-glossary" type="button">' + esc(T('common.close')) + '</button>' +
         '</div><div class="modal-body">' +
-        '<input type="text" class="search-input" id="glossary-search" placeholder="' + esc((config.glossary && config.glossary.placeholder) || 'Filter terms…') + '" autocomplete="off">' +
+        '<input type="text" class="search-input" id="glossary-search" placeholder="' + esc((config.glossary && config.glossary.placeholder) || T('glossary.filterPlaceholder')) + '" autocomplete="off">' +
         '<div class="glossary-cat-filters" id="glossary-filters"></div>' +
         '<div id="glossary-list"></div>' +
         '</div></div></div>'
       ) : '') +
       '<div class="modal-overlay" id="modal-import" role="dialog" aria-modal="true" aria-labelledby="import-modal-title">' +
       '<div class="modal-dialog" style="max-width:500px;"><div class="modal-header">' +
-      '<div class="modal-title" id="import-modal-title">📂 Import Progress JSON</div>' +
-      '<button class="btn-secondary" data-close-modal="modal-import" type="button">Close ✕</button>' +
+      '<div class="modal-title" id="import-modal-title">📂 ' + esc(T('import.title')) + '</div>' +
+      '<button class="btn-secondary" data-close-modal="modal-import" type="button">' + esc(T('common.close')) + '</button>' +
       '</div><div class="modal-body">' +
-      '<p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:0.75rem;">Upload a previously exported .json file or paste the JSON text below:</p>' +
+      '<p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:0.75rem;">' + esc(T('import.desc')) + '</p>' +
       '<input type="file" id="import-file-input" accept=".json,application/json" style="margin-bottom:1rem; font-size:0.85rem;">' +
-      '<textarea id="import-textarea" rows="6" class="search-input" placeholder="Paste exported JSON here..."></textarea>' +
+      '<textarea id="import-textarea" rows="6" class="search-input" placeholder="' + esc(T('import.placeholder')) + '"></textarea>' +
       '<div style="display:flex; justify-content:flex-end; gap:0.75rem; margin-top:1rem;">' +
-      '<button class="btn-secondary" data-close-modal="modal-import" type="button">Cancel</button>' +
-      '<button class="btn-primary" id="btn-submit-import" type="button">Import &amp; Restore</button>' +
+      '<button class="btn-secondary" data-close-modal="modal-import" type="button">' + esc(T('common.cancel')) + '</button>' +
+      '<button class="btn-primary" id="btn-submit-import" type="button">' + esc(T('import.submit')) + '</button>' +
       '</div></div></div></div>' +
       '<div class="modal-overlay" id="modal-reset" role="dialog" aria-modal="true" aria-labelledby="reset-modal-title">' +
       '<div class="modal-dialog" style="max-width:460px;"><div class="modal-header">' +
-      '<div class="modal-title" id="reset-modal-title">🗑️ Reset all progress?</div>' +
+      '<div class="modal-title" id="reset-modal-title">🗑️ ' + esc(T('reset.title')) + '</div>' +
       '</div><div class="modal-body">' +
-      '<p>This permanently clears your lesson completions, knowledge-check answers, lab selections, and assessment scores for this module. Exported progress files are not affected.</p>' +
-      '<p style="margin-bottom:1.25rem; color:var(--danger);"><strong>This cannot be undone.</strong></p>' +
+      '<p>' + esc(T('reset.body')) + '</p>' +
+      '<p style="margin-bottom:1.25rem; color:var(--danger);"><strong>' + esc(T('reset.warning')) + '</strong></p>' +
       '<div class="exercise-actions">' +
-      '<button class="btn-primary" id="btn-confirm-reset" type="button" style="background:var(--danger);">Yes, reset everything</button>' +
-      '<button class="btn-secondary" id="btn-cancel-reset" type="button">Cancel</button>' +
+      '<button class="btn-primary" id="btn-confirm-reset" type="button" style="background:var(--danger);">' + esc(T('reset.confirm')) + '</button>' +
+      '<button class="btn-secondary" id="btn-cancel-reset" type="button">' + esc(T('common.cancel')) + '</button>' +
       '</div></div></div></div>' +
       (config.extraModalsHtml || '') +
       '<input type="file" id="legacy-import-file" hidden>' +
@@ -400,7 +405,7 @@
         getDef: config.glossary.getDef,
         renderItem: config.glossary.renderItem,
         emptyHtml: config.glossary.emptyHtml,
-        initialCat: config.glossary.initialCat || 'All',
+        initialCat: config.glossary.initialCat || T('common.all'),
         filtersMode: config.glossary.filtersMode || 'none'
       });
       ctx.openGlossary = function (preset) {
