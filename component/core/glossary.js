@@ -7,6 +7,8 @@
 (function () {
   'use strict';
 
+  function T(key) { return window.RaffI18n ? RaffI18n.t(key) : key; }
+
   function $(sel, root) { return (root || document).querySelector(sel); }
   function $$(sel, root) {
     return Array.prototype.slice.call((root || document).querySelectorAll(sel));
@@ -27,11 +29,13 @@
     var getCat = o.getCat || function (item) { return item.cat; };
     var getDef = o.getDef || function (item) { return item.def; };
     var renderItem = o.renderItem || function (item) { return esc(getTerm(item)); };
-    var initialCat = o.initialCat || 'All';
+    var allCat = T('common.all');
+    var initialCat = o.initialCat || allCat;
+    if (initialCat === 'All') initialCat = allCat;
     var cat = initialCat;
 
     function matches(item, q) {
-      var inCat = cat === 'All' || String(getCat(item)) === cat;
+      var inCat = cat === allCat || cat === 'All' || String(getCat(item)) === cat;
       var text = (String(getTerm(item)) + ' ' + String(getDef(item))).toLowerCase();
       return inCat && (!q || text.indexOf(q) !== -1);
     }
