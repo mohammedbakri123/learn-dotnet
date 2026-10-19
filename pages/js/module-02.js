@@ -138,6 +138,24 @@
     }
   });
 
+  /* Arabic content overlays (data/module-02.ar.js). English fallback when absent. */
+  const OV = (RaffI18n.get() === 'ar') ? (window.RAFF_MODULE_02_AR || null) : null;
+  let QUESTIONS = QUESTIONS_DB;
+  let LESSONS = MODULE_LESSONS;
+  let GLOSSARY_ITEMS = GLOSSARY_ITEMS_DATA;
+  let SEARCH = SEARCH_INDEX;
+  if (OV) {
+    if (OV.questions) {
+      QUESTIONS = Object.assign({}, QUESTIONS_DB);
+      Object.keys(QUESTIONS_DB).forEach((id) => {
+        if (OV.questions[id]) QUESTIONS[id] = Object.assign({}, QUESTIONS_DB[id], OV.questions[id]);
+      });
+    }
+    if (OV.lessons) LESSONS = RaffI18n.mergeById(MODULE_LESSONS, OV.lessons);
+    if (OV.glossary) GLOSSARY_ITEMS = RaffI18n.mergeById(GLOSSARY_ITEMS_DATA, OV.glossary, 'term');
+    if (OV.search) SEARCH = RaffI18n.mergeById(SEARCH_INDEX, OV.search);
+  }
+
   let appState = {
     theme: 'dark',
     completedLessons: {},
@@ -178,7 +196,7 @@
     LESSON_KEYS.forEach(k => { if (appState.completedLessons[k]) completedCount++; });
     const pct = Math.round((completedCount / LESSON_KEYS.length) * 100);
 
-    const totalChecks = Object.keys(QUESTIONS_DB).filter(id => ASSESSMENT_IDS.indexOf(id) === -1).length;
+    const totalChecks = Object.keys(QUESTIONS).filter(id => ASSESSMENT_IDS.indexOf(id) === -1).length;
     const answered = Object.keys(appState.quizzes || {}).length;
 
     const threshLabel = document.getElementById('assessment-threshold-label');
@@ -400,7 +418,7 @@
         }
 
         const selectedIdx = parseInt(selected.getAttribute('data-opt'), 10);
-        const qData = QUESTIONS_DB[qid];
+        const qData = QUESTIONS[qid];
         const isCorrect = (selectedIdx === qData.correct);
 
         group.querySelectorAll('.quiz-option').forEach((opt, idx) => {
@@ -453,7 +471,7 @@
       if (!group) continue;
       const opt = group.querySelector(`.quiz-option[data-opt="${qRes.selected}"]`);
       if (opt) opt.classList.add('selected');
-      const qData = QUESTIONS_DB[qid];
+      const qData = QUESTIONS[qid];
       if (qData) {
         group.querySelectorAll('.quiz-option').forEach((o, idx) => {
           if (idx === qData.correct) o.classList.add('correct');
@@ -479,7 +497,7 @@
 
     let html = '';
     ASSESSMENT_IDS.forEach((id, idx) => {
-      const q = QUESTIONS_DB[id];
+      const q = QUESTIONS[id];
       html += `
         <div class="exercise-card" id="${id}">
           <div class="exercise-header">
@@ -540,7 +558,7 @@
         unanswered++;
       } else {
         const optIdx = parseInt(sel.getAttribute('data-opt'), 10);
-        const isCorr = (optIdx === QUESTIONS_DB[id].correct);
+        const isCorr = (optIdx === QUESTIONS[id].correct);
         if (isCorr) correct++;
         answers[id] = { selected: optIdx, correct: isCorr };
       }
@@ -570,7 +588,7 @@
 
     for (const [qid, ans] of Object.entries(appState.assessment.answers)) {
       const group = document.querySelector(`.quiz-options[data-qid="${qid}"]`);
-      const qData = QUESTIONS_DB[qid];
+      const qData = QUESTIONS[qid];
       if (group && qData) {
         group.querySelectorAll('.quiz-option').forEach((opt, idx) => {
           if (idx === qData.correct) opt.classList.add('correct');
@@ -586,7 +604,7 @@
 
     const topics = {};
     for (const [qid, ans] of Object.entries(appState.assessment.answers)) {
-      const top = QUESTIONS_DB[qid].topic;
+      const top = QUESTIONS[qid].topic;
       if (!topics[top]) topics[top] = { total: 0, correct: 0 };
       topics[top].total++;
       if (ans.correct) topics[top].correct++;
@@ -700,7 +718,7 @@
     RaffContent.boot({
       moduleId: 'module-02',
       storageKey: STORAGE_KEY,
-      lessons: MODULE_LESSONS,
+      lessons: LESSONS,
       startId: 'lesson-0',
 
       state: {
@@ -762,11 +780,11 @@
         minChars: 1,
         hint: '',
         noMatch: S.searchNoMatch,
-        items: SEARCH_INDEX.map(it => ({ target: it.id, title: it.title, snippet: it.snippet }))
+        items: SEARCH.map(it => ({ target: it.id, title: it.title, snippet: it.snippet }))
       },
 
       glossary: {
-        items: GLOSSARY_ITEMS_DATA,
+        items: GLOSSARY_ITEMS,
         filtersMode: 'static',
         initialCat: 'all',
         renderItem: (item) => `
