@@ -443,6 +443,439 @@ window.RAFF_MODULE_01_AR = {
 `
     },
 
+    'lesson-1': {
+      nav: 'HTTP ودورة حياة الطلب',
+      content: `
+  <div class="lesson-header-box">
+    <div class="lesson-meta-bar">
+      <span class="lesson-pill">الدرس 1</span>
+      <span class="badge-time">قراءة وتمارين في 30 دقيقة</span>
+    </div>
+    <h1 class="lesson-h1">أساسيات HTTP ودورة حياة الطلب في ASP.NET Core</h1>
+    <p class="lesson-lead">
+      قبل كتابة إجراءات المتحكم، عليك فهم بروتوكول الشبكة الذي يعمل أسفلها. تتبّع رحلة طلب HTTP من مقبس العميل عبر Kestrel والوسائط والتوجيه وربط النماذج وEF Core حتى PostgreSQL.
+    </p>
+  </div>
+
+  <div class="content-body">
+    <h2>1. بروتوكول HTTP: معمارية العميل-الخادم</h2>
+    <p>
+      <strong>بروتوكول نقل النص التشعبي (HTTP)</strong> بروتوكول عديم الحالة على طبقة التطبيقات يعمل فوق TCP أو QUIC (في HTTP/3). في واجهة خلفية RESTful مثل واجهتك <strong>Raff</strong>، يبدأ العميل (واجهة React أو تطبيق Flutter الجوّال أو سكربت cURL) اتصالًا ويرسل رسالة طلب HTTP، ثم ينتظر ردّ الخادم برسالة استجابة HTTP.
+    </p>
+
+    <div class="callout callout-important">
+      <div class="callout-icon">💡</div>
+      <div class="callout-content">
+        <div class="callout-title">انعدام الحالة: ماذا يعني لتصميم الواجهة الخلفية؟</div>
+        <p>
+          إن HTTP <strong>عديم الحالة</strong> بطبيعته؛ فلا يحتفظ الخادم افتراضيًا بأي حالة جلسة عن العميل بين الطلبات. ويجب أن يحتوي كل طلب على جميع بيانات الاعتماد والترويسات والمعاملات اللازمة لفهم العملية والتصريح بها. فإذا جلب العميل صفحة كتب من Raff، وجب على الطلب التالي للصفحة الثانية أن يرسل معاملات ترقيم الصفحات ورمز المصادقة الخاصين به.
+        </p>
+      </div>
+    </div>
+
+    <h3>تشريح طلب HTTP</h3>
+    <p>
+      يتكوّن كل طلب HTTP على الشبكة من ثلاثة أجزاء أساسية:
+    </p>
+    <ol>
+      <li><strong>سطر الطلب:</strong> أسلوب HTTP (الفعل)، ومسار URI المستهدف وسلسلة الاستعلام، وإصدار HTTP.</li>
+      <li><strong>الترويسات:</strong> بيانات وصفية من أزواج مفتاح/قيمة توفر سياقًا عن العميل وصيغة المحتوى والمصادقة والتخزين المؤقت.</li>
+      <li><strong>الجسم (اختياري):</strong> بيانات الحمولة (مثل JSON أو بيانات نموذج) المرسلة إلى الخادم.</li>
+    </ol>
+
+    <div class="code-container">
+      <div class="code-header">
+        <div class="code-badge-group">
+          <span class="code-lang-tag">HTTP</span>
+          <span class="code-filename">Request Wire Format</span>
+          <span class="code-type-pill">Wire Protocol</span>
+        </div>
+        <button class="btn-copy-code" data-code="POST /api/books HTTP/1.1
+Host: api.raff.local
+Content-Type: application/json
+Accept: application/json
+Authorization: Bearer eyJhbGciOi...
+
+{
+  &quot;title&quot;: &quot;Makan fi Al-Qalb&quot;,
+  &quot;publishedYear&quot;: 2023,
+  &quot;summary&quot;: &quot;An acclaimed modern Arabic novel.&quot;,
+  &quot;coverUrl&quot;: &quot;https://cdn.raff.local/covers/makan.jpg&quot;
+}">Copy Wire Request</button>
+      </div>
+      <pre><code class="language-http">POST /api/books HTTP/1.1
+Host: api.raff.local
+Content-Type: application/json
+Accept: application/json
+Authorization: Bearer eyJhbGciOi...
+
+{
+  "title": "Makan fi Al-Qalb",
+  "publishedYear": 2023,
+  "summary": "An acclaimed modern Arabic novel.",
+  "coverUrl": "https://cdn.raff.local/covers/makan.jpg"
+}</code></pre>
+      <div class="code-explanation">
+        <strong>أسطر مهمة:</strong> يحدّد السطر الأول الفعل <code>POST</code> ومسار نقطة النهاية <code>/api/books</code>. وتوجّه <code>Content-Type: application/json</code> مكوّنات الإدخال في ASP.NET Core لفكّ الجسم عبر <code>System.Text.Json</code>.
+      </div>
+    </div>
+
+    <h3>تشريح استجابة HTTP</h3>
+    <p>
+      تعيد الاستجابة نتيجة تنفيذ الخادم:
+    </p>
+
+    <div class="code-container">
+      <div class="code-header">
+        <div class="code-badge-group">
+          <span class="code-lang-tag">HTTP</span>
+          <span class="code-filename">Response Wire Format</span>
+          <span class="code-type-pill">Wire Protocol</span>
+        </div>
+        <button class="btn-copy-code" data-code="HTTP/1.1 201 Created
+Location: /api/books/42
+Content-Type: application/json; charset=utf-8
+Date: Mon, 13 Oct 2026 18:30:00 GMT
+
+{
+  &quot;id&quot;: 42,
+  &quot;title&quot;: &quot;Makan fi Al-Qalb&quot;,
+  &quot;publishedYear&quot;: 2023,
+  &quot;summary&quot;: &quot;An acclaimed modern Arabic novel.&quot;,
+  &quot;coverUrl&quot;: &quot;https://cdn.raff.local/covers/makan.jpg&quot;,
+  &quot;authors&quot;: []
+}">Copy Wire Response</button>
+      </div>
+      <pre><code class="language-http">HTTP/1.1 201 Created
+Location: /api/books/42
+Content-Type: application/json; charset=utf-8
+Date: Mon, 13 Oct 2026 18:30:00 GMT
+
+{
+  "id": 42,
+  "title": "Makan fi Al-Qalb",
+  "publishedYear": 2023,
+  "summary": "An acclaimed modern Arabic novel.",
+  "coverUrl": "https://cdn.raff.local/covers/makan.jpg",
+  "authors": []
+}</code></pre>
+      <div class="code-explanation">
+        <strong>سطر الحالة:</strong> تؤكد <code>201 Created</code> إنشاء المورد، وتحدّد ترويسة <code>Location: /api/books/42</code> العنوان القياسي (URI) الذي يمكن جلب الكتاب المنشأ منه.
+      </div>
+    </div>
+
+    <h2>2. رموز الحالة: دلالات النجاح والفشل</h2>
+    <p>
+      رموز حالة HTTP أعداد صحيحة قياسية من ثلاثة أرقام مصنّفة في خمس نطاقات وفق RFC 9110:
+    </p>
+    <ul>
+      <li><span class="status-badge status-2xx">1xx (معلوماتي)</span>: استُلم الطلب وتتوالى المعالجة (مثل <code>100 Continue</code> و<code>101 Switching Protocols</code> لـ WebSockets).</li>
+      <li><span class="status-badge status-2xx">2xx (نجاح)</span>: استُلم إجراء العميل وفُهم وقُبل.</li>
+      <li><span class="status-badge status-4xx">3xx (إعادة توجيه)</span>: يجب على العميل اتخاذ إجراء إضافي لإكمال الطلب (مثل <code>301 Moved Permanently</code> و<code>304 Not Modified</code>).</li>
+      <li><span class="status-badge status-4xx">4xx (خطأ عميل)</span>: يبدو أن العميل أخطأ (صياغة غير سليمة، أو غياب تصريح، أو مورد غير موجود).</li>
+      <li><span class="status-badge status-5xx">5xx (خطأ خادم)</span>: فشل الخادم في تلبية طلب يبدو صالحًا بسبب عطل غير معالَج أو انقطاع في البنية التحتية.</li>
+    </ul>
+
+    <h2>3. دورة حياة الطلب في ASP.NET Core</h2>
+    <p>
+      كيف تتحول سلسلة بايتات تصل إلى بطاقة الشبكة لديك إلى كائن C# قوي الأنواع داخل <code>BookController</code>؟ يصوّر المخطط أدناه خط الأنابيب هذا؛ انقر أي مكوّن فيه لتفحص ما يحدث خلف الكواليس.
+    </p>
+
+    <!-- Interactive Pipeline SVG Explorer -->
+    <div class="simulator-widget">
+      <div class="simulator-header">
+        <span class="simulator-title">🔍 معمارية تفاعلية: خط أنابيب الطلبات في ASP.NET Core</span>
+        <span class="code-type-pill">انقر أي مرحلة لتفحصها</span>
+      </div>
+      <div class="simulator-body">
+        <div class="pipeline-svg-wrapper">
+          <svg class="pipeline-svg" viewBox="0 0 880 180" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="gradKestrel" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#3b82f6"/>
+                <stop offset="100%" stop-color="#1d4ed8"/>
+              </linearGradient>
+              <linearGradient id="gradMid" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#6366f1"/>
+                <stop offset="100%" stop-color="#4338ca"/>
+              </linearGradient>
+              <linearGradient id="gradCtrl" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#8b5cf6"/>
+                <stop offset="100%" stop-color="#6d28d9"/>
+              </linearGradient>
+              <linearGradient id="gradSvc" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#ec4899"/>
+                <stop offset="100%" stop-color="#be185d"/>
+              </linearGradient>
+              <linearGradient id="gradEf" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#10b981"/>
+                <stop offset="100%" stop-color="#047857"/>
+              </linearGradient>
+              <linearGradient id="gradPg" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#0284c7"/>
+                <stop offset="100%" stop-color="#0369a1"/>
+              </linearGradient>
+              <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 1 L 10 5 L 0 9 z" fill="#64748b"/>
+              </marker>
+            </defs>
+
+            <!-- Node 1: Client -->
+            <g class="pipeline-node" data-node="client" transform="translate(10, 45)">
+              <rect width="105" height="75" rx="8" fill="#1e293b" stroke="#475569" stroke-width="1.5"/>
+              <text x="52" y="36" fill="#f8fafc" font-size="12" font-weight="700" text-anchor="middle">تطبيق العميل</text>
+              <text x="52" y="54" fill="#94a3b8" font-size="10" text-anchor="middle">(ويب / جوّال)</text>
+            </g>
+            <line x1="115" y1="82" x2="140" y2="82" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
+
+            <!-- Node 2: Kestrel -->
+            <g class="pipeline-node" data-node="kestrel" transform="translate(145, 45)">
+              <rect width="105" height="75" rx="8" fill="url(#gradKestrel)" stroke="#60a5fa" stroke-width="1.5"/>
+              <text x="52" y="36" fill="#ffffff" font-size="12" font-weight="700" text-anchor="middle">Kestrel</text>
+              <text x="52" y="54" fill="#bfdbfe" font-size="10" text-anchor="middle">خادم الويب</text>
+            </g>
+            <line x1="250" y1="82" x2="275" y2="82" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
+
+            <!-- Node 3: Middleware -->
+            <g class="pipeline-node selected" data-node="middleware" transform="translate(280, 45)">
+              <rect width="120" height="75" rx="8" fill="url(#gradMid)" stroke="#818cf8" stroke-width="2"/>
+              <text x="60" y="36" fill="#ffffff" font-size="12" font-weight="700" text-anchor="middle">Middleware</text>
+              <text x="60" y="54" fill="#c7d2fe" font-size="10" text-anchor="middle">الوسائط والتوجيه</text>
+            </g>
+            <line x1="400" y1="82" x2="425" y2="82" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
+
+            <!-- Node 4: Controller -->
+            <g class="pipeline-node" data-node="controller" transform="translate(430, 45)">
+              <rect width="120" height="75" rx="8" fill="url(#gradCtrl)" stroke="#c084fc" stroke-width="1.5"/>
+              <text x="60" y="36" fill="#ffffff" font-size="12" font-weight="700" text-anchor="middle">Controller</text>
+              <text x="60" y="54" fill="#e9d5ff" font-size="10" text-anchor="middle">BookController</text>
+            </g>
+            <line x1="550" y1="82" x2="575" y2="82" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
+
+            <!-- Node 5: Service -->
+            <g class="pipeline-node" data-node="service" transform="translate(580, 45)">
+              <rect width="115" height="75" rx="8" fill="url(#gradSvc)" stroke="#f472b6" stroke-width="1.5"/>
+              <text x="57" y="36" fill="#ffffff" font-size="12" font-weight="700" text-anchor="middle">Service Layer</text>
+              <text x="57" y="54" fill="#fbcfe8" font-size="10" text-anchor="middle">BookService</text>
+            </g>
+            <line x1="695" y1="82" x2="720" y2="82" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
+
+            <!-- Node 6: EF Core & DB -->
+            <g class="pipeline-node" data-node="database" transform="translate(725, 45)">
+              <rect width="145" height="75" rx="8" fill="url(#gradPg)" stroke="#38bdf8" stroke-width="1.5"/>
+              <text x="72" y="36" fill="#ffffff" font-size="12" font-weight="700" text-anchor="middle">EF Core &amp; Postgres</text>
+              <text x="72" y="54" fill="#bae6fd" font-size="10" text-anchor="middle">BooksContext</text>
+            </g>
+          </svg>
+        </div>
+
+        <!-- Inspector Output -->
+        <div id="pipeline-inspector" class="pipeline-inspector-card">
+          <div class="pipeline-inspector-title">
+            <span>⚙️ المكوّن: خط أنابيب الوسائط والتوجيه</span>
+          </div>
+          <p id="inspector-desc" class="inspector-value">
+            سلسلة من التفويضات (delegates) تُجمَّع في <code>Program.cs</code>. تنفّذ كل وسيطة منطقها وتمرّر التحكم إلى التالية عبر <code>next(context)</code>، ويمكنها فحص الاستجابة أو تعديلها في طريق العودة. يطابق <code>UseRouting()</code> عناوين URL الواردة مع نقاط النهاية، بينما يتحقق <code>UseAuthorization()</code> من الصلاحيات.
+          </p>
+          <div class="pipeline-inspector-grid">
+            <div class="inspector-field">
+              <div class="inspector-label">المدخلات</div>
+              <div id="inspector-input" class="inspector-value"><code>HttpContext</code> خام أنشأه Kestrel</div>
+            </div>
+            <div class="inspector-field">
+              <div class="inspector-label">المسؤولية الأساسية</div>
+              <div id="inspector-duty" class="inspector-value">الاهتمامات الشاملة: الاستثناءات وإعادة التوجيه إلى TLS وCORS والمصادقة وتوزيع نقاط النهاية</div>
+            </div>
+            <div class="inspector-field">
+              <div class="inspector-label">السياق في Raff</div>
+              <div id="inspector-raff" class="inspector-value">يوزّع <code>POST /api/books</code> إلى <code>BookController.Add</code></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <h2>4. الطبقات المعمارية مقابل فرائض إطار العمل</h2>
+    <p>
+      من المفاهيم الخاطئة الشائعة لدى مطوّري الخلفيات الجدد الخلط بين <strong>قواعد HTTP</strong> و<strong>سلوكيات إطار ASP.NET Core</strong> و<strong>خيارات التصميم الخاصة بالتطبيق</strong>:
+    </p>
+
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>المفهوم</th>
+            <th>التصنيف</th>
+            <th>مَن يفرضه؟</th>
+            <th>مثال في Raff</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>الحالة 201 Created</strong></td>
+            <td>بروتوكول HTTP ‏(RFC 9110)</td>
+            <td>مواصفة IETF</td>
+            <td>يشير العقد إلى وجود مورد جديد عند ترويسة <code>Location</code>.</td>
+          </tr>
+          <tr>
+            <td><strong>خط أنابيب الوسائط</strong></td>
+            <td>سلوك إطار العمل</td>
+            <td>محرّك ASP.NET Core</td>
+            <td>تمر الطلبات عبر تفويضات <code>UseRouting</code> و<code>UseAuthorization</code> في <code>Program.cs</code>.</td>
+          </tr>
+          <tr>
+            <td><strong>المتحكم مقابل طبقة الخدمة</strong></td>
+            <td>معمارية التطبيق</td>
+            <td>أنت (مهندس البرمجيات)</td>
+            <td>تفويض <code>BookController</code> العمل إلى <code>IBookService</code> خيار كود نظيف، وليس فرضًا إلزاميًا من إطار العمل.</td>
+          </tr>
+          <tr>
+            <td><strong>Minimal APIs</strong></td>
+            <td>خيار في إطار العمل</td>
+            <td>بديل في ASP.NET Core</td>
+            <td>يمكن كتابة <code>app.MapPost("/api/books", ...)</code> دون متحكمات إطلاقًا.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout callout-tip">
+      <div class="callout-icon">🎯</div>
+      <div class="callout-content">
+        <div class="callout-title">لماذا نفصل المتحكمات عن الخدمات في Raff؟</div>
+        <p>
+          لا يجبرك ASP.NET Core على إنشاء <code>IBookService</code>؛ يمكنك حقن <code>BooksContext</code> مباشرة في <code>BookController</code>. لكن إبقاء المتحكمات رفيعة يعني تركيزها الصارم على <strong>ترجمة HTTP</strong> (رموز الحالة ومعاملات المسار وترويسات الطلب)، بينما يغلّف <code>BookService</code> <strong>منطق النطاق</strong> الخالص الذي يمكن اختباره وحدةً دون محاكاة <code>HttpContext</code>.
+        </p>
+      </div>
+    </div>
+
+    <!-- Knowledge Check 1 -->
+    <div class="exercise-card" id="qc-1-1">
+      <div class="exercise-header">
+        <div class="exercise-title-group">
+          <span class="exercise-badge">اختبار المعرفة 1.1</span>
+          <span>بروتوكول الشبكة في HTTP</span>
+        </div>
+      </div>
+      <div class="exercise-body">
+        <div class="exercise-prompt">
+          يتصل عميل جوّال بـ Raff ويرسل طلبًا. أي عبارة تصف بدقة انعدام الحالة في بروتوكول HTTP؟
+        </div>
+        <div class="quiz-options" data-qid="qc-1-1">
+          <div class="quiz-option" data-opt="0">
+            <div class="option-indicator">A</div>
+            <div class="option-text">يحتفظ الخادم بسجلات قاعدة البيانات في الذاكرة بين الطلبات كي تُنفَّذ الاستعلامات اللاحقة دون قراءة من القرص.</div>
+          </div>
+          <div class="quiz-option" data-opt="1">
+            <div class="option-indicator">B</div>
+            <div class="option-text">كل طلب HTTP معزول؛ فلا يحتفظ الخادم افتراضيًا بسياق جلسة العميل، ولهذا يجب أن يوفّر كل طلب كل بيانات الاعتماد والمعاملات اللازمة.</div>
+          </div>
+          <div class="quiz-option" data-opt="2">
+            <div class="option-indicator">C</div>
+            <div class="option-text">يُغلق مقبس TCP فورًا قبل إرجاع أي بايتات استجابة، ما يستلزم اللجوء إلى UDP.</div>
+          </div>
+          <div class="quiz-option" data-opt="3">
+            <div class="option-indicator">D</div>
+            <div class="option-text">يحفظ ASP.NET Core تلقائيًا جميع متغيرات الطلب في ذاكرة مؤقتة عامة ساكنة بين كل المستخدمين.</div>
+          </div>
+        </div>
+        <div class="exercise-footer">
+          <button class="btn-primary btn-submit-quiz" data-qid="qc-1-1">أرسل الإجابة</button>
+          <button class="btn-secondary btn-retry-quiz" data-qid="qc-1-1" style="display:none;">إعادة المحاولة</button>
+        </div>
+        <div class="quiz-feedback" id="feedback-qc-1-1"></div>
+      </div>
+    </div>
+
+    <!-- Knowledge Check 2 -->
+    <div class="exercise-card" id="qc-1-2">
+      <div class="exercise-header">
+        <div class="exercise-title-group">
+          <span class="exercise-badge">اختبار المعرفة 1.2</span>
+          <span>تسلسل رحلة الطلب</span>
+        </div>
+      </div>
+      <div class="exercise-body">
+        <div class="exercise-prompt">
+          عندما يدخل طلب HTTP إلى تطبيق ASP.NET Core، بأي ترتيب زمني يجتاز مكوّنات الخلفية؟
+        </div>
+        <div class="quiz-options" data-qid="qc-1-2">
+          <div class="quiz-option" data-opt="0">
+            <div class="option-indicator">A</div>
+            <div class="option-text">PostgreSQL → Entity Framework Core → Controller Action → Kestrel → Middleware</div>
+          </div>
+          <div class="quiz-option" data-opt="1">
+            <div class="option-indicator">B</div>
+            <div class="option-text">Kestrel → Middleware Pipeline &amp; Routing → Model Binding &amp; Action Selection → Controller → Service Layer → EF Core &amp; Database</div>
+          </div>
+          <div class="quiz-option" data-opt="2">
+            <div class="option-indicator">C</div>
+            <div class="option-text">Service Layer → Kestrel → Routing Middleware → PostgreSQL → Controller Action</div>
+          </div>
+          <div class="quiz-option" data-opt="3">
+            <div class="option-indicator">D</div>
+            <div class="option-text">Routing Middleware → Kestrel → Controller Action → Model Binding → DbContext</div>
+          </div>
+        </div>
+        <div class="exercise-footer">
+          <button class="btn-primary btn-submit-quiz" data-qid="qc-1-2">أرسل الإجابة</button>
+          <button class="btn-secondary btn-retry-quiz" data-qid="qc-1-2" style="display:none;">إعادة المحاولة</button>
+        </div>
+        <div class="quiz-feedback" id="feedback-qc-1-2"></div>
+      </div>
+    </div>
+
+    <!-- Knowledge Check 3 -->
+    <div class="exercise-card" id="qc-1-3">
+      <div class="exercise-header">
+        <div class="exercise-title-group">
+          <span class="exercise-badge">اختبار المعرفة 1.3</span>
+          <span>المعمارية مقابل فرائض إطار العمل</span>
+        </div>
+      </div>
+      <div class="exercise-body">
+        <div class="exercise-prompt">
+          أي مما يلي نمط معماري على مستوى التطبيق وليس متطلبًا ثابتًا في ASP.NET Core؟
+        </div>
+        <div class="quiz-options" data-qid="qc-1-3">
+          <div class="quiz-option" data-opt="0">
+            <div class="option-indicator">A</div>
+            <div class="option-text">وجود فئة <code>BookService</code> منفصلة بين المتحكم وEntity Framework Core.</div>
+          </div>
+          <div class="quiz-option" data-opt="1">
+            <div class="option-indicator">B</div>
+            <div class="option-text">مرور الطلبات عبر خط أنابيب <code>HttpContext</code>.</div>
+          </div>
+          <div class="quiz-option" data-opt="2">
+            <div class="option-indicator">C</div>
+            <div class="option-text">الاستماع لاتصالات TCP الواردة على منفذ الخادم عبر Kestrel أو HTTP.sys.</div>
+          </div>
+          <div class="quiz-option" data-opt="3">
+            <div class="option-indicator">D</div>
+            <div class="option-text">تنفيذ الوسائط بالترتيب المسجّل في <code>Program.cs</code>.</div>
+          </div>
+        </div>
+        <div class="exercise-footer">
+          <button class="btn-primary btn-submit-quiz" data-qid="qc-1-3">أرسل الإجابة</button>
+          <button class="btn-secondary btn-retry-quiz" data-qid="qc-1-3" style="display:none;">إعادة المحاولة</button>
+        </div>
+        <div class="quiz-feedback" id="feedback-qc-1-3"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="lesson-nav-footer">
+    <button class="btn-complete-lesson" data-lesson="lesson-1">
+      <span class="complete-checkbox">✓</span> أكمل الدرس 1
+    </button>
+    <button class="btn-primary btn-next-lesson" data-target="lesson-2">
+      التالي: مبادئ REST وأساليب HTTP ←
+    </button>
+  </div>
+`
+    },
+
     'assessment': {
       nav: 'التقييم الختامي (80%)',
       content: `
