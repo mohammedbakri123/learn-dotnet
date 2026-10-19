@@ -4,7 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Raff Backend Academy — Curriculum</title>
-<script>try{document.documentElement.setAttribute('data-theme',(localStorage.getItem('raff_learn_theme')||'dark'));}catch(e){}</script>
+<script>try{document.documentElement.setAttribute('data-theme',(localStorage.getItem('raff_learn_theme')||'dark'));}catch(e){}
+try{var l=localStorage.getItem('raff_lang');if(l!=='ar'&&l!=='en')l='en';document.documentElement.lang=l;document.documentElement.dir=(l==='ar')?'rtl':'ltr';document.documentElement.setAttribute('data-lang',l);}catch(e){}</script>
 <link rel="stylesheet" href="component/styles/tokens.css">
 <link rel="stylesheet" href="component/styles/shell.css">
 <link rel="stylesheet" href="component/styles/components.css">
@@ -17,10 +18,16 @@
       <h1>Curriculum Modules</h1>
       <p class="hub-lede">Pick a module to start learning. Progress is saved locally per module — use each module's Export button to back it up or move it between machines.</p>
     </div>
-    <button class="btn-icon" id="hub-theme-toggle" type="button" title="Toggle light/dark theme">
-      <span id="hub-theme-icon" aria-hidden="true">☀️</span>
-      <span class="sr-only">Toggle theme</span>
-    </button>
+    <div style="display:flex; gap:0.5rem;">
+      <button class="btn-icon btn-lang" id="hub-lang-toggle" type="button" title="Switch to Arabic">
+        <span aria-hidden="true">🌐</span>
+        <span class="btn-label" data-lang-label>AR</span>
+      </button>
+      <button class="btn-icon" id="hub-theme-toggle" type="button" title="Toggle light/dark theme">
+        <span id="hub-theme-icon" aria-hidden="true">☀️</span>
+        <span class="sr-only">Toggle theme</span>
+      </button>
+    </div>
   </header>
 
   <main class="hub-grid" id="hub-grid" aria-label="Available modules"></main>
@@ -31,6 +38,7 @@
 </div>
 
 <script src="data/modules.js"></script>
+<script src="component/core/i18n.js"></script>
 <script src="component/core/ui.js"></script>
 <script>
 (function () {
@@ -80,6 +88,8 @@
     button: 'hub-theme-toggle',
     icon: 'hub-theme-icon'
   });
+
+  RaffI18n.initToggle({ button: 'hub-lang-toggle' });
 
   render();
 })();

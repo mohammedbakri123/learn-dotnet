@@ -150,6 +150,7 @@
       '<button class="btn-icon" id="btn-open-search" title="Search lessons and glossary (Ctrl+K)" type="button"><span aria-hidden="true">🔍</span> <span class="btn-label">Search</span></button>' +
       (config.glossary ? '<button class="btn-icon" id="btn-open-glossary" title="Searchable glossary" type="button"><span aria-hidden="true">📖</span> <span class="btn-label">Glossary</span></button>' : '') +
       '<button class="btn-icon" id="btn-theme-toggle" title="Toggle light/dark theme" type="button"><span id="theme-icon" aria-hidden="true">☀️</span> <span class="sr-only">Toggle theme</span></button>' +
+      '<button class="btn-icon btn-lang" id="btn-lang-toggle" title="Switch to Arabic" type="button"><span aria-hidden="true">🌐</span> <span class="btn-label" data-lang-label>AR</span></button>' +
       '<button class="btn-icon" id="btn-mobile-menu" title="Toggle navigation menu" type="button"><span aria-hidden="true">☰</span> <span class="sr-only">Toggle navigation</span></button>' +
       '</div></div>' +
       '<div class="progress-bar-container" role="progressbar" aria-label="Module progress" aria-valuemin="0" aria-valuemax="100" id="global-progress-bar"><div class="progress-bar-fill" id="global-progress-fill"></div></div>' +
@@ -329,6 +330,8 @@
       set: function (t) { config.state.setTheme(state, t); save(); }
     });
     UI.applyTheme(config.state.theme(state), { button: 'btn-theme-toggle', icon: 'theme-icon' });
+
+    if (window.RaffI18n) RaffI18n.initToggle({ button: 'btn-lang-toggle' });
 
     /* ---------- chrome (Escape / Ctrl+K / overlay close) ---------- */
 
