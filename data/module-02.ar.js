@@ -601,6 +601,267 @@ window.RAFF_MODULE_02_AR = {
 
   lessons: {
 
+    'lesson-4': {
+      nav: 'التتبّع مقابل عدم التتبّع',
+      content: `
+      <div class="lesson-header-box">
+        <div class="lesson-badge-top">الدرس 4</div>
+        <h1 class="lesson-title">التتبّع وعدم التتبّع وهوية الكيان</h1>
+        <p class="lesson-subtitle">تحسين أداء القراءة فقط عبر AsNoTracking()، وفهم خريطة الهوية، ومقارنة FindAsync بـ FirstOrDefaultAsync.</p>
+      </div>
+
+      <h2>1. كلفة استعلامات التتبّع</h2>
+      <p>افتراضيًا تكون كل الاستعلامات التي تعيد أنواع كيانات <strong>استعلامات متتبِّعة</strong>. ولكل كيان يُجسَّد يجب على EF Core أن:</p>
+      <ol>
+        <li>ينشئ نسخة الكيان في الذاكرة على الكومة.</li>
+        <li>يخصص كائن <code>EntityEntry</code> داخليًا داخل <code>ChangeTracker</code>.</li>
+        <li>يخصص <strong>مصفوفة لقطة</strong> لتخزين نسخة مكررة من كل قيم الخصائص الأصلية.</li>
+        <li>يسجّل المفتاح الأساسي للكيان في <strong>خريطة الهوية</strong> الداخلية للسياق.</li>
+      </ol>
+      <p>بالنسبة لنقطة نهاية GET في Raff تعيد 500 كتاب إلى العميل، تُهدَر كل كلفة التتبّع هذه إذا كانت نقطة النهاية تكتفي بتسلسل الكتب إلى JSON ثم تُنهي طلب HTTP!</p>
+
+      <h2>2. تعطيل التتبّع عبر \`AsNoTracking()\`</h2>
+      <p>يخبر <code>.AsNoTracking()</code> الـ EF Core بتخطي تخصيص اللقطات وتسجيلات خريطة الهوية. فتُجسَّد الكيانات ككائنات C# منفصلة عادية:</p>
+
+      
+    <div class="code-wrapper">
+      <div class="code-header">
+        <div class="code-badge-group">
+          <span class="code-lang-tag">C#</span>
+          <span class="code-filename">Controllers/BooksController.cs</span>
+          <span class="code-type-pill pill-complete example">[مثال كامل]</span>
+        </div>
+        <button class="btn-copy" aria-label="نسخ الكود">📋 نسخ</button>
+      </div>
+      <pre><code class="language-c#">
+[HttpGet]
+public async Task&lt;ActionResult&lt;IEnumerable&lt;BookDto&gt;&gt;&gt; GetBooks()
+{
+    // High-performance read-only query
+    var books = await _context.Books
+        .AsNoTracking()
+        .Select(b =&gt; new BookDto(b.Id, b.Title, b.PublishedYear))
+        .ToListAsync();
+
+    return Ok(books);
+}
+</code></pre>
+      <div class="code-expl">يتجنّب AsNoTracking تسجيل الكيانات في متتبّع التغييرات، ما يضاعف الإنتاجية لنقاط نهاية القراءة.</div>
+    </div>
+    
+
+      <h2>3. خريطة الهوية و\`FindAsync()\` مقابل \`FirstOrDefaultAsync()\`</h2>
+      <p>من أهم الفروق في EF Core طريقة عمل <code>FindAsync()</code> مقارنةً بـ <code>FirstOrDefaultAsync()</code>:</p>
+
+      <div class="grid-2">
+        <div class="content-panel">
+          <h3 style="color:var(--accent-light);">🔑 ‏context.Books.FindAsync(id)</h3>
+          <ul>
+            <li>يتفحّص أولًا <strong>خريطة هوية متتبّع التغييرات المحلية</strong> في الذاكرة.</li>
+            <li>إذا كان كيان بالمفتاح الأساسي المطلوب متتبَّعًا بالفعل، يعيد نسخة الذاكرة تلك <strong>فورًا وبصفر رحلات ذهاب وإياب إلى قاعدة البيانات</strong>!</li>
+            <li>وإذا لم يجده في الذاكرة، يصدر استعلام SQL معاملًا: <code>SELECT ... WHERE "Id" = @p0 LIMIT 1</code>.</li>
+            <li>يستطيع البحث بالمفتاح الأساسي فقط.</li>
+          </ul>
+        </div>
+        <div class="content-panel">
+          <h3 style="color:var(--warning);">🌐 ‏context.Books.FirstOrDefaultAsync(b => b.Id == id)</h3>
+          <ul>
+            <li><strong>يترجم استعلام SQL وينفّذه دائمًا</strong> على PostgreSQL، حتى لو كان الكيان في الذاكرة بالفعل!</li>
+            <li>إذا كان الكيان متتبَّعًا بالفعل يحلّ EF Core الهوية ويحدّث النسخة المتتبَّعة بقيم قاعدة البيانات، لكن رحلة الشبكة ذهابًا وإيابًا تكون قد حدثت.</li>
+            <li>يتيح تعبيرات شرطية اعتيادية بما يتجاوز المفاتيح الأساسية.</li>
+          </ul>
+        </div>
+      </div>
+
+      <h2>4. \`AsNoTrackingWithIdentityResolution()\`</h2>
+      <p>ماذا يحدث عندما يضمّ استعلام جداول يظهر فيها الكيان نفسه عدة مرات (مثل مؤلف له 5 كتب)؟</p>
+      <ul>
+        <li>مع <code>AsNoTracking()</code> المجرّد: سينشئ EF Core 5 كائنات <code>Author</code> مكررة منفصلة في ذاكرة C# لكل كتاب!</li>
+        <li>مع <code>AsNoTrackingWithIdentityResolution()</code>: يستخدم EF Core خريطة هوية مؤقتة خفيفة أثناء تجسيد الاستعلام ليضمن أن الكتب الخمسة تشير كلها إلى نسخة <code>Author</code> ذاتها في الذاكرة، مع تفادي تتبّع التغييرات رغم ذلك.</li>
+      </ul>
+
+      <h2>ملخص الدرس 4</h2>
+      <ul>
+        <li>تخصص استعلامات التتبّع مصفوفات لقطات وتسجّل الكيانات في خريطة الهوية.</li>
+        <li>يتجاوز <code>AsNoTracking()</code> كلفة التتبّع، موفّرًا الذاكرة والمعالج في استعلامات القراءة فقط.</li>
+        <li>لا تستخدم <code>AsNoTracking()</code> أبدًا إذا كنت تنوي تعديل الكيان واستدعاء <code>SaveChangesAsync()</code>.</li>
+        <li>يبحث <code>FindAsync(id)</code> في متتبّع التغييرات المحلي أولًا، متجنّبًا رحلات الشبكة للسجلات المتتبَّعة أصلًا.</li>
+      </ul>
+
+      <h2>اختبارات المعرفة</h2>
+      
+    <div class="exercise-card" id="qc-4-1">
+      <div class="exercise-header">
+        <div class="exercise-title-group">
+          <span class="exercise-badge">اختبار المعرفة</span>
+          <span style="font-weight:600; font-size:0.9rem;">استعلامات عدم التتبّع</span>
+        </div>
+      </div>
+      <div class="exercise-body">
+        <div class="exercise-prompt">لماذا يُوصى باستخدام \`context.Books.AsNoTracking().ToListAsync()\` في نقاط نهاية GET للقراءة فقط في Raff؟</div>
+        <div class="quiz-options" data-qid="qc-4-1">
+          
+        <div class="quiz-option" data-opt="0">
+          <div class="option-indicator">A</div>
+          <div class="option-text">لأنه يعطّل تشفير SQL، فيصير نقل البيانات عبر الشبكة فوريًا.</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="1">
+          <div class="option-indicator">B</div>
+          <div class="option-text">لأن EF Core لا يخصص نسخ لقطات ولا يسجّل الكيانات في متتبّع التغييرات، ما يقلّل استهلاك الذاكرة وكلفة المعالج كثيرًا.</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="2">
+          <div class="option-indicator">C</div>
+          <div class="option-text">لأنه يفرض على PostgreSQL تجاوز تخزين القرص والقراءة مباشرة من الذاكرة.</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="3">
+          <div class="option-indicator">D</div>
+          <div class="option-text">لأنه يتيح للعميل تعديل سجلات قاعدة البيانات دون استدعاء SaveChangesAsync.</div>
+        </div>
+        
+        </div>
+        <div class="exercise-actions">
+          <button class="btn-primary btn-submit-quiz" data-qid="qc-4-1">أرسل الإجابة</button>
+          <button class="btn-secondary btn-retry-quiz" data-qid="qc-4-1" style="display:none;">إعادة المحاولة</button>
+        </div>
+        <div class="quiz-feedback" id="feedback-qc-4-1"></div>
+      </div>
+    </div>
+    
+      
+    <div class="exercise-card" id="qc-4-2">
+      <div class="exercise-header">
+        <div class="exercise-title-group">
+          <span class="exercise-badge">اختبار المعرفة</span>
+          <span style="font-weight:600; font-size:0.9rem;">حل الهوية</span>
+        </div>
+      </div>
+      <div class="exercise-body">
+        <div class="exercise-prompt">افترض أن الكتاب رقم 42 حُمّل بالفعل إلى \`BooksContext\` بعملية سابقة. كيف يتصرف \`await context.Books.FindAsync(42)\` مقارنةً بـ \`await context.Books.FirstOrDefaultAsync(b =&gt; b.Id == 42)\`؟</div>
+        <div class="quiz-options" data-qid="qc-4-2">
+          
+        <div class="quiz-option" data-opt="0">
+          <div class="option-indicator">A</div>
+          <div class="option-text">يتفحّص \`FindAsync(42)\` خريطة هوية متتبّع التغييرات المحلية أولًا ويعيد النسخة الموجودة فورًا دون إصدار SQL؛ بينما يرسل \`FirstOrDefaultAsync\` استعلامًا إلى PostgreSQL دائمًا.</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="1">
+          <div class="option-indicator">B</div>
+          <div class="option-text">يُصدر كلا الأسلوبين دائمًا استعلام SQL متطابقًا عبر الشبكة.</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="2">
+          <div class="option-indicator">C</div>
+          <div class="option-text">يتطلب \`FindAsync(42)\` قيد مفتاح أساسي صريحًا في C#، بينما ينشئ \`FirstOrDefaultAsync\` جدول قاعدة بيانات جديدًا.</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="3">
+          <div class="option-indicator">D</div>
+          <div class="option-text">يعيد \`FirstOrDefaultAsync\` قيمة null إذا كان الكيان في الذاكرة بالفعل.</div>
+        </div>
+        
+        </div>
+        <div class="exercise-actions">
+          <button class="btn-primary btn-submit-quiz" data-qid="qc-4-2">أرسل الإجابة</button>
+          <button class="btn-secondary btn-retry-quiz" data-qid="qc-4-2" style="display:none;">إعادة المحاولة</button>
+        </div>
+        <div class="quiz-feedback" id="feedback-qc-4-2"></div>
+      </div>
+    </div>
+    
+      
+    <div class="exercise-card" id="qc-4-3">
+      <div class="exercise-header">
+        <div class="exercise-title-group">
+          <span class="exercise-badge">اختبار المعرفة</span>
+          <span style="font-weight:600; font-size:0.9rem;">حل الهوية دون تتبّع</span>
+        </div>
+      </div>
+      <div class="exercise-body">
+        <div class="exercise-prompt">ما الغرض المحدد من \`AsNoTrackingWithIdentityResolution()\`؟</div>
+        <div class="quiz-options" data-qid="qc-4-3">
+          
+        <div class="quiz-option" data-opt="0">
+          <div class="option-indicator">A</div>
+          <div class="option-text">يفعّل التتبّع الكامل للتغييرات لكنه يعطّل توليد SQL.</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="1">
+          <div class="option-indicator">B</div>
+          <div class="option-text">يعيد كيانات غير متتبَّعة من أجل الأداء، لكنه يضمن أنه إذا ظهر صف قاعدة البيانات نفسه عدة مرات في مخطوط نتائج استعلام واحد فلن تُنشأ إلا نسخة C# واحدة.</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="2">
+          <div class="option-indicator">C</div>
+          <div class="option-text">يضمن تثبيت تحديثات العميل تلقائيًا في PostgreSQL دون استدعاء SaveChangesAsync.</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="3">
+          <div class="option-indicator">D</div>
+          <div class="option-text">يتحقق من أن كل المفاتيح الأجنبية في قاعدة البيانات مفهرسة.</div>
+        </div>
+        
+        </div>
+        <div class="exercise-actions">
+          <button class="btn-primary btn-submit-quiz" data-qid="qc-4-3">أرسل الإجابة</button>
+          <button class="btn-secondary btn-retry-quiz" data-qid="qc-4-3" style="display:none;">إعادة المحاولة</button>
+        </div>
+        <div class="quiz-feedback" id="feedback-qc-4-3"></div>
+      </div>
+    </div>
+    
+      
+    <div class="exercise-card" id="qc-4-4">
+      <div class="exercise-header">
+        <div class="exercise-title-group">
+          <span class="exercise-badge">اختبار المعرفة</span>
+          <span style="font-weight:600; font-size:0.9rem;">مقايضات التتبّع</span>
+        </div>
+      </div>
+      <div class="exercise-body">
+        <div class="exercise-prompt">يزعم مطوّر: «ينبغي أن نستخدم \`AsNoTracking()\` في كل استعلام في تطبيقنا بلا استثناء.» لماذا هذا الزعم غير صحيح؟</div>
+        <div class="quiz-options" data-qid="qc-4-4">
+          
+        <div class="quiz-option" data-opt="0">
+          <div class="option-indicator">A</div>
+          <div class="option-text">لأن \`AsNoTracking()\` مهجور في EF Core الحديث.</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="1">
+          <div class="option-indicator">B</div>
+          <div class="option-text">لأنه عند استرجاع كيان بـ\`AsNoTracking()\` فإن تعديل خصائصه واستدعاء \`SaveChangesAsync()\` لن يفعل شيئًا، لأن EF Core لا يتتبّع الكيان.</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="2">
+          <div class="option-indicator">C</div>
+          <div class="option-text">لأن PostgreSQL يرفض الاتصالات التي تستخدم \`AsNoTracking()\`.</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="3">
+          <div class="option-indicator">D</div>
+          <div class="option-text">لأن استعلامات عدم التتبّع لا تستطيع استخدام مرشّحات LINQ ‏\`.Where()\`.</div>
+        </div>
+        
+        </div>
+        <div class="exercise-actions">
+          <button class="btn-primary btn-submit-quiz" data-qid="qc-4-4">أرسل الإجابة</button>
+          <button class="btn-secondary btn-retry-quiz" data-qid="qc-4-4" style="display:none;">إعادة المحاولة</button>
+        </div>
+        <div class="quiz-feedback" id="feedback-qc-4-4"></div>
+      </div>
+    </div>
+    
+
+      <div class="lesson-footer-nav">
+        <button class="btn-secondary" onclick="switchLesson('lesson-3')">→ الدرس السابق</button>
+        <button class="btn-complete-lesson" data-lesson="lesson-4">أكمل الدرس 4 ✓</button>
+        <button class="btn-primary" onclick="switchLesson('lesson-5')">التالي: ‏SaveChanges وSQL المُولَّد ←</button>
+      </div>
+    `
+    },
+
     'lesson-3': {
       nav: 'حالات الكيان وتتبّع التغييرات',
       content: `
