@@ -2436,6 +2436,246 @@ public class Book                    // not sealed
         <button class="btn-primary" data-nav-target="lesson-5" type="button">التالي: مشكلة N+1 ←</button>
       </div>
     `
+    },
+    "lesson-5": {
+      nav: "مشكلة N+1",
+      content: `
+      <div class="lesson-header-box">
+        <div class="lesson-badge-top">الدرس 5</div>
+        <h1 class="lesson-title">مشكلة N+1 في الاستعلامات</h1>
+        <p class="lesson-subtitle">حلقة بريئة المظهر، ورحلات ذهاب وإياب خفية عددها N، وكيف يكتشفها المهندسون المخضرمون ويزيلونها.</p>
+      </div>
+
+      <h2>1. ما معنى N+1</h2>
+      <p>تحدث مشكلة N+1 عندما يشغّل التطبيق <strong>استعلامًا واحدًا لجلب مجموعة من الآباء، ثم استعلامًا إضافيًّا لكل أب</strong> لجلب البيانات المرتبطة — أي 1 + N استعلامًا إجمالًا لـ N أبًا. وهي أكثر عيوب أداء ORM شيوعًا، وتختبئ عادةً خلف كود يبدو C# عاديًّا.</p>
+
+      <div class="code-wrapper">
+        <div class="code-header">
+          <div class="code-badge-group">
+            <span class="code-lang-tag">C#</span>
+            <span class="code-filename">الشكل الكلاسيكي لـ N+1 (مع تفعيل التحميل الكسول)</span>
+            <span class="code-type-pill pill-anti-pattern">نمط مضاد</span>
+          </div>
+          <button class="btn-copy" type="button" aria-label="نسخ الكود">📋 نسخ</button>
+        </div>
+        <pre><code class="language-c#">
+// This code assumes lazy-loading proxies are enabled.
+var books = await context.Books.ToListAsync();   // Query 1: SELECT … FROM books
+
+foreach (var book in books)
+{
+    // For each book whose Authors have not already been loaded,
+    // accessing the navigation may trigger one more query.
+    Console.WriteLine(book.Authors.Count);
+}
+</code></pre>
+        <div class="code-expl">الحلقة C# خالصة — لا استدعاء قاعدة بيانات ظاهر، ولا <code>await</code> على استعلام. ولهذا بالضبط يفلت N+1 من مراجعة الكود: فالكلفة تسكن داخل موصل خاصية يثبّته وكيل.</div>
+      </div>
+
+      <p>وما قد تراه قاعدة البيانات (في أسوأ حالة مبسّطة):</p>
+
+      <div class="code-wrapper">
+        <div class="code-header">
+          <div class="code-badge-group">
+            <span class="code-lang-tag">SQL</span>
+            <span class="code-filename">نمط الاستعلام المفاهيمي — N+1</span>
+            <span class="code-type-pill pill-pseudocode">مفاهيمي</span>
+          </div>
+          <button class="btn-copy" type="button" aria-label="نسخ الكود">📋 نسخ</button>
+        </div>
+        <pre><code class="language-sql">
+-- Query 1
+SELECT b."Id", b."Title", … FROM "books" AS b;
+
+-- Query 2 (for book 1)
+SELECT a."Id", a."Name", … FROM "book_authors" AS ba
+JOIN "authors" AS a ON a."Id" = ba."author_id"
+WHERE ba."book_id" = 1;
+
+-- Query 3 (for book 2)
+SELECT … WHERE ba."book_id" = 2;
+
+-- … up to Query N+1
+</code></pre>
+        <div class="code-expl">تختلف استعلامات SELECT المتكررة في معامل المفتاح الأجنبي فقط. ونمط "SQL متطابق بمعامل مختلف" هو البصمة التي تبحث عنها في السجلات.</div>
+      </div>
+
+      <div class="callout callout-warning">
+        <div class="callout-title">⚠️ عدد الاستعلامات الدقيق ليس كونيًّا</div>
+        <p>لا تحفظ "N كتابًا = N+1 استعلامًا بالضبط". فالعدد الحقيقي يعتمد على:</p>
+        <ul>
+          <li><strong>التهيئة:</strong> بلا تحميل كسول لا ينطلق أي استعلام إضافي أصلًا (بل تحصل على بيانات ناقصة في صمت). ومع التحميل المتلهّف قد تكون المجموعة محمَّلة بالفعل فلا يفعل الموصل شيئًا.</li>
+          <li><strong>التتبّع والـ fix-up:</strong> الكتب التي حُمِّل مؤلفوها باستعلام سابق في السياق نفسه لا تحتاج استعلامًا جديدًا — فقد يكون الـ fix-up قد ملأ التنقل.</li>
+          <li><strong>البيانات والهوية:</strong> فقد تصيب عمليات وصول متعددة إلى التنقل الكيان المخزَّن نفسه بسبب مؤلفين مكررين أو آباء مشتركين.</li>
+        </ul>
+        <p>وما <em>هو</em> كوني: <em>النمط</em> — استعلام لكل تكرار لكل مجموعة غير محمَّلة — واتجاه الكلفة، فهي تنمو خطيًّا مع عدد الصفوف التي يعيدها الاستعلام الأول.</p>
+      </div>
+
+      <h2>2. الحل الأول — حمّل متلهّفًا عندما تحتاج الكيانات المرتبطة</h2>
+      <div class="code-wrapper">
+        <div class="code-header">
+          <div class="code-badge-group">
+            <span class="code-lang-tag">C#</span>
+            <span class="code-filename">بديل متلهّف</span>
+            <span class="code-type-pill pill-fragment">مقتطف</span>
+          </div>
+          <button class="btn-copy" type="button" aria-label="نسخ الكود">📋 نسخ</button>
+        </div>
+        <pre><code class="language-c#">
+var books = await context.Books
+    .Include(b =&gt; b.Authors)          // one query (by default) brings everything
+    .ToListAsync();
+
+foreach (var book in books)
+{
+    Console.WriteLine(book.Authors.Count);   // in-memory the whole way — no extra SQL
+}
+</code></pre>
+        <div class="code-expl">الحلقة الآن مضمون أنها تلمس الذاكرة فقط. والمقايضة: كل كتاب يحمل كل صفوف مؤلفيه، استخدمتها أم لا، وقد تضاعف المجموعات الشقيقة صفوف النتائج (الدرس 7).</div>
+      </div>
+
+      <h2>3. الحل الثاني — أسقط عندما تحتاج قيمة قياسية فقط</h2>
+      <p>إن كان المتطلب عددًا، فتحميل كيانات المؤلفين لعدّها عمل مهدور. دع قاعدة البيانات تحسبه:</p>
+
+      <div class="code-wrapper">
+        <div class="code-header">
+          <div class="code-badge-group">
+            <span class="code-lang-tag">C#</span>
+            <span class="code-filename">إسقاط مع عدد (مثال كامل)</span>
+            <span class="code-type-pill pill-complete">مثال كامل</span>
+          </div>
+          <button class="btn-copy" type="button" aria-label="نسخ الكود">📋 نسخ</button>
+        </div>
+        <pre><code class="language-c#">
+public record BookAuthorCountDto(int Id, string Title, int AuthorCount);
+
+public async Task&lt;List&lt;BookAuthorCountDto&gt;&gt; GetBookAuthorCountsAsync()
+{
+    return await context.Books
+        .Select(b =&gt; new BookAuthorCountDto(
+            b.Id,
+            b.Title,
+            b.Authors.Count))            // COUNT happens in PostgreSQL
+        .ToListAsync();
+}
+</code></pre>
+        <div class="code-expl">استعلام واحد، وN صفوف DTO، وصفر كيانات مؤلفين في الذاكرة. وتحسب قاعدة البيانات <code>COUNT</code> لكل كتاب (ويترجمه المزوّد عادةً إلى استعلام فرعي مترابط أو وصل GROUP BY). ولا يرى مخطط الكيانات ولا طبقة التتبّع المؤلفين أبدًا.</div>
+      </div>
+
+      <h2>4. التعرّف على المشكلة في الواقع</h2>
+      <p>ثلاث تقنيات كشف، من الأرخص إلى الأدق:</p>
+      <div class="steps-container">
+        <div class="step-item">
+          <div class="step-num">1</div>
+          <div class="step-text"><strong>اقرأ سجل SQL.</strong> هيّئ <code>LogTo</code> (الوحدة 2) في التطوير. يبدو N+1 كعشرات العبارات شبه المتطابقة في السجل لطلب HTTP واحد. ومع <code>EnableSensitiveDataLogging()</code> (في التطوير فقط!) ترى قيم المعاملات المختلفة.</div>
+        </div>
+        <div class="step-item">
+          <div class="step-num">2</div>
+          <div class="step-text"><strong>عُدّ الأوامر لكل طلب.</strong> يمكن للتسجيل المهيكل أو مستمع تشخيصي أن يعد الأوامر المنفَّذة. فلا ينبغي أن تتطلب نقطة نهاية GET على قائمة من 50 صفًّا 51 أمرًا.</div>
+        </div>
+        <div class="step-item">
+          <div class="step-num">3</div>
+          <div class="step-text"><strong>اقرأ الكود بحثًا عن حلقات على كيانات مجسَّدة.</strong> فـ <code>foreach (var x in entities)</code> يتبعه وصول إلى تنقل، أو <code>Entry(...).LoadAsync()</code>، أو أي طريقة تستعلم لكل عنصر هي البصمة البنيوية — حتى قبل أن تقيسها.</div>
+        </div>
+      </div>
+
+      <div class="code-wrapper">
+        <div class="code-header">
+          <div class="code-badge-group">
+            <span class="code-lang-tag">C#</span>
+            <span class="code-filename">Data/DependencyInjection.cs — تسجيل التطوير (متوافق مع Raff)</span>
+            <span class="code-type-pill pill-fragment">مقتطف</span>
+          </div>
+          <button class="btn-copy" type="button" aria-label="نسخ الكود">📋 نسخ</button>
+        </div>
+        <pre><code class="language-c#">
+services.AddDbContext&lt;BooksContext&gt;(options =&gt;
+    options.UseNpgsql(configuration.GetConnectionString("DefaultConnection"))
+           .LogTo(Console.WriteLine, LogLevel.Information)   // dev only
+           .EnableSensitiveDataLogging());                    // dev only — logs parameters
+</code></pre>
+        <div class="code-expl">يكتب تسجيل البيانات الحساسة قيم المعاملات في السجلات. ويجب ألا يُفعَّل أبدًا في الإنتاج — فقد يسرّب بيانات المستخدمين إلى ملفات السجل.</div>
+      </div>
+
+      <h2>5. محاكي N+1</h2>
+      <p>قارن ثلاثة أساليب على مجموعة البيانات نفسها: <strong>وصول كسول</strong>، و<strong>include متلهّف</strong>، و<strong>إسقاط مع عدد من جهة قاعدة البيانات</strong>. هذه محاكاة مفاهيمية لسلوك موثَّق بافتراضات معلنة — ولا تنفّذ أي EF Core أو PostgreSQL.</p>
+
+      <div class="simulator-box" id="n1-simulator">
+        <div class="simulator-header">
+          <div class="simulator-title">🧪 محاكي N+1 — الخط الزمني للاستعلامات ومقارنة الكلفة</div>
+          <div class="simulator-controls">
+            <div class="explorer-control-group">
+              <span class="explorer-control-label" id="n1-count-label">الكتب</span>
+              <div class="chip-group" id="n1-count-btns" role="group" aria-labelledby="n1-count-label">
+                <button class="chip-btn" data-count="5" type="button">5</button>
+                <button class="chip-btn" data-count="10" type="button">10</button>
+                <button class="chip-btn" data-count="20" type="button">20</button>
+                <button class="chip-btn" data-count="50" type="button">50</button>
+              </div>
+            </div>
+            <div class="explorer-control-group">
+              <span class="explorer-control-label" id="n1-approach-label">الأسلوب</span>
+              <div class="chip-group" id="n1-approach-btns" role="group" aria-labelledby="n1-approach-label">
+                <button class="chip-btn" data-approach="lazy" type="button">وصول كسول</button>
+                <button class="chip-btn" data-approach="eager" type="button">Include متلهّف</button>
+                <button class="chip-btn" data-approach="projection" type="button">إسقاط العدد</button>
+              </div>
+            </div>
+            <button class="btn-sim primary" id="n1-run" type="button">▶ نفّذ المحاكاة</button>
+          </div>
+        </div>
+        <div class="simulator-body">
+          <div class="n1-timeline" id="n1-timeline">
+            <em style="color:var(--text-muted); font-size:0.85rem;">اضغط "نفّذ المحاكاة" لترى الخط الزمني المفاهيمي لأوامر قاعدة البيانات التي سيصدرها الأسلوب.</em>
+          </div>
+          <div class="metric-grid" id="n1-metrics">
+            <div class="metric-card"><div class="metric-value" id="n1-m-commands">—</div><div class="metric-label">أوامر قاعدة البيانات</div><div class="metric-sub">رحلات مفاهيمية</div></div>
+            <div class="metric-card"><div class="metric-value" id="n1-m-rows">—</div><div class="metric-label">الصفوف المعادة</div><div class="metric-sub">الإجمالي عبر الأوامر</div></div>
+            <div class="metric-card"><div class="metric-value" id="n1-m-entities">—</div><div class="metric-label">تجسيد الكيانات</div><div class="metric-sub">ما يبنيه EF Core</div></div>
+            <div class="metric-card"><div class="metric-value" id="n1-m-work">—</div><div class="metric-label">عمل قاعدة البيانات لكل استعلام</div><div class="metric-sub">مبسَّط</div></div>
+          </div>
+          <div class="sim-verdict" id="n1-verdict">اختر عدد كتب وأسلوبًا ثم نفّذ المحاكاة.</div>
+          <div class="content-panel" style="margin-top:1rem;">
+            <div class="explorer-panel-title" style="color:var(--text-muted);">افتراضات المحاكاة (اقرأها)</div>
+            <ul class="assumption-list">
+              <li>سياق <code>BooksContext</code> جديد، بلا بيانات ذات صلة محمَّلة سابقًا، والتتبّع مفعَّل، ووكلاء التحميل الكسول مفعَّلة لأسلوب "وصول كسول".</li>
+              <li>لكل كتاب <strong>3 مؤلفين</strong> بالضبط، وصفوف المؤلفين مميزة — فتتناسب الأعداد خطيًّا مع عدد الكتب بالبناء.</li>
+              <li>"كسول": استعلام واحد للكتب + حتى استعلام لكل كتاب لمؤلفيه (تُعرض أفضل حالة؛ وقد تكون الأعداد الحقيقية أقل حين يكون الـ fix-up أو التحميل المسبق قد ملأ التنقلات، وهي متطابقة شكلًا وغير مضمونة عددًا).</li>
+              <li>"متلهّف": استعلام واحد (include باستعلام واحد) تحتوي مجموعة نتائجه صفًّا لكل زوج (كتاب، مؤلف) — فتتكرر أعمدة الكتاب لكل صف. ويعيد EF Core الكيانات إلى حالتها الفريدة في الذاكرة، لكن الحمولة عبر الشبكة وعدد الصفوف هما حجم الوصل.</li>
+              <li>"إسقاط": استعلام واحد يعيد صفًّا لكل كتاب؛ وتحسب قاعدة البيانات العدد. والصفوف المعروضة صفوف مجموعة النتائج، لا صفوف وسيطة داخلية.</li>
+              <li>المحاكي نموذج تعليمي لا معيار قياس. فالكلفة الحقيقية تشمل أيضًا تخطيط الاستعلام والفهارس وزمن الاستجابة وعروض أعمدة الحمولة، ورحلة واحدة ليست الخيار الأسرع تلقائيًّا في كل بيئة.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <h2>فحوص المعرفة</h2>
+      <div class="kc-mount" data-kc-group="lesson-5"></div>
+
+      <h2>خلاصة الدرس 5</h2>
+      <ul>
+        <li>N+1 = استعلام واحد للآباء زائد استعلام لكل أب للبيانات المرتبطة؛ وينمو مع عدد الصفوف التي يعيدها الاستعلام الأول.</li>
+        <li>العدد الدقيق يعتمد على التهيئة (التحميل الكسول، والتتبّع، والـ fix-up، والتحميلات السابقة) — فالنمط هو ما تكشفه، لا العدد.</li>
+        <li><strong>أصلح بإعادة هيكلة الاستعلام:</strong> <code>Include</code> عند الحاجة إلى الكيانات المرتبطة، وإسقاط عند الحاجة إلى قيمة قياسية (كعدد).</li>
+        <li>اكتشفه في السجلات كـ SQL متكرر شبه متطابق؛ واكتشفه في الكود كوصول إلى تنقل أو تحميل صريح داخل الحلقات.</li>
+        <li>التحميل الصريح ليس حلًّا لـ N+1 — بل أحد أسبابه عند استخدامه لكل عنصر.</li>
+      </ul>
+
+      <div class="refs-block">
+        <div class="refs-title">مراجع رسمية لهذا الدرس</div>
+        <ul>
+          <li><a href="https://learn.microsoft.com/en-us/ef/core/performance/efficient-querying" target="_blank" rel="noopener noreferrer">EF Core — الاستعلام الكفء</a></li>
+          <li><a href="https://learn.microsoft.com/en-us/ef/core/querying/related-data/" target="_blank" rel="noopener noreferrer">EF Core — تحميل البيانات المرتبطة</a></li>
+          <li><a href="https://learn.microsoft.com/en-us/ef/core/logging-events-diagnostics/" target="_blank" rel="noopener noreferrer">EF Core — التسجيل والأحداث والتشخيص</a></li>
+        </ul>
+      </div>
+
+      <div class="lesson-footer-nav">
+        <button class="btn-secondary" data-nav-target="lesson-4" type="button">→ الدرس 4</button>
+        <button class="btn-complete-lesson" data-lesson="lesson-5" type="button">أكمل الدرس 5 ✓</button>
+        <button class="btn-primary" data-nav-target="lesson-6" type="button">التالي: إسقاطات DTO ←</button>
+      </div>
+    `
     }
   }
 };
