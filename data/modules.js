@@ -56,5 +56,16 @@ window.RAFF_MODULES = [
     subtitle_ar: 'من المتحكمات إلى تطبيقات ASP.NET Core قابلة للصيانة',
     file: 'pages/module-05.html',
     storageKey: 'raff_aspnet_module_05_state'
+  },
+  {
+    id: 'module-06',
+    number: '6',
+    icon: '🔐',
+    title: 'Authentication and Authorization in ASP.NET Core',
+    title_ar: 'المصادقة والتخويل في ASP.NET Core',
+    subtitle: 'Identity, JWT bearer tokens, claims, policies, and resource ownership',
+    subtitle_ar: 'الهوية، ورموز JWT، والمطالبات، والسياسات، وملكية الموارد',
+    file: 'pages/module-06.html',
+    storageKey: 'raff_aspnet_module_06_state'
   }
 ];
