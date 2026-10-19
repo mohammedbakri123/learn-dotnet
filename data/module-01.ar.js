@@ -332,6 +332,117 @@ window.RAFF_MODULE_01_AR = {
     { title: 'الدرس 6: فخ Update() في EF Core', snippet: 'لماذا يستبدل استدعاء Update() على كيانات جزئية أعمدة صالحة في قاعدة البيانات.' },
     { title: 'الدرس 7: معمارية Books من البداية إلى النهاية', snippet: 'جمع كل شيء معًا: المتحكم وDTO والخدمة وEF Core وCreatedAtAction.' },
     { title: 'التقييم الختامي للوحدة', snippet: 'تقييم شامل من 10 أسئلة مع بطاقة نتائج تشخيصية.' }
-  ]
+  ],
+
+  /* lesson content overlays, keyed by lesson id */
+  lessons: {
+
+    'lesson-0': {
+      nav: 'نظرة عامة وترحيب',
+      content: `
+  <div class="lesson-header-box">
+    <div class="lesson-meta-bar">
+      <span class="lesson-pill">خريطة المنهج</span>
+      <span class="badge-time">إتقان خلفيات الويب بالوتيرة الذاتية</span>
+    </div>
+    <h1 class="lesson-h1">ASP.NET Core Web API: الوحدة الأولى</h1>
+    <p class="lesson-lead">
+      أهلًا بك يا محمد. يأخذك هذا الكتاب التفاعلي في عمق ما تحت سطح ASP.NET Core Web API. انطلاقًا من مشروعك الواقعي <strong>Raff</strong> (واجهة برمجية عربية لتتبّع الكتب مبنية بـ C# وEF Core وPostgreSQL)، تحوّل هذه الوحدة معرفتك العملية بـ CRUD إلى إتقان معماري عميق.
+    </p>
+  </div>
+
+  <div class="content-body">
+    <h2>1. عن هذه الوحدة</h2>
+    <p>
+      لقد بنيت بالفعل نقاط نهاية فعّالة في <code>BookController.cs</code> وهيأت ترحيلات Entity Framework Core. لكن انتقالك من طالب علوم حاسب إلى مهندس .NET خلفي محترف يقتضي معرفة <em>سبب</em> سلوك إطار العمل على ما هو عليه:
+    </p>
+    <ul>
+      <li>ماذا يحدث للبايتات على الشبكة قبل أن يُنفَّذ كود المتحكم أصلًا؟</li>
+      <li>لماذا تنكسر <code>if (dto.summary is not null)</code> بصمت عندما يحاول المستخدمون مسح ملخصات الكتب؟</li>
+      <li>لماذا يُعدّ إرجاع كيانات قاعدة البيانات مباشرة ثغرة أمنية خطيرة وفخًّا في التسلسل؟</li>
+      <li>كيف يميّز توجيه نقاط النهاية بين النقاط، وما الذي يسبب <code>AmbiguousMatchException</code>؟</li>
+    </ul>
+
+    <h2>2. خط سير المنهج</h2>
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>الدرس</th>
+            <th>المواضيع الأساسية</th>
+            <th>المخرَج العملي</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>الدرس 1</strong></td>
+            <td>أساسيات HTTP ودورة حياة الطلب</td>
+            <td>تتبّع الطلبات من Kestrel عبر الوسائط والتوجيه والمتحكمات والخدمات وEF Core حتى PostgreSQL.</td>
+          </tr>
+          <tr>
+            <td><strong>الدرس 2</strong></td>
+            <td>مبادئ REST وأساليب HTTP</td>
+            <td>إتقان الموارد ودلالات الأمان والتفرّد (safe/idempotent) ورموز الحالة القياسية (200 و201 و204 و400 و404 و409).</td>
+          </tr>
+          <tr>
+            <td><strong>الدرس 3</strong></td>
+            <td>التوجيه والمتحكمات</td>
+            <td>فهم التوجيه بالسمات، ولماذا ليست قيود المسار مدقّقات، وكيف ينهار التطبيق عند التباس نقاط النهاية.</td>
+          </tr>
+          <tr>
+            <td><strong>الدرس 4</strong></td>
+            <td>ربط النماذج وبيانات الطلب</td>
+            <td>إزالة الغموض عن <code>[FromRoute]</code> و<code>[FromQuery]</code> و<code>[FromBody]</code> وردود 400 ProblemDetails التلقائية.</td>
+          </tr>
+          <tr>
+            <td><strong>الدرس 5</strong></td>
+            <td>الكيانات وDTO وعقود الواجهة</td>
+            <td>منع الإسناد الجماعي وأعطال JSON الدائرية وتسريبات البيانات عبر تصميم عقود DTO نظيفة ومنفصلة.</td>
+          </tr>
+          <tr>
+            <td><strong>الدرس 6</strong></td>
+            <td>‏PUT وPATCH والقيم الفارغة والتحديثات الجزئية</td>
+            <td>حلّ الخطأ الحقيقي في <code>UpdateBookAsync</code> في Raff وإتقان الفرق بين الخصائص المُغفَلة وقيم null الصريحة.</td>
+          </tr>
+          <tr>
+            <td><strong>الدرس 7</strong></td>
+            <td>جمع المفاهيم معًا</td>
+            <td>بناء تنفيذ معماري متكامل من البداية إلى النهاية لواجهة Books في Raff.</td>
+          </tr>
+          <tr>
+            <td><strong>التقييم</strong></td>
+            <td>التقييم الختامي للوحدة</td>
+            <td>اختبر معرفتك بـ 10 أسئلة شاملة (حد النجاح 80%) مع مراجعة تشخيصية.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2>3. كيف تستخدم هذا الكتاب التعليمي التفاعلي</h2>
+    <div class="callout callout-note">
+      <div class="callout-icon">🧭</div>
+      <div class="callout-content">
+        <div class="callout-title">ميزات في متناول يدك</div>
+        <ul>
+          <li><strong>صفر اعتماد على الشبكة:</strong> هذا الكتاب بالكامل مستقل تمامًا؛ لا يحتاج خادم Node ولا اتصال إنترنت ولا CDN خارجيًا.</li>
+          <li><strong>حفظ التقدّم تلقائيًا:</strong> تُحفظ نتائج الاختبارات القصيرة والدروس المكتملة ونتائج التقييم تلقائيًا في التخزين المحلي لمتصفحك.</li>
+          <li><strong>التصدير والاستيراد:</strong> استخدم أدوات الشريط الجانبي لتصدير تقدّمك إلى ملف JSON أو استعادته في أي وقت.</li>
+          <li><strong>البحث بلوحة المفاتيح:</strong> اضغط <kbd class="kbd-shortcut">Ctrl+K</kbd> (أو انقر «بحث» في الترويسة) في أي وقت للبحث في الدروس وقاموس المصطلحات.</li>
+          <li><strong>ملاعب تفاعلية:</strong> استخدم مستكشف خط أنابيب الطلبات ومحاكي مطابقة المسارات وملعب الحالات الثلاث للتحديث الجزئي على مدار الدروس.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="lesson-nav-footer">
+    <div></div>
+    <button class="btn-primary btn-next-lesson" data-target="lesson-1">
+      ابدأ الدرس 1: أساسيات HTTP ←
+    </button>
+  </div>
+`
+    }
+
+  }
 
 };
