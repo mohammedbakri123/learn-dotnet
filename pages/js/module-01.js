@@ -251,9 +251,9 @@
   let SEARCH = SEARCH_INDEX;
   if (OV) {
     if (OV.questions) {
-      QUESTIONS = {};
-      Object.keys(QUESTIONS).forEach((id) => {
-        QUESTIONS[id] = OV.questions[id] ? Object.assign({}, QUESTIONS[id], OV.questions[id]) : QUESTIONS[id];
+      QUESTIONS = Object.assign({}, QUESTIONS_DB);
+      Object.keys(QUESTIONS_DB).forEach((id) => {
+        if (OV.questions[id]) QUESTIONS[id] = Object.assign({}, QUESTIONS_DB[id], OV.questions[id]);
       });
     }
     if (OV.lessons) LESSONS = RaffI18n.mergeById(MODULE_LESSONS, OV.lessons);
