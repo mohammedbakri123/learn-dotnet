@@ -441,6 +441,37 @@ window.RAFF_MODULE_01_AR = {
     </button>
   </div>
 `
+    },
+
+    'assessment': {
+      nav: 'التقييم الختامي (80%)',
+      content: `
+  <div class="lesson-header-box">
+    <div class="lesson-meta-bar">
+      <span class="lesson-pill">التقويم الختامي</span>
+      <span class="badge-time">درجة النجاح: 80%</span>
+    </div>
+    <h1 class="lesson-h1">التقييم الختامي للوحدة الأولى</h1>
+    <p class="lesson-lead">
+      اختبر فهمك العميق لآليات HTTP وتوجيه ASP.NET Core وربط النماذج وعقود DTO ودلالات التحديث الجزئي. أرسل الأسئلة العشرة كاملة لتحصل على بطاقة نتائجك التشخيصية وتفصيل المواضيع.
+    </p>
+  </div>
+
+  <div class="content-body">
+    <div id="assessment-container">
+      <!-- 10 Comprehensive Assessment Questions will render here -->
+    </div>
+
+    <div style="margin-top: 2rem; display: flex; justify-content: center;">
+      <button class="btn-primary" id="btn-submit-final-assessment" style="font-size: 1.05rem; padding: 0.8rem 2rem;">
+        📊 صحّح التقييم وأكمله
+      </button>
+    </div>
+
+    <!-- Results Display -->
+    <div id="assessment-results" style="display:none;"></div>
+  </div>
+`
     }
 
   }
