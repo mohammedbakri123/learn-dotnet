@@ -9,6 +9,240 @@
 
   const showToast = (msg) => RaffUI.toast(msg);
 
+  const S = RaffI18n.pick({
+    en: {
+      overview: 'Overview',
+      lesson: (n) => `Lesson ${n}`,
+      completedBadge: '✓ Lesson Completed',
+      markComplete: '<span class="complete-checkbox">✓</span> Mark Lesson Complete',
+      unitsLabel: (done, total, pct) => `${done} / ${total} units (${pct}%)`,
+      checksLabel: (answered, total) => `${answered} / ${total}`,
+      selectAnswer: '⚠️ Please select an answer before submitting.',
+      correctHeadline: '✅ Excellent! Correct.',
+      incorrectHeadline: '❌ Not quite correct.',
+      assessmentBadge: (n) => `Assessment Q${n}`,
+      unansweredWarn: (n) => `⚠️ Please answer all questions (${n} unanswered).`,
+      submittedToast: (score) => `Assessment submitted! Score: ${score}%`,
+      reviewRecommended: 'Review Recommended',
+      mastered: 'Mastered ✓',
+      passedHeadline: '🎉 Congratulations, Mohammed! Module 1 Mastered.',
+      failedHeadline: '📚 Good Effort! Further Review Recommended.',
+      passedSubtext: 'You have demonstrated a comprehensive understanding of ASP.NET Core HTTP architecture, routing, model binding, DTO contracts, and partial update semantics.',
+      failedSubtext: 'You scored below the 80% passing threshold. Inspect the topic breakdown below and revisit the recommended lessons before re-taking.',
+      thTopic: 'Curriculum Topic',
+      thScore: 'Score',
+      thAccuracy: 'Accuracy',
+      thStatus: 'Status',
+      retake: '🔄 Reset &amp; Retake Assessment',
+      nodes: {
+        client: {
+          title: '📱 Client Application (Frontend / Mobile)',
+          desc: 'Initiates TCP/TLS connection and transmits the raw HTTP request stream over the wire.',
+          input: 'User action (e.g. submitting a new book form)',
+          duty: 'Constructing valid JSON and honoring HTTP REST conventions',
+          raff: 'Flutter mobile app sends POST /api/books with JSON payload'
+        },
+        kestrel: {
+          title: '⚡ Kestrel Web Server',
+          desc: 'ASP.NET Core\'s native high-performance, cross-platform web server. Listens on TCP sockets and parses HTTP wire protocol.',
+          input: 'Raw network socket byte packets',
+          duty: 'Protocol parsing (HTTP/1.1, HTTP/2, HTTP/3), TLS termination, and constructing the initial HttpContext',
+          raff: 'Allocates HttpContext and invokes the first delegate in Program.cs'
+        },
+        middleware: {
+          title: '⚙️ Middleware Pipeline & Routing',
+          desc: 'Bi-directional delegate pipeline configured in Program.cs. Handles cross-cutting concerns before dispatching to controllers.',
+          input: 'Raw HttpContext created by Kestrel',
+          duty: 'Exception handling, TLS redirect, CORS, authentication, authorization, and endpoint routing',
+          raff: 'UseRouting matches POST /api/books to BookController.Add'
+        },
+        controller: {
+          title: '🎯 Controller & Action (BookController)',
+          desc: 'The HTTP entry point. Model binding deserializes parameters, validates ModelState, and executes action logic.',
+          input: 'Routed HttpContext and parsed action parameters',
+          duty: 'HTTP transport adaptation, input validation responses, invoking application services, returning status codes',
+          raff: 'Calls _bookService.CreateBookAsync(dto) and returns CreatedAtAction (201 Created)'
+        },
+        service: {
+          title: '📦 Application Service (BookService)',
+          desc: 'Pure business logic layer completely decoupled from HTTP concepts (zero HttpContext or IActionResult references).',
+          input: 'Strongly-typed DTOs (e.g. CreateBookRequest)',
+          duty: 'Enforcing domain invariants, transaction boundaries, and entity mapping',
+          raff: 'Maps CreateBookRequest to Book entity and calls context.Books.Add'
+        },
+        database: {
+          title: '🗄️ EF Core DbContext & PostgreSQL',
+          desc: 'Translates LINQ expressions into SQL queries, executes queries against PostgreSQL, and tracks entity state changes.',
+          input: 'LINQ queries and entity instances',
+          duty: 'Relational persistence, schema integrity, and database transaction commits',
+          raff: 'Executes INSERT INTO books ... and commits the new book record'
+        }
+      },
+      routes: {
+        '/api/books/featured': {
+          result: 'Matches: Endpoint A (GetFeatured)',
+          reason: 'Literals take absolute precedence over parameter tokens! ASP.NET Core\'s route tree immediately branches to the literal "featured" match without testing parameter constraints.'
+        },
+        '/api/books/101': {
+          result: 'Matches: Endpoint B (GetById - {id:int})',
+          reason: 'Constrained parameters ({id:int}) take higher precedence than unconstrained parameters ({slug}). Since "101" successfully satisfies the integer constraint, Endpoint B is selected.'
+        },
+        '/api/books/arabic-classics': {
+          result: 'Matches: Endpoint C (GetBySlug - {slug})',
+          reason: '"arabic-classics" fails the :int constraint of Endpoint B, so Endpoint B is rejected. The unconstrained parameter {slug} in Endpoint C catches the string successfully!'
+        }
+      },
+      sim: {
+        bugSilent: '<span style="color:var(--danger);">❌ BUG OCCURRED: Silent Update Failure</span>',
+        worked: '<span style="color:var(--success);">✅ Worked as Expected</span>',
+        efTrap: '<span style="color:var(--danger);">🚨 CATASTROPHIC DATA LOSS: EF Core Update() Trap</span>',
+        presenceOk: '<span style="color:var(--success);">✅ PERFECT EXECUTION: Presence Tracking Succeeded</span>',
+        omittedOk: '<span style="color:var(--success);">✅ PERFECT EXECUTION: Omitted Field Preserved</span>',
+        perfect: '<span style="color:var(--success);">✅ PERFECT EXECUTION</span>',
+        put: '<span style="color:var(--info);">ℹ️ Standard HTTP PUT (Full Replacement)</span>',
+        naiveNull: '<strong>Why it failed:</strong> The client explicitly sent <code>"summary": null</code> intending to clear the summary. However, Raff\'s check <code>if (dto.summary is not null)</code> evaluated to false! The summary was <em>never cleared</em> and remained "An introduction to C#".',
+        naiveOmitted: 'The title was updated and the summary was preserved. However, this only worked by accident because the omitted property deserialized to null.',
+        naiveSummary: 'The new string was not null, so the update completed successfully.',
+        efLoss: '<strong>What went wrong:</strong> Calling <code>context.Books.Update(book)</code> marked every single property as Modified. Because <code>coverUrl</code> was not in the DTO, it defaulted to null; <code>publishedYear</code> defaulted to 0. Valid existing columns were completely overwritten in PostgreSQL!',
+        efPartial: 'The summary was updated, but omitted fields (coverUrl, publishedYear) were overwritten with null and 0 in the database!',
+        presenceNull: '<strong>Why it succeeded:</strong> <code>Optional&lt;T&gt;</code> detected that <code>summary</code> was explicitly present in the JSON payload (<code>IsSpecified == true</code>). The application set <code>book.Summary = null</code>, successfully clearing the field in PostgreSQL!',
+        presenceOmitted: '<code>summary.IsSpecified</code> was false, so the service did not touch <code>book.Summary</code>. The existing database value was safely preserved.',
+        presenceApplied: 'The new value was applied cleanly without touching any omitted fields.',
+        putStrict: 'Under strict HTTP PUT semantics, the payload is a full replacement. Any fields not provided are expected to be replaced with defaults/null.',
+        putOmitted: 'Under strict HTTP PUT semantics, omitted properties are replaced with default values.'
+      },
+      units: 'Units',
+      checks: 'Checks answered',
+      exportToast: '💾 Progress exported successfully!',
+      exportErrorToast: 'Export failed — progress could not be serialized.',
+      importSuccessToast: '✅ Progress imported successfully!',
+      importErrorToast: 'Malformed progress JSON file. Please supply a valid exported file.',
+      resetToast: 'Progress has been reset.',
+      markedComplete: (name) => `✓ Marked ${name} Complete!`,
+      unmarked: (name) => `Unmarked ${name}.`,
+      copyFailToast: 'Failed to copy code to clipboard.',
+      searchHint: 'Type a keyword to search lessons and topics…',
+      searchNoMatch: 'No matching sections found.'
+    },
+    ar: {
+      overview: 'نظرة عامة',
+      lesson: (n) => `الدرس ${n}`,
+      completedBadge: '✓ الدرس مكتمل',
+      markComplete: '<span class="complete-checkbox">✓</span> تحديد الدرس كمكتمل',
+      unitsLabel: (done, total, pct) => `${done} / ${total} وحدات (${pct}%)`,
+      checksLabel: (answered, total) => `${answered} / ${total}`,
+      selectAnswer: '⚠️ الرجاء اختيار إجابة قبل الإرسال.',
+      correctHeadline: '✅ ممتاز! الإجابة صحيحة.',
+      incorrectHeadline: '❌ ليست الإجابة الصحيحة.',
+      assessmentBadge: (n) => `سؤال التقييم ${n}`,
+      unansweredWarn: (n) => {
+        const q = n === 1 ? 'سؤال واحد بدون إجابة' : (n === 2 ? 'سؤالان بدون إجابة' : (n <= 10 ? n + ' أسئلة بدون إجابة' : n + ' سؤالًا بدون إجابة'));
+        return `⚠️ الرجاء الإجابة عن جميع الأسئلة (${q}).`;
+      },
+      submittedToast: (score) => `تم إرسال التقييم! النتيجة: ${score}%`,
+      reviewRecommended: 'يُنصح بالمراجعة',
+      mastered: 'متقَن ✓',
+      passedHeadline: '🎉 مبروك يا محمد! أتممت الوحدة الأولى بإتقان.',
+      failedHeadline: '📚 محاولة جيدة! يُوصى بمراجعة إضافية.',
+      passedSubtext: 'أظهرت فهمًا شاملًا لمعمارية HTTP في ASP.NET Core، والتوجيه، وربط النماذج، وعقود كائنات نقل البيانات (DTO)، ودلالات التحديث الجزئي.',
+      failedSubtext: 'نتيجتك أقل من حد النجاح (80%). راجع تفصيل المواضيع أدناه، وأعد زيارة الدروس الموصى بها قبل إعادة المحاولة.',
+      thTopic: 'موضوع المنهج',
+      thScore: 'النتيجة',
+      thAccuracy: 'الدقة',
+      thStatus: 'الحالة',
+      retake: '🔄 إعادة تعيين التقييم وإجرائه من جديد',
+      nodes: {
+        client: {
+          title: '📱 تطبيق العميل (واجهة أمامية / جوّال)',
+          desc: 'يُنشئ اتصال TCP/TLS ويرسل طلب HTTP الخام عبر الشبكة.',
+          input: 'إجراء المستخدم (مثل إرسال نموذج كتاب جديد)',
+          duty: 'تكوين JSON صالح والالتزام بأعراف REST في HTTP',
+          raff: 'تطبيق Flutter الجوّال يرسل POST /api/books بحمولة JSON'
+        },
+        kestrel: {
+          title: '⚡ خادم الويب Kestrel',
+          desc: 'خادم الويب الأصلي عالي الأداء ومتعدد المنصات في ASP.NET Core. يستمع على مقابس TCP ويفكّك بروتوكول HTTP.',
+          input: 'حزم بايتات خام من المقبس الشبكي',
+          duty: 'فكّ بروتوكول HTTP/1.1 وHTTP/2 وHTTP/3، وإنهاء TLS، وبناء HttpContext الأولي',
+          raff: 'يُخصّص HttpContext ويستدعي أول تفويض (delegate) في Program.cs'
+        },
+        middleware: {
+          title: '⚙️ خط أنابيب الوسائط والتوجيه',
+          desc: 'خط أنابيب ثنائي الاتجاه من التفويضات يُهيأ في Program.cs، ويتولى الاهتمامات الشاملة قبل التوزيع إلى المتحكمات.',
+          input: 'HttpContext خام أنشأه Kestrel',
+          duty: 'معالجة الاستثناءات، وإعادة التوجيه إلى TLS، وCORS، والمصادقة، والتفويض، وتوجيه نقاط النهاية',
+          raff: 'يطابق UseRouting الطلب POST /api/books مع BookController.Add'
+        },
+        controller: {
+          title: '🎯 المتحكم والإجراء (BookController)',
+          desc: 'نقطة دخول HTTP. يفكّ ربط النماذج المعاملات، ويتحقق من ModelState، وينفّذ منطق الإجراء.',
+          input: 'HttpContext الموجَّه ومعاملات الإجراء المفكوكة',
+          duty: 'تكييف نقل HTTP، وردود التحقق من المدخلات، واستدعاء خدمات التطبيق، وإرجاع رموز الحالة',
+          raff: 'يستدعي _bookService.CreateBookAsync(dto) ويُرجع CreatedAtAction ‏(201 Created)'
+        },
+        service: {
+          title: '📦 خدمة التطبيق (BookService)',
+          desc: 'طبقة منطق أعمال خالصة ومنفصلة تمامًا عن مفاهيم HTTP (لا HttpContext ولا IActionResult).',
+          input: 'كائنات DTO قوية الأنواع (مثل CreateBookRequest)',
+          duty: 'فرض ثوابت النطاق، وحدود المعاملات، وتحويل الكيانات',
+          raff: 'يحوّل CreateBookRequest إلى كيان Book ويستدعي context.Books.Add'
+        },
+        database: {
+          title: '🗄️ سياق EF Core وقاعدة PostgreSQL',
+          desc: 'يترجم تعبيرات LINQ إلى استعلامات SQL، وينفّذها على PostgreSQL، ويتتبّع تغيّرات حالة الكيانات.',
+          input: 'استعلامات LINQ ونسخ الكيانات',
+          duty: 'الحفظ العلائقي، وسلامة المخطط، وتثبيت معاملات قاعدة البيانات',
+          raff: 'ينفّذ INSERT INTO books ... ويثبّت سجل الكتاب الجديد'
+        }
+      },
+      routes: {
+        '/api/books/featured': {
+          result: 'تطابق: نقطة النهاية A ‏(GetFeatured)',
+          reason: 'المقاطع الحرفية تسبق رموز المعاملات دائمًا! شجرة توجيه ASP.NET Core تتفرّع فورًا إلى تطابق "featured" الحرفي دون اختبار قيود المعاملات.'
+        },
+        '/api/books/101': {
+          result: 'تطابق: نقطة النهاية B ‏(GetById - {id:int})',
+          reason: 'المعاملات المقيَّدة ({id:int}) لها أسبقية أعلى من المعاملات غير المقيَّدة ({slug}). ولأن "101" يفي بقيود العدد الصحيح، تُختار نقطة النهاية B.'
+        },
+        '/api/books/arabic-classics': {
+          result: 'تطابق: نقطة النهاية C ‏(GetBySlug - {slug})',
+          reason: 'يفشل "arabic-classics" في اجتياز قيد :int الخاص بنقطة النهاية B فتُرفض، وحينها يلتقط المعامل غير المقيَّد {slug} في نقطة النهاية C القيمة النصية بنجاح!'
+        }
+      },
+      sim: {
+        bugSilent: '<span style="color:var(--danger);">❌ حدث خطأ: فشل تحديث صامت</span>',
+        worked: '<span style="color:var(--success);">✅ نجح كما هو متوقع</span>',
+        efTrap: '<span style="color:var(--danger);">🚨 خسارة بيانات كارثية: فخ Update() في EF Core</span>',
+        presenceOk: '<span style="color:var(--success);">✅ تنفيذ مثالي: نجح تتبّع الوجود</span>',
+        omittedOk: '<span style="color:var(--success);">✅ تنفيذ مثالي: حُفظ الحقل المُغفَل</span>',
+        perfect: '<span style="color:var(--success);">✅ تنفيذ مثالي</span>',
+        put: '<span style="color:var(--info);">ℹ️ PUT القياسي في HTTP (استبدال كامل)</span>',
+        naiveNull: '<strong>لماذا فشل:</strong> أرسل العميل صراحةً <code>"summary": null</code> بنيّة مسح الملخص، لكن فحص Raff ‏<code>if (dto.summary is not null)</code> قُيِّم إلى false! فلم يُمسح الملخص <em>أبدًا</em> وظل "An introduction to C#".',
+        naiveOmitted: 'حُدِّث العنوان وبقي الملخص محفوظًا، لكن هذا نجح بالمصادفة فقط لأن الخاصية المُغفَلة أُسند إليها null عند فك التسلسل.',
+        naiveSummary: 'القيمة النصية الجديدة لم تكن null، فاكتمل التحديث بنجاح.',
+        efLoss: '<strong>ما الذي حدث:</strong> استدعاء <code>context.Books.Update(book)</code> وسم كل خصائص الكيان كمعدَّلة. ولأن <code>coverUrl</code> لم يكن ضمن DTO أُسند إليه null افتراضيًا، وأصبح <code>publishedYear</code> صفرًا، فطُمست أعمدة قائمة صالحة بالكامل في PostgreSQL!',
+        efPartial: 'حُدِّث الملخص، لكن الحقول المُغفَلة (coverUrl وpublishedYear) طُمست إلى null و0 في قاعدة البيانات!',
+        presenceNull: '<strong>لماذا نجح:</strong> كشف <code>Optional&lt;T&gt;</code> أن <code>summary</code> موجود صراحةً في حمولة JSON ‏(<code>IsSpecified == true</code>)، فأسند التطبيق <code>book.Summary = null</code> ومسح الحقل بنجاح في PostgreSQL!',
+        presenceOmitted: 'كانت <code>summary.IsSpecified</code> بقيمة false، فلم تلمس الخدمة <code>book.Summary</code>، وحُفظت قيمة قاعدة البيانات القائمة بأمان.',
+        presenceApplied: 'طُبّقت القيمة الجديدة بسلاسة دون المساس بأي من الحقول المُغفَلة.',
+        putStrict: 'بموجب دلالات PUT الصارمة في HTTP تُعدّ الحمولة استبدالًا كاملًا، ويُتوقع استبدال أي حقول غير مقدَّمة بالقيم الافتراضية أو null.',
+        putOmitted: 'بموجب دلالات PUT الصارمة تُستبدل الخصائص المُغفَلة بالقيم الافتراضية.'
+      },
+      units: 'الوحدات',
+      checks: 'الاختبارات المُجابة',
+      exportToast: '💾 تم تصدير التقدّم بنجاح!',
+      exportErrorToast: 'فشل التصدير — تعذّر تسلسل بيانات التقدّم.',
+      importSuccessToast: '✅ تم استيراد التقدّم بنجاح!',
+      importErrorToast: 'ملف تقدّم JSON غير صالح. الرجاء استخدام ملف تم تصديره من النظام.',
+      resetToast: 'تمت إعادة تعيين التقدّم.',
+      markedComplete: (name) => `✓ تم تحديد ${name} كمكتمل!`,
+      unmarked: (name) => `أُلغي تحديد ${name}.`,
+      copyFailToast: 'تعذّر نسخ الكود إلى الحافظة.',
+      searchHint: 'اكتب كلمة مفتاحية للبحث في الدروس والمواضيع…',
+      searchNoMatch: 'لا توجد أقسام مطابقة.'
+    }
+  });
+
   let appState = {
     theme: 'dark',
     activeLesson: 'lesson-0',
@@ -46,8 +280,8 @@
   }
 
   function formatLessonName(id) {
-    if (id === 'lesson-0') return 'Overview';
-    if (id.startsWith('lesson-')) return `Lesson ${id.replace('lesson-', '')}`;
+    if (id === 'lesson-0') return S.overview;
+    if (id.startsWith('lesson-')) return S.lesson(id.replace('lesson-', ''));
     return id;
   }
 
@@ -64,9 +298,7 @@
     document.querySelectorAll('.btn-complete-lesson').forEach(btn => {
       const lesson = btn.getAttribute('data-lesson');
       const isCompleted = appState.completedLessons.includes(lesson);
-      btn.innerHTML = isCompleted
-        ? '✓ Lesson Completed'
-        : '<span class="complete-checkbox">✓</span> Mark Lesson Complete';
+      btn.innerHTML = isCompleted ? S.completedBadge : S.markComplete;
     });
 
     const totalChecks = Object.keys(QUESTIONS_DB).filter(id => ASSESSMENT_IDS.indexOf(id) === -1).length;
@@ -74,8 +306,8 @@
 
     return {
       percent: progressPercent,
-      lessonsLabel: `${completedCount + assessmentPassed} / ${totalUnits} units (${progressPercent}%)`,
-      checksLabel: `${answered} / ${totalChecks}`
+      lessonsLabel: S.unitsLabel(completedCount + assessmentPassed, totalUnits, progressPercent),
+      checksLabel: S.checksLabel(answered, totalChecks)
     };
   }
 
@@ -114,7 +346,7 @@
 
     const selected = group.querySelector('.quiz-option.selected');
     if (!selected) {
-      showToast('⚠️ Please select an answer before submitting.');
+      showToast(S.selectAnswer);
       return;
     }
 
@@ -155,7 +387,7 @@
 
     feedbackBox.className = `quiz-feedback visible ${isCorrect ? 'correct' : 'incorrect'}`;
     feedbackBox.innerHTML = `
-      <div class="feedback-headline">${isCorrect ? '✅ Excellent! Correct.' : '❌ Not quite correct.'}</div>
+      <div class="feedback-headline">${isCorrect ? S.correctHeadline : S.incorrectHeadline}</div>
       <p style="margin:0; font-size:0.9rem; line-height:1.5;">${explanation}</p>
     `;
   }
@@ -222,7 +454,7 @@
         <div class="exercise-card" id="${id}">
           <div class="exercise-header">
             <div class="exercise-title-group">
-              <span class="exercise-badge">Assessment Q${idx + 1}</span>
+              <span class="exercise-badge">${S.assessmentBadge(idx + 1)}</span>
               <span>${q.topic}</span>
             </div>
           </div>
@@ -288,7 +520,7 @@
     });
 
     if (unselectedCount > 0) {
-      showToast(`⚠️ Please answer all questions (${unselectedCount} unanswered).`);
+      showToast(S.unansweredWarn(unselectedCount));
       return;
     }
 
@@ -299,7 +531,7 @@
     notifyChange();
 
     renderAssessmentResults();
-    showToast(`Assessment submitted! Score: ${score}%`);
+    showToast(S.submittedToast(score));
   }
 
   function renderAssessmentResults() {
@@ -334,7 +566,7 @@
           <td><strong>${topic}</strong></td>
           <td>${stat.correct} / ${stat.total}</td>
           <td><span class="status-badge ${isWeak ? 'status-4xx' : 'status-2xx'}">${pct}%</span></td>
-          <td>${isWeak ? '<span style="color:var(--warning); font-size:0.85rem;">Review Recommended</span>' : '<span style="color:var(--success); font-size:0.85rem;">Mastered ✓</span>'}</td>
+          <td>${isWeak ? `<span style="color:var(--warning); font-size:0.85rem;">${S.reviewRecommended}</span>` : `<span style="color:var(--success); font-size:0.85rem;">${S.mastered}</span>`}</td>
         </tr>
       `;
     }
@@ -346,22 +578,20 @@
           ${score}%
         </div>
         <div class="score-headline">
-          ${passed ? '🎉 Congratulations, Mohammed! Module 1 Mastered.' : '📚 Good Effort! Further Review Recommended.'}
+          ${passed ? S.passedHeadline : S.failedHeadline}
         </div>
         <p class="score-subtext">
-          ${passed
-            ? 'You have demonstrated a comprehensive understanding of ASP.NET Core HTTP architecture, routing, model binding, DTO contracts, and partial update semantics.'
-            : 'You scored below the 80% passing threshold. Inspect the topic breakdown below and revisit the recommended lessons before re-taking.'}
+          ${passed ? S.passedSubtext : S.failedSubtext}
         </p>
 
         <div class="table-wrapper topic-breakdown-table">
           <table>
             <thead>
               <tr>
-                <th>Curriculum Topic</th>
-                <th>Score</th>
-                <th>Accuracy</th>
-                <th>Status</th>
+                <th>${S.thTopic}</th>
+                <th>${S.thScore}</th>
+                <th>${S.thAccuracy}</th>
+                <th>${S.thStatus}</th>
               </tr>
             </thead>
             <tbody>
@@ -371,7 +601,7 @@
         </div>
 
         <div style="margin-top: 1.5rem; display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap;">
-          <button class="btn-secondary" id="btn-retake-assessment">🔄 Reset &amp; Retake Assessment</button>
+          <button class="btn-secondary" id="btn-retake-assessment">${S.retake}</button>
         </div>
       </div>
     `;
@@ -395,50 +625,7 @@
     const duty = document.getElementById('inspector-duty');
     const raff = document.getElementById('inspector-raff');
 
-    const nodeData = {
-      client: {
-        title: '📱 Client Application (Frontend / Mobile)',
-        desc: 'Initiates TCP/TLS connection and transmits the raw HTTP request stream over the wire.',
-        input: 'User action (e.g. submitting a new book form)',
-        duty: 'Constructing valid JSON and honoring HTTP REST conventions',
-        raff: 'Flutter mobile app sends POST /api/books with JSON payload'
-      },
-      kestrel: {
-        title: '⚡ Kestrel Web Server',
-        desc: 'ASP.NET Core\'s native high-performance, cross-platform web server. Listens on TCP sockets and parses HTTP wire protocol.',
-        input: 'Raw network socket byte packets',
-        duty: 'Protocol parsing (HTTP/1.1, HTTP/2, HTTP/3), TLS termination, and constructing the initial HttpContext',
-        raff: 'Allocates HttpContext and invokes the first delegate in Program.cs'
-      },
-      middleware: {
-        title: '⚙️ Middleware Pipeline & Routing',
-        desc: 'Bi-directional delegate pipeline configured in Program.cs. Handles cross-cutting concerns before dispatching to controllers.',
-        input: 'Raw HttpContext created by Kestrel',
-        duty: 'Exception handling, TLS redirect, CORS, authentication, authorization, and endpoint routing',
-        raff: 'UseRouting matches POST /api/books to BookController.Add'
-      },
-      controller: {
-        title: '🎯 Controller & Action (BookController)',
-        desc: 'The HTTP entry point. Model binding deserializes parameters, validates ModelState, and executes action logic.',
-        input: 'Routed HttpContext and parsed action parameters',
-        duty: 'HTTP transport adaptation, input validation responses, invoking application services, returning status codes',
-        raff: 'Calls _bookService.CreateBookAsync(dto) and returns CreatedAtAction (201 Created)'
-      },
-      service: {
-        title: '📦 Application Service (BookService)',
-        desc: 'Pure business logic layer completely decoupled from HTTP concepts (zero HttpContext or IActionResult references).',
-        input: 'Strongly-typed DTOs (e.g. CreateBookRequest)',
-        duty: 'Enforcing domain invariants, transaction boundaries, and entity mapping',
-        raff: 'Maps CreateBookRequest to Book entity and calls context.Books.Add'
-      },
-      database: {
-        title: '🗄️ EF Core DbContext & PostgreSQL',
-        desc: 'Translates LINQ expressions into SQL queries, executes queries against PostgreSQL, and tracks entity state changes.',
-        input: 'LINQ queries and entity instances',
-        duty: 'Relational persistence, schema integrity, and database transaction commits',
-        raff: 'Executes INSERT INTO books ... and commits the new book record'
-      }
-    };
+    const nodeData = S.nodes;
 
     nodes.forEach(node => {
       node.addEventListener('click', () => {
@@ -461,20 +648,7 @@
     const traceResult = document.getElementById('route-trace-result');
     const traceReason = document.getElementById('route-trace-reason');
 
-    const routeScenarios = {
-      '/api/books/featured': {
-        result: 'Matches: Endpoint A (GetFeatured)',
-        reason: 'Literals take absolute precedence over parameter tokens! ASP.NET Core\'s route tree immediately branches to the literal "featured" match without testing parameter constraints.'
-      },
-      '/api/books/101': {
-        result: 'Matches: Endpoint B (GetById - {id:int})',
-        reason: 'Constrained parameters ({id:int}) take higher precedence than unconstrained parameters ({slug}). Since "101" successfully satisfies the integer constraint, Endpoint B is selected.'
-      },
-      '/api/books/arabic-classics': {
-        result: 'Matches: Endpoint C (GetBySlug - {slug})',
-        reason: '"arabic-classics" fails the :int constraint of Endpoint B, so Endpoint B is rejected. The unconstrained parameter {slug} in Endpoint C catches the string successfully!'
-      }
-    };
+    const routeScenarios = S.routes;
 
     routeButtons.forEach(btn => {
       btn.addEventListener('click', () => {
@@ -521,39 +695,39 @@
       if (payload === 'explicit_null') {
         db.title = "Advanced C#";
         return {
-          status: '<span style="color:var(--danger);">❌ BUG OCCURRED: Silent Update Failure</span>',
+          status: S.sim.bugSilent,
           dbRecord: db,
-          analysis: '<strong>Why it failed:</strong> The client explicitly sent <code>"summary": null</code> intending to clear the summary. However, Raff\'s check <code>if (dto.summary is not null)</code> evaluated to false! The summary was <em>never cleared</em> and remained "An introduction to C#".'
+          analysis: S.sim.naiveNull
         };
       } else if (payload === 'omitted') {
         db.title = "Advanced C#";
         return {
-          status: '<span style="color:var(--success);">✅ Worked as Expected</span>',
+          status: S.sim.worked,
           dbRecord: db,
-          analysis: 'The title was updated and the summary was preserved. However, this only worked by accident because the omitted property deserialized to null.'
+          analysis: S.sim.naiveOmitted
         };
       } else {
         db.summary = "A deep dive into C#";
         return {
-          status: '<span style="color:var(--success);">✅ Worked as Expected</span>',
+          status: S.sim.worked,
           dbRecord: db,
-          analysis: 'The new string was not null, so the update completed successfully.'
+          analysis: S.sim.naiveSummary
         };
       }
     } else if (algo === 'ef_update') {
       if (payload === 'explicit_null' || payload === 'omitted') {
         db = { id: 42, title: "Advanced C#", summary: null, coverUrl: null, publishedYear: 0 };
         return {
-          status: '<span style="color:var(--danger);">🚨 CATASTROPHIC DATA LOSS: EF Core Update() Trap</span>',
+          status: S.sim.efTrap,
           dbRecord: db,
-          analysis: '<strong>What went wrong:</strong> Calling <code>context.Books.Update(book)</code> marked every single property as Modified. Because <code>coverUrl</code> was not in the DTO, it defaulted to null; <code>publishedYear</code> defaulted to 0. Valid existing columns were completely overwritten in PostgreSQL!'
+          analysis: S.sim.efLoss
         };
       } else {
         db = { id: 42, title: "C# Basics", summary: "A deep dive into C#", coverUrl: null, publishedYear: 0 };
         return {
-          status: '<span style="color:var(--danger);">🚨 CATASTROPHIC DATA LOSS: EF Core Update() Trap</span>',
+          status: S.sim.efTrap,
           dbRecord: db,
-          analysis: 'The summary was updated, but omitted fields (coverUrl, publishedYear) were overwritten with null and 0 in the database!'
+          analysis: S.sim.efPartial
         };
       }
     } else if (algo === 'presence') {
@@ -561,23 +735,23 @@
         db.title = "Advanced C#";
         db.summary = null;
         return {
-          status: '<span style="color:var(--success);">✅ PERFECT EXECUTION: Presence Tracking Succeeded</span>',
+          status: S.sim.presenceOk,
           dbRecord: db,
-          analysis: '<strong>Why it succeeded:</strong> <code>Optional&lt;T&gt;</code> detected that <code>summary</code> was explicitly present in the JSON payload (<code>IsSpecified == true</code>). The application set <code>book.Summary = null</code>, successfully clearing the field in PostgreSQL!'
+          analysis: S.sim.presenceNull
         };
       } else if (payload === 'omitted') {
         db.title = "Advanced C#";
         return {
-          status: '<span style="color:var(--success);">✅ PERFECT EXECUTION: Omitted Field Preserved</span>',
+          status: S.sim.omittedOk,
           dbRecord: db,
-          analysis: '<code>summary.IsSpecified</code> was false, so the service did not touch <code>book.Summary</code>. The existing database value was safely preserved.'
+          analysis: S.sim.presenceOmitted
         };
       } else {
         db.summary = "A deep dive into C#";
         return {
-          status: '<span style="color:var(--success);">✅ PERFECT EXECUTION</span>',
+          status: S.sim.perfect,
           dbRecord: db,
-          analysis: 'The new value was applied cleanly without touching any omitted fields.'
+          analysis: S.sim.presenceApplied
         };
       }
     } else { // full_put
@@ -587,9 +761,9 @@
         db.coverUrl = null;
         db.publishedYear = 0;
         return {
-          status: '<span style="color:var(--info);">ℹ️ Standard HTTP PUT (Full Replacement)</span>',
+          status: S.sim.put,
           dbRecord: db,
-          analysis: 'Under strict HTTP PUT semantics, the payload is a full replacement. Any fields not provided are expected to be replaced with defaults/null.'
+          analysis: S.sim.putStrict
         };
       } else {
         db.title = "C# Basics";
@@ -597,9 +771,9 @@
         db.coverUrl = null;
         db.publishedYear = 0;
         return {
-          status: '<span style="color:var(--info);">ℹ️ Standard HTTP PUT (Full Replacement)</span>',
+          status: S.sim.put,
           dbRecord: db,
-          analysis: 'Under strict HTTP PUT semantics, omitted properties are replaced with default values.'
+          analysis: S.sim.putOmitted
         };
       }
     }
@@ -661,25 +835,25 @@
       progress: { compute: computeProgress },
       exportName: 'raff-aspnet-module-01-progress.json',
       exportStyle: 'dataurl',
-      labels: { lessons: 'Units', checks: 'Checks answered' },
+      labels: { lessons: S.units, checks: S.checks },
       messages: {
-        exportToast: '💾 Progress exported successfully!',
-        exportErrorToast: 'Export failed — progress could not be serialized.',
+        exportToast: S.exportToast,
+        exportErrorToast: S.exportErrorToast,
         importMode: 'file',
-        importSuccessToast: '✅ Progress imported successfully!',
-        importErrorToast: 'Malformed progress JSON file. Please supply a valid exported file.',
-        resetToast: 'Progress has been reset.'
+        importSuccessToast: S.importSuccessToast,
+        importErrorToast: S.importErrorToast,
+        resetToast: S.resetToast
       },
       completeToast: (done, id) => (done
-        ? `✓ Marked ${formatLessonName(id)} Complete!`
-        : `Unmarked ${formatLessonName(id)}.`),
+        ? S.markedComplete(formatLessonName(id))
+        : S.unmarked(formatLessonName(id))),
 
-      copy: { feedback: true, colorFeedback: true, failToast: 'Failed to copy code to clipboard.' },
+      copy: { feedback: true, colorFeedback: true, failToast: S.copyFailToast },
 
       search: {
         minChars: 1,
-        hint: 'Type a keyword to search lessons and topics…',
-        noMatch: 'No matching sections found.',
+        hint: S.searchHint,
+        noMatch: S.searchNoMatch,
         items: SEARCH_INDEX.map(it => ({ target: it.id, title: it.title, snippet: it.snippet }))
       },
 
