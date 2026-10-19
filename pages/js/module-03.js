@@ -13,6 +13,203 @@
   var fmtInline = function (s) { return RaffUI.fmtInline(s); };
   function toast(msg) { RaffUI.toast(msg); }
 
+  var S = RaffI18n.pick({
+    en: {
+      lessonDone: (n) => "Lesson " + n + " Completed ✓",
+      markLesson: (n) => "Mark Lesson " + n + " Complete ✓",
+      correct: "Correct.",
+      notQuite: "Not quite.",
+      notQuiteHelp: " Re-read the relevant lesson section, then try again — the explanation appears once you find the right answer.",
+      kcBadge: "Knowledge Check",
+      ofTotal: (i, total) => i + " of " + total,
+      answeredChip: "Answered",
+      correctChip: "Correct ✓",
+      incorrectChip: "Incorrect ✗",
+      checkAnswer: "Check Answer",
+      selectFirst: "Select an answer first.",
+      labChipMatches: "✓ Matches",
+      labChipDefensible: "≈ Defensible",
+      labChipRevisit: "✗ Revisit",
+      labAria: (n) => "Strategy for scenario " + n,
+      labChoose: "— choose —",
+      recPrefix: "<strong>Recommended:</strong> ",
+      alsoOkPrefix: "<strong>Also acceptable.</strong> ",
+      correctPrefix: "<strong>Correct.</strong> ",
+      checkedOf: (c, t) => c + " of " + t + " checked",
+      labVerdictEmpty: "Pick a strategy for each scenario, then press \"Check answers\".",
+      labVerdictOk: (ok) => "<strong>" + ok + " correct or defensible</strong>",
+      labVerdictWrong: (wrong) => ", " + wrong + " to revisit — read the feedback rows above.",
+      labVerdictAllOk: " — every scenario covered. Nice work.",
+      chooseFirst: "Choose a strategy for at least one scenario first.",
+      n1More: (n) => "… and " + n + " more near-identical commands",
+      n1LazyTotal: (cmds, rows) => "Total for this access pattern: " + cmds + " commands, " + rows + " rows",
+      n1EagerResult: (rows) => "Result set: " + rows + " rows — each book's columns repeat per author row",
+      n1EagerTotal: (rows) => "Total: 1 command, " + rows + " rows",
+      n1ProjResult: (rows) => "Result set: " + rows + " rows, one per book, count computed by the database",
+      n1ProjTotal: (rows) => "Total: 1 command, " + rows + " rows, zero entities materialized",
+      dtosOnly: "0 (DTOs only)",
+      n1WorkLazy: (b) => "indexed lookups × " + b,
+      n1WorkEager: "single join, wide result",
+      n1WorkProj: "DB-side COUNT per book",
+      n1VerdictLazy: (b, cmds, rows) => "<strong>N+1.</strong> " + b + " books → " + cmds + " commands and " + rows +
+        " rows. Property access in a loop looks free, but every unloaded collection triggers a round trip — cost grows with the number of books returned.",
+      n1VerdictEager: (rows) => "<strong>One command, " + rows + " rows.</strong> The join repeats each book's columns once per (book, author) pair; EF Core de-duplicates entities in memory. For one collection that is usually a good trade — add a second sibling collection and the rows multiply again (Lesson 7).",
+      n1VerdictProj: (b) => "<strong>One command, " + b + " rows, zero entities.</strong> The database computes the count and only the DTO fields cross the wire. When the requirement is a count — not the entities — this is the cheapest correct shape.",
+      calcOne: "With one row per collection there is no fan-out: both strategies return the same row count. Fan-out appears the moment collections hold multiple rows.",
+      calcSevere: (single, split, ratio) => "<strong>Severe fan-out.</strong> One query carries " + single + " rows where the data itself needs about " +
+        split + " — a " + ratio + "× inflation. EF Core de-duplicates entities in memory, but the database computes and the network carries every row. Consider <code>AsSplitQuery()</code> or a projection.",
+      calcModerate: (single, split, ratio) => "<strong>Moderate fan-out.</strong> One query returns " + single + " rows vs about " +
+        split + " with split queries (" + ratio + "×). A single join is often the right trade at this scale — measure before optimizing further.",
+      erdAria: (label) => label + " relationship diagram",
+      erdOptional: "optional (nullable FK)",
+      erdRequired: "required (non-nullable FK)",
+      stepOf: (s, t) => "Step " + s + " of " + t,
+      noTracked: "No tracked entities yet.",
+      thEntity: "Entity",
+      thState: "State",
+      thNote: "Note",
+      nothingLoaded: "Nothing loaded.",
+      pressNext: "Press “Apply next step” to run the next line of code.",
+      resultTitle: "Result",
+      passChip: "PASS ✓",
+      failChip: "FAIL ✗",
+      correctTotal: (s, t, thr) => s + " / " + t + " correct • pass threshold " + thr + "%",
+      breakdownTitle: "Per-topic breakdown — click to review",
+      lessonsBreakdown: (n) => "Lesson " + n + ": ",
+      revisitTitle: "Questions to revisit",
+      yourAnswer: "Your answer: ",
+      notAnswered: "(not answered)",
+      correctAnswer: "Correct: ",
+      reviewLabel: (label) => "Review " + label + " →",
+      perfect: "Perfect score — every question correct. 🎓",
+      qOf: (i, t) => "Question " + i + " of " + t,
+      lessonLabel: (n) => "Lesson " + n,
+      answerAll: (a, t) => "Answer all questions before submitting (" + a + "/" + t + " answered).",
+      passedToast: (pct) => "Assessment passed — " + pct + "% ✓",
+      submittedToast: (pct, thr) => "Assessment submitted — " + pct + "% (below " + thr + "% threshold)",
+      retryToast: "Assessment reset — fresh attempt. Best score is kept.",
+      groupLessons: "Lessons",
+      groupChecks: "Knowledge checks",
+      groupGlossary: "Glossary",
+      lessonTitlePrefix: (n) => "Lesson " + n + " — ",
+      kcTitle: (n) => "Knowledge check" + (n ? " — Lesson " + n : ""),
+      units: "Lessons",
+      checks: "Checks answered",
+      exportToast: "Progress exported.",
+      exportErrorToast: "Export failed — storage unavailable.",
+      importSuccessToast: "Progress imported successfully.",
+      importErrorToast: "Import failed — the file could not be read.",
+      resetToast: "All module progress was reset.",
+      importedToast: "Progress imported successfully.",
+      importInvalidToast: "Import failed — that file is not a valid Module 3 progress export.",
+      markedComplete: (done, total) => "Lesson marked complete — " + done + "/" + total + " lessons.",
+      copySuccessToast: "Code copied to clipboard.",
+      copyFailToast: "Copy failed — select the code manually.",
+      searchPlaceholder: "Search lessons, topics, exercises, and glossary terms… (e.g. \"N+1\", \"shadow\", \"split query\")",
+      searchHintHtml: '<p style="color:var(--text-muted); font-size:0.85rem;">Type at least two characters. Try “N+1”, “shadow”, “split query”, “lazy loading”, or “projection”.</p>',
+      searchNoMatch: (q) => '<p style="color:var(--text-muted); font-size:0.85rem;">No matches for “' + esc(q) + '”.</p>',
+      glossaryEmpty: "No terms match.",
+      goToLabel: (label) => "Go to " + label + " →"
+    },
+    ar: {
+      lessonDone: (n) => "اكتمل الدرس " + n + " ✓",
+      markLesson: (n) => "تحديد الدرس " + n + " كمكتمل ✓",
+      correct: "إجابة صحيحة.",
+      notQuite: "ليست صحيحة تمامًا.",
+      notQuiteHelp: " أعد قراءة القسم ذي الصلة من الدرس ثم حاول مجددًا — يظهر الشرح بعد الوصول إلى الإجابة الصحيحة.",
+      kcBadge: "اختبار معرفي",
+      ofTotal: (i, total) => i + " من " + total,
+      answeredChip: "تمت الإجابة",
+      correctChip: "صحيح ✓",
+      incorrectChip: "غير صحيح ✗",
+      checkAnswer: "تحقق من الإجابة",
+      selectFirst: "الرجاء اختيار إجابة أولًا.",
+      labChipMatches: "✓ مطابق",
+      labChipDefensible: "≈ مقبول",
+      labChipRevisit: "✗ راجعها",
+      labAria: (n) => "الاستراتيجية المناسبة للسيناريو " + n,
+      labChoose: "— اختر —",
+      recPrefix: "<strong>الموصى به:</strong> ",
+      alsoOkPrefix: "<strong>مقبول أيضًا.</strong> ",
+      correctPrefix: "<strong>إجابة صحيحة.</strong> ",
+      checkedOf: (c, t) => "تم فحص " + c + " من " + t,
+      labVerdictEmpty: "اختر استراتيجية لكل سيناريو ثم اضغط «تحقق من الإجابات».",
+      labVerdictOk: (ok) => "<strong>" + ok + " إجابات صحيحة أو مقبولة</strong>",
+      labVerdictWrong: (wrong) => "، و" + wrong + " بحاجة إلى مراجعة — اقرأ صفوف التغذية الراجعة أعلاه.",
+      labVerdictAllOk: " — كل السيناريوهات مغطاة. عمل ممتاز.",
+      chooseFirst: "اختر استراتيجية لسيناريو واحد على الأقل أولًا.",
+      n1More: (n) => "… و" + n + " أوامر أخرى شبه متطابقة",
+      n1LazyTotal: (cmds, rows) => "الإجمالي لهذا النمط: " + cmds + " أوامر و" + rows + " صفًا",
+      n1EagerResult: (rows) => "مجموعة النتائج: " + rows + " صفًا — تتكرر أعمدة كل كتاب مع كل صف مؤلف",
+      n1EagerTotal: (rows) => "الإجمالي: أمر واحد و" + rows + " صفًا",
+      n1ProjResult: (rows) => "مجموعة النتائج: " + rows + " صفًا، صف واحد لكل كتاب، والعدّ تحسبه قاعدة البيانات",
+      n1ProjTotal: (rows) => "الإجمالي: أمر واحد و" + rows + " صفًا دون تجسيد أي كيان",
+      dtosOnly: "0 (كائنات DTO فقط)",
+      n1WorkLazy: (b) => "عمليات بحث مفهرسة × " + b,
+      n1WorkEager: "ربط واحد بنتيجة عريضة",
+      n1WorkProj: "COUNT على جهة قاعدة البيانات لكل كتاب",
+      n1VerdictLazy: (b, cmds, rows) => "<strong>مشكلة N+1.</strong> " + b + " كتابًا ← " + cmds + " أمرًا و" + rows +
+        " صفًا. يبدو الوصول إلى الخاصية داخل حلقة مجانيًا، لكن كل مجموعة غير محمّلة تُحدث رحلة ذهاب وإياب — وتنمو الكلفة مع عدد الكتب المُعادة.",
+      n1VerdictEager: (rows) => "<strong>أمر واحد و" + rows + " صفًا.</strong> يكرر الربط أعمدة كل كتاب مرة لكل زوج (كتاب، مؤلف)، ثم تُلغي EF Core التكرار في الذاكرة. ومع مجموعة واحدة غالبًا ما تكون هذه مقايضة جيدة — أضف مجموعة شقيقة ثانية لتتضاعف الصفوف من جديد (الدرس 7).",
+      n1VerdictProj: (b) => "<strong>أمر واحد و" + b + " صفًا دون أي كيان.</strong> تحسب قاعدة البيانات العدد ولا يعبر الشبكة سوى حقول DTO. وعندما يكون المطلوب عدًّا لا كيانات، فهذا أرخص شكل صحيح.",
+      calcOne: "مع صف واحد لكل مجموعة لا يوجد تضخم: تعيد الاستراتيجيتان العدد نفسه من الصفوف. ويظهر التضخم بمجرد احتواء المجموعات على عدة صفوف.",
+      calcSevere: (single, split, ratio) => "<strong>تضخم حاد.</strong> يحمل استعلام واحد " + single + " صفًا بينما تحتاج البيانات نفسها نحو " +
+        split + " — تضخم بمقدار " + ratio + "×. تُلغي EF Core التكرار في الذاكرة، لكن قاعدة البيانات تحسب كل صف والشبكة تنقله. فكّر في <code>AsSplitQuery()</code> أو استخدام الإسقاط.",
+      calcModerate: (single, split, ratio) => "<strong>تضخم متوسط.</strong> يعيد الاستعلام الواحد " + single + " صفًا مقابل نحو " +
+        split + " مع الاستعلامات المنفصلة (" + ratio + "×). وغالبًا يكون الربط الواحد مقايضة مناسبة عند هذا الحجم — قِس الأداء قبل مواصلة التحسين.",
+      erdAria: (label) => "مخطط علاقة " + label,
+      erdOptional: "اختياري (FK قابل للقيمة الفارغة)",
+      erdRequired: "مطلوب (FK غير قابل للقيمة الفارغة)",
+      stepOf: (s, t) => "الخطوة " + s + " من " + t,
+      noTracked: "لا كيانات متتبَّعة بعد.",
+      thEntity: "الكيان",
+      thState: "الحالة",
+      thNote: "ملاحظة",
+      nothingLoaded: "لا شيء محمّل بعد.",
+      pressNext: "اضغط «طبّق الخطوة التالية» لتنفيذ السطر التالي من الكود.",
+      resultTitle: "النتيجة",
+      passChip: "ناجح ✓",
+      failChip: "راسب ✗",
+      correctTotal: (s, t, thr) => s + " / " + t + " إجابة صحيحة • حد النجاح " + thr + "%",
+      breakdownTitle: "التفصيل حسب الموضوع — اضغط للمراجعة",
+      lessonsBreakdown: (n) => "الدرس " + n + ": ",
+      revisitTitle: "أسئلة يُستحسن مراجعتها",
+      yourAnswer: "إجابتك: ",
+      notAnswered: "(بدون إجابة)",
+      correctAnswer: "الإجابة الصحيحة: ",
+      reviewLabel: (label) => "راجع " + label + " ←",
+      perfect: "علامة كاملة — كل الإجابات صحيحة. 🎓",
+      qOf: (i, t) => "السؤال " + i + " من " + t,
+      lessonLabel: (n) => "الدرس " + n,
+      answerAll: (a, t) => "أجب عن جميع الأسئلة قبل الإرسال (" + a + "/" + t + " مجابة).",
+      passedToast: (pct) => "نجحت في التقييم — " + pct + "% ✓",
+      submittedToast: (pct, thr) => "تم إرسال التقييم — " + pct + "% (أقل من حد النجاح " + thr + "%)",
+      retryToast: "أُعيد تعيين التقييم — محاولة جديدة. وستُحفظ أفضل نتيجة.",
+      groupLessons: "الدروس",
+      groupChecks: "الاختبارات المعرفية",
+      groupGlossary: "المصطلحات",
+      lessonTitlePrefix: (n) => "الدرس " + n + " — ",
+      kcTitle: (n) => "اختبار معرفي" + (n ? " — الدرس " + n : ""),
+      units: "الدروس",
+      checks: "الاختبارات المُجابة",
+      exportToast: "تم تصدير التقدّم.",
+      exportErrorToast: "فشل التصدير — وحدة التخزين غير متاحة.",
+      importSuccessToast: "تم استيراد التقدّم بنجاح.",
+      importErrorToast: "فشل الاستيراد — تعذّرت قراءة الملف.",
+      resetToast: "أُعيد تعيين تقدّم الوحدة بالكامل.",
+      importedToast: "تم استيراد التقدّم بنجاح.",
+      importInvalidToast: "فشل الاستيراد — هذا الملف ليس تصدير تقدّم صالحًا للوحدة 3.",
+      markedComplete: (done, total) => "اكتمل الدرس — " + done + "/" + total + " دروس.",
+      copySuccessToast: "تم نسخ الكود إلى الحافظة.",
+      copyFailToast: "فشل النسخ — حدّد الكود يدويًا.",
+      searchPlaceholder: "ابحث في الدروس والمواضيع والتمارين ومصطلحات القاموس… (مثل: \"N+1\"، \"shadow\"، \"split query\")",
+      searchHintHtml: '<p style="color:var(--text-muted); font-size:0.85rem;">اكتب حرفين على الأقل. جرّب «N+1» أو «shadow» أو «split query» أو «lazy loading» أو «projection».</p>',
+      searchNoMatch: (q) => '<p style="color:var(--text-muted); font-size:0.85rem;">لا نتائج مطابقة لـ«' + esc(q) + '».</p>',
+      glossaryEmpty: "لا توجد مصطلحات مطابقة.",
+      goToLabel: (label) => "انتقل إلى " + label + " ←"
+    }
+  });
+
   var REDUCED = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
   var LESSON_IDS = ["lesson-1", "lesson-2", "lesson-3", "lesson-4", "lesson-5", "lesson-6", "lesson-7"];
 
@@ -107,7 +304,7 @@
       if (!id) return;
       var isDone = !!state.completedLessons[id];
       var num = id.replace("lesson-", "");
-      btn.textContent = isDone ? ("Lesson " + num + " Completed ✓") : ("Mark Lesson " + num + " Complete ✓");
+      btn.textContent = isDone ? S.lessonDone(num) : S.markLesson(num);
     });
     return {
       percent: pct,
@@ -131,17 +328,17 @@
     }).join("");
     var feedback = "";
     if (locked) {
-      feedback = '<div class="quiz-feedback success"><strong>Correct.</strong> ' + fmtInline(kc.explain) + "</div>";
+      feedback = '<div class="quiz-feedback success"><strong>' + S.correct + '</strong> ' + fmtInline(kc.explain) + "</div>";
     } else if (st.checkedWrong) {
-      feedback = '<div class="quiz-feedback error"><strong>Not quite.</strong> Re-read the relevant lesson section, then try again — the explanation appears once you find the right answer.</div>';
+      feedback = '<div class="quiz-feedback error"><strong>' + S.notQuite + '</strong>' + S.notQuiteHelp + "</div>";
     }
     var actions = locked
-      ? '<button class="btn-complete-lesson done" type="button" disabled>Correct ✓</button>'
-      : '<button class="btn-primary kc-check-btn" type="button" data-check-id="' + kc.id + '">Check Answer</button>';
+      ? '<button class="btn-complete-lesson done" type="button" disabled>' + S.correctChip + '</button>'
+      : '<button class="btn-primary kc-check-btn" type="button" data-check-id="' + kc.id + '">' + S.checkAnswer + '</button>';
     return '<div class="exercise-card" data-kc-card="' + kc.id + '">' +
       '<div class="exercise-header">' +
-        '<div><span class="exercise-badge">Knowledge Check</span><span style="font-size:0.8rem; color:var(--text-muted);">' + (idx + 1) + " of " + total + "</span></div>" +
-        (locked ? '<span class="score-chip pass">Answered</span>' : "") +
+        '<div><span class="exercise-badge">' + S.kcBadge + '</span><span style="font-size:0.8rem; color:var(--text-muted);">' + S.ofTotal(idx + 1, total) + "</span></div>" +
+        (locked ? '<span class="score-chip pass">' + S.answeredChip + '</span>' : "") +
       "</div>" +
       '<div class="exercise-body">' +
         '<div class="exercise-prompt">' + fmtInline(kc.prompt) + "</div>" +
@@ -180,7 +377,7 @@
     if (!kc) return;
     var st = state.checks[id] || {};
     if (st.selected === undefined || st.selected === null) {
-      toast("Select an answer first.");
+      toast(S.selectFirst);
       return;
     }
     if (st.selected === kc.correct) {
@@ -197,9 +394,9 @@
 
   /* ---------------- loading strategy lab ---------------- */
   function labResultChip(result) {
-    if (result === "correct") return '<span class="score-chip pass">✓ Matches</span>';
-    if (result === "defensible") return '<span class="score-chip" style="background:var(--warning-bg); color:var(--warning);">≈ Defensible</span>';
-    if (result === "wrong") return '<span class="score-chip fail">✗ Revisit</span>';
+    if (result === "correct") return '<span class="score-chip pass">' + S.labChipMatches + '</span>';
+    if (result === "defensible") return '<span class="score-chip" style="background:var(--warning-bg); color:var(--warning);">' + S.labChipDefensible + '</span>';
+    if (result === "wrong") return '<span class="score-chip fail">' + S.labChipRevisit + '</span>';
     return "—";
   }
 
@@ -219,8 +416,8 @@
       var sel = document.createElement("select");
       sel.className = "sim-select";
       sel.dataset.labId = s.id;
-      sel.setAttribute("aria-label", "Strategy for scenario " + s.id.replace("lab-", ""));
-      sel.innerHTML = '<option value="">— choose —</option>' + LAB_OPTIONS.map(function (o, i) {
+      sel.setAttribute("aria-label", S.labAria(s.id.replace("lab-", "")));
+      sel.innerHTML = '<option value="">' + S.labChoose + '</option>' + LAB_OPTIONS.map(function (o, i) {
         return '<option value="' + i + '"' + (stored.choice === i ? " selected" : "") + ">" + esc(o) + "</option>";
       }).join("");
       td2.appendChild(sel);
@@ -233,7 +430,7 @@
         fb.className = "feedback-row";
         var ftd = document.createElement("td");
         ftd.colSpan = 3;
-        var prefix = stored.result === "wrong" ? "<strong>Recommended:</strong> " : (stored.result === "defensible" ? "<strong>Also acceptable.</strong> " : "<strong>Correct.</strong> ");
+        var prefix = stored.result === "wrong" ? S.recPrefix : (stored.result === "defensible" ? S.alsoOkPrefix : S.correctPrefix);
         ftd.innerHTML = prefix + fmtInline(s.feedback);
         fb.appendChild(ftd);
         tbody.appendChild(fb);
@@ -242,15 +439,15 @@
     var checked = LAB_SCENARIOS.filter(function (s) { return state.lab[s.id] && state.lab[s.id].checked; });
     var ok = checked.filter(function (s) { return state.lab[s.id].result === "correct" || state.lab[s.id].result === "defensible"; }).length;
     var label = document.getElementById("lab-score-label");
-    if (label) label.textContent = checked.length + " of " + LAB_SCENARIOS.length + " checked";
+    if (label) label.textContent = S.checkedOf(checked.length, LAB_SCENARIOS.length);
     var verdict = document.getElementById("lab-verdict");
     if (verdict) {
       if (checked.length === 0) {
-        verdict.textContent = "Pick a strategy for each scenario, then press \"Check answers\".";
+        verdict.textContent = S.labVerdictEmpty;
       } else {
         var wrong = checked.length - ok;
-        verdict.innerHTML = "<strong>" + ok + " correct or defensible</strong>" +
-          (wrong > 0 ? ", " + wrong + " to revisit — read the feedback rows above." : " — every scenario covered. Nice work.");
+        verdict.innerHTML = S.labVerdictOk(ok) +
+          (wrong > 0 ? S.labVerdictWrong(wrong) : S.labVerdictAllOk);
       }
     }
   }
@@ -267,7 +464,7 @@
       else if (s.alt.indexOf(choice) !== -1) result = "defensible";
       state.lab[s.id] = { choice: choice, checked: true, result: result };
     });
-    if (!any) { toast("Choose a strategy for at least one scenario first."); return; }
+    if (!any) { toast(S.chooseFirst); return; }
     saveState();
     renderLab();
   }
@@ -296,16 +493,16 @@
       for (var i = 1; i <= shown; i++) {
         items.push({ text: "SELECT … FROM book_authors JOIN authors WHERE book_id = " + i, cls: "" });
       }
-      if (B > shown) items.push({ text: "… and " + (B - shown) + " more near-identical commands", cls: "tl-more" });
-      items.push({ text: "Total for this access pattern: " + (B + 1) + " commands, " + (B * (1 + N1_AUTHORS)) + " rows", cls: "tl-final" });
+      if (B > shown) items.push({ text: S.n1More(B - shown), cls: "tl-more" });
+      items.push({ text: S.n1LazyTotal(B + 1, B * (1 + N1_AUTHORS)), cls: "tl-final" });
     } else if (approach === "eager") {
       items.push({ text: "SELECT books LEFT JOIN book_authors LEFT JOIN authors — one command", cls: "" });
-      items.push({ text: "Result set: " + (B * N1_AUTHORS) + " rows — each book's columns repeat per author row", cls: "" });
-      items.push({ text: "Total: 1 command, " + (B * N1_AUTHORS) + " rows", cls: "tl-final" });
+      items.push({ text: S.n1EagerResult(B * N1_AUTHORS), cls: "" });
+      items.push({ text: S.n1EagerTotal(B * N1_AUTHORS), cls: "tl-final" });
     } else {
       items.push({ text: "SELECT b.Id, b.Title, (SELECT COUNT(*) FROM book_authors ba WHERE ba.book_id = b.Id) — one command", cls: "" });
-      items.push({ text: "Result set: " + B + " rows, one per book, count computed by the database", cls: "" });
-      items.push({ text: "Total: 1 command, " + B + " rows, zero entities materialized", cls: "tl-final" });
+      items.push({ text: S.n1ProjResult(B), cls: "" });
+      items.push({ text: S.n1ProjTotal(B), cls: "tl-final" });
     }
     return items;
   }
@@ -337,17 +534,16 @@
     else d = { commands: 1, rows: B, entities: 0 };
     document.getElementById("n1-m-commands").textContent = String(d.commands);
     document.getElementById("n1-m-rows").textContent = String(d.rows);
-    document.getElementById("n1-m-entities").textContent = d.entities === 0 ? "0 (DTOs only)" : String(d.entities);
-    var work = { lazy: "indexed lookups × " + B, eager: "single join, wide result", projection: "DB-side COUNT per book" };
+    document.getElementById("n1-m-entities").textContent = d.entities === 0 ? S.dtosOnly : String(d.entities);
+    var work = { lazy: S.n1WorkLazy(B), eager: S.n1WorkEager, projection: S.n1WorkProj };
     document.getElementById("n1-m-work").textContent = work[approach];
     var verdict = document.getElementById("n1-verdict");
     if (approach === "lazy") {
-      verdict.innerHTML = "<strong>N+1.</strong> " + B + " books → " + (B + 1) + " commands and " + (B * (1 + N1_AUTHORS)) +
-        " rows. Property access in a loop looks free, but every unloaded collection triggers a round trip — cost grows with the number of books returned.";
+      verdict.innerHTML = S.n1VerdictLazy(B, B + 1, B * (1 + N1_AUTHORS));
     } else if (approach === "eager") {
-      verdict.innerHTML = "<strong>One command, " + (B * N1_AUTHORS) + " rows.</strong> The join repeats each book's columns once per (book, author) pair; EF Core de-duplicates entities in memory. For one collection that is usually a good trade — add a second sibling collection and the rows multiply again (Lesson 7).";
+      verdict.innerHTML = S.n1VerdictEager(B * N1_AUTHORS);
     } else {
-      verdict.innerHTML = "<strong>One command, " + B + " rows, zero entities.</strong> The database computes the count and only the DTO fields cross the wire. When the requirement is a count — not the entities — this is the cheapest correct shape.";
+      verdict.innerHTML = S.n1VerdictProj(B);
     }
   }
 
@@ -371,13 +567,11 @@
     document.getElementById("calc-ratio").textContent = (Math.round(ratio * 10) / 10) + "×";
     var verdict = document.getElementById("calc-verdict");
     if (a === 1 && e === 1) {
-      verdict.textContent = "With one row per collection there is no fan-out: both strategies return the same row count. Fan-out appears the moment collections hold multiple rows.";
+      verdict.textContent = S.calcOne;
     } else if (ratio >= 5) {
-      verdict.innerHTML = "<strong>Severe fan-out.</strong> One query carries " + single.toLocaleString() + " rows where the data itself needs about " +
-        split.toLocaleString() + " — a " + (Math.round(ratio * 10) / 10) + "× inflation. EF Core de-duplicates entities in memory, but the database computes and the network carries every row. Consider <code>AsSplitQuery()</code> or a projection.";
+      verdict.innerHTML = S.calcSevere(single.toLocaleString(), split.toLocaleString(), Math.round(ratio * 10) / 10);
     } else {
-      verdict.innerHTML = "<strong>Moderate fan-out.</strong> One query returns " + single.toLocaleString() + " rows vs about " +
-        split.toLocaleString() + " with split queries (" + (Math.round(ratio * 10) / 10) + "×). A single join is often the right trade at this scale — measure before optimizing further.";
+      verdict.innerHTML = S.calcModerate(single.toLocaleString(), split.toLocaleString(), Math.round(ratio * 10) / 10);
     }
   }
 
@@ -429,7 +623,7 @@
     var totalH = topY + boxH + 46;
     var midY = topY + boxH / 2;
     var parts = [];
-    parts.push('<svg viewBox="0 0 ' + totalW + " " + totalH + '" role="img" aria-label="' + esc(d.relationLabel) + ' relationship diagram" xmlns="http://www.w3.org/2000/svg">');
+    parts.push('<svg viewBox="0 0 ' + totalW + " " + totalH + '" role="img" aria-label="' + esc(S.erdAria(d.relationLabel)) + '" xmlns="http://www.w3.org/2000/svg">');
     parts.push('<text class="erd-label" x="' + Math.round(totalW / 2) + '" y="20" text-anchor="middle">' + esc(d.relationLabel) + "</text>");
     parts.push('<line class="erd-line" x1="' + (leftX + W) + '" y1="' + midY + '" x2="' + rightX + '" y2="' + midY + '"></line>');
     parts.push(buildBoxSvg(d.left, leftX, topY, W, HDR, ROW, PAD));
@@ -445,11 +639,11 @@
     if (d.optionality === "optional") {
       var cx = x2 - (rc === "1" ? 26 : 34);
       parts.push('<circle cx="' + cx + '" cy="' + midY + '" r="5" style="fill:none; stroke:var(--text-muted); stroke-width:2"></circle>');
-      parts.push('<text class="erd-label" x="' + (cx - 8) + '" y="' + (midY + 24) + '" text-anchor="end">optional (nullable FK)</text>');
+      parts.push('<text class="erd-label" x="' + (cx - 8) + '" y="' + (midY + 24) + '" text-anchor="end">' + esc(S.erdOptional) + '</text>');
     } else if (d.optionality === "required") {
       var tx = x2 - (rc === "1" ? 26 : 32);
       parts.push(tickSvg(tx, midY));
-      parts.push('<text class="erd-label" x="' + (tx - 8) + '" y="' + (midY + 24) + '" text-anchor="end">required (non-nullable FK)</text>');
+      parts.push('<text class="erd-label" x="' + (tx - 8) + '" y="' + (midY + 24) + '" text-anchor="end">' + esc(S.erdRequired) + '</text>');
     }
     parts.push("</svg>");
     return parts.join("");
@@ -501,7 +695,7 @@
 
   function renderFixup() {
     var label = document.getElementById("fixup-step-label");
-    if (label) label.textContent = "Step " + fixupStep + " of " + FIXUP_STEPS.length;
+    if (label) label.textContent = S.stepOf(fixupStep, FIXUP_STEPS.length);
     var prog = document.getElementById("fixup-progress");
     if (prog) {
       prog.innerHTML = "";
@@ -522,12 +716,12 @@
     if (tHost) {
       tHost.innerHTML = "";
       if (!step) {
-        tHost.innerHTML = '<em style="color:var(--text-muted); font-size:0.82rem;">No tracked entities yet.</em>';
+        tHost.innerHTML = '<em style="color:var(--text-muted); font-size:0.82rem;">' + S.noTracked + '</em>';
       } else {
         var table = document.createElement("table");
         table.className = "concept-table";
         table.style.margin = "0";
-        table.innerHTML = "<thead><tr><th>Entity</th><th>State</th><th>Note</th></tr></thead><tbody>" +
+        table.innerHTML = "<thead><tr><th>" + S.thEntity + "</th><th>" + S.thState + "</th><th>" + S.thNote + "</th></tr></thead><tbody>" +
           step.tracked.map(function (r) {
             return "<tr><td style=\"font-family:var(--font-mono); font-size:0.78rem;\">" + esc(r.name) + "</td><td>" + stateChip(r.state) +
               '</td><td style="font-size:0.78rem;">' + esc(r.note || "") + "</td></tr>";
@@ -544,7 +738,7 @@
     var nHost = document.getElementById("fixup-navs");
     if (nHost) {
       if (!step) {
-        nHost.innerHTML = '<em style="color:var(--text-muted); font-size:0.82rem;">Nothing loaded.</em>';
+        nHost.innerHTML = '<em style="color:var(--text-muted); font-size:0.82rem;">' + S.nothingLoaded + '</em>';
       } else {
         nHost.innerHTML = Object.keys(step.navs).map(function (k) {
           var lab = FIXUP_NAV_LABELS[k] || k;
@@ -554,7 +748,7 @@
       }
     }
     var v = document.getElementById("fixup-verdict");
-    if (v) v.innerHTML = (step && step.verdict) ? fmtInline(step.verdict) : "Press “Apply next step” to run the next line of code.";
+    if (v) v.innerHTML = (step && step.verdict) ? fmtInline(step.verdict) : S.pressNext;
     var next = document.getElementById("fixup-next");
     if (next) next.disabled = fixupStep >= FIXUP_STEPS.length;
   }
@@ -579,26 +773,26 @@
       var c = qs.filter(function (q) { return state.assessment.selections[q.id] === q.correct; }).length;
       var n = lessonNum(lid);
       return '<button class="glossary-term-link" type="button" data-nav-target="' + lid + '">' +
-        (n ? "Lesson " + n + ": " : "") + c + "/" + qs.length + "</button>";
+        (n ? S.lessonsBreakdown(n) : "") + c + "/" + qs.length + "</button>";
     }).join("");
     var html = '<div class="content-panel" style="margin-top:1.5rem;">' +
-      '<h3 style="margin-top:0;">Result</h3>' +
-      "<p><span class=\"score-chip " + (last.passed ? "pass" : "fail") + '" style="font-size:1rem;">' + last.pct + "% — " + (last.passed ? "PASS ✓" : "FAIL ✗") + "</span> " +
-      last.score + " / " + last.total + " correct • pass threshold " + last.threshold + "%</p>" +
-      '<div class="explorer-control-label" style="margin-bottom:0.5rem;">Per-topic breakdown — click to review</div>' +
+      '<h3 style="margin-top:0;">' + S.resultTitle + '</h3>' +
+      "<p><span class=\"score-chip " + (last.passed ? "pass" : "fail") + '" style="font-size:1rem;">' + last.pct + "% — " + (last.passed ? S.passChip : S.failChip) + "</span> " +
+      S.correctTotal(last.score, last.total, last.threshold) + "</p>" +
+      '<div class="explorer-control-label" style="margin-bottom:0.5rem;">' + S.breakdownTitle + '</div>' +
       '<div style="display:flex; flex-wrap:wrap; gap:0.5rem;">' + breakdown + "</div>";
     if (wrong.length) {
-      html += "<h4>Questions to revisit</h4>" + wrong.map(function (x) {
+      html += "<h4>" + S.revisitTitle + "</h4>" + wrong.map(function (x) {
         return '<div class="content-panel" style="margin-bottom:0.75rem;">' +
           '<div style="font-weight:600; margin-bottom:0.4rem;">' + fmtInline(x.q.prompt) + "</div>" +
-          '<div style="font-size:0.85rem; color:var(--danger);">Your answer: ' + (x.sel === undefined || x.sel === null ? "(not answered)" : fmtInline(x.q.options[x.sel])) + "</div>" +
-          '<div style="font-size:0.85rem; color:var(--success);">Correct: ' + fmtInline(x.q.options[x.q.correct]) + "</div>" +
+          '<div style="font-size:0.85rem; color:var(--danger);">' + S.yourAnswer + (x.sel === undefined || x.sel === null ? S.notAnswered : fmtInline(x.q.options[x.sel])) + "</div>" +
+          '<div style="font-size:0.85rem; color:var(--success);">' + S.correctAnswer + fmtInline(x.q.options[x.q.correct]) + "</div>" +
           '<div style="font-size:0.85rem; color:var(--text-secondary); margin-top:0.4rem;">' + fmtInline(x.q.explain) + "</div>" +
-          '<button class="glossary-term-link" type="button" data-nav-target="' + x.q.lesson + '" style="margin-top:0.5rem;">Review ' + esc(lessonTagLabel(x.q.lesson)) + " →</button>" +
+          '<button class="glossary-term-link" type="button" data-nav-target="' + x.q.lesson + '" style="margin-top:0.5rem;">' + S.reviewLabel(esc(lessonTagLabel(x.q.lesson))) + "</button>" +
           "</div>";
       }).join("");
     } else {
-      html += '<p style="color:var(--success); font-weight:600; margin-top:1rem;">Perfect score — every question correct. 🎓</p>';
+      html += '<p style="color:var(--success); font-weight:600; margin-top:1rem;">' + S.perfect + '</p>';
     }
     html += "</div>";
     return html;
@@ -636,8 +830,8 @@
         card.className = "exercise-card";
         card.innerHTML =
           '<div class="exercise-header">' +
-            "<div><span class=\"exercise-badge exercise\">Question " + (qi + 1) + " of " + ASSESSMENT_QUESTIONS.length + '</span> <span class="exercise-badge">' + esc(num ? "Lesson " + num : lessonTagLabel(q.lesson)) + "</span></div>" +
-            (isSubmitted ? '<span class="score-chip ' + (correctHere ? "pass" : "fail") + '">' + (correctHere ? "Correct ✓" : "Incorrect ✗") + "</span>" : "") +
+            "<div><span class=\"exercise-badge exercise\">" + S.qOf(qi + 1, ASSESSMENT_QUESTIONS.length) + '</span> <span class="exercise-badge">' + esc(num ? S.lessonLabel(num) : lessonTagLabel(q.lesson)) + "</span></div>" +
+            (isSubmitted ? '<span class="score-chip ' + (correctHere ? "pass" : "fail") + '">' + (correctHere ? S.correctChip : S.incorrectChip) + "</span>" : "") +
           "</div>" +
           '<div class="exercise-body">' +
             '<div class="exercise-prompt">' + fmtInline(q.prompt) + "</div>" +
@@ -659,7 +853,7 @@
     var total = ASSESSMENT_QUESTIONS.length;
     var answered = ASSESSMENT_QUESTIONS.filter(function (q) { return a.selections[q.id] !== undefined; }).length;
     if (answered < total) {
-      toast("Answer all questions before submitting (" + answered + "/" + total + " answered).");
+      toast(S.answerAll(answered, total));
       return;
     }
     var score = ASSESSMENT_QUESTIONS.filter(function (q) { return a.selections[q.id] === q.correct; }).length;
@@ -674,7 +868,7 @@
     notifyChange();
     var r = document.getElementById("assessment-results");
     if (r) r.scrollIntoView({ behavior: REDUCED ? "auto" : "smooth", block: "start" });
-    toast(passed ? "Assessment passed — " + pct + "% ✓" : "Assessment submitted — " + pct + "% (below " + a.threshold + "% threshold)");
+    toast(passed ? S.passedToast(pct) : S.submittedToast(pct, a.threshold));
   }
 
   /* ---------------- search ---------------- */
@@ -684,11 +878,11 @@
       return (m.label + " " + m.keywords + " " + m.summary).toLowerCase().indexOf(q) !== -1;
     }).slice(0, 6).forEach(function (m) {
       var num = lessonNum(m.id);
-      items.push({ kind: "lesson", ref: m.id, title: (num ? "Lesson " + num + " — " : "") + m.label, snippet: m.summary.slice(0, 150) });
+      items.push({ kind: "lesson", ref: m.id, title: (num ? S.lessonTitlePrefix(num) : "") + m.label, snippet: m.summary.slice(0, 150) });
     });
     KNOWLEDGE_CHECKS.filter(function (c) { return c.prompt.toLowerCase().indexOf(q) !== -1; }).slice(0, 6).forEach(function (c) {
       var num = lessonNum(c.group);
-      items.push({ kind: "kc", ref: c.group, title: "Knowledge check" + (num ? " — Lesson " + num : ""), snippet: c.prompt.slice(0, 150) });
+      items.push({ kind: "kc", ref: c.group, title: S.kcTitle(num), snippet: c.prompt.slice(0, 150) });
     });
     GLOSSARY.filter(function (t) {
       return (t.t + " " + t.d).toLowerCase().indexOf(q) !== -1;
@@ -702,7 +896,7 @@
     var html = "";
     var group = null;
     items.forEach(function (it) {
-      var g = it.kind === "lesson" ? "Lessons" : (it.kind === "kc" ? "Knowledge checks" : "Glossary");
+      var g = it.kind === "lesson" ? S.groupLessons : (it.kind === "kc" ? S.groupChecks : S.groupGlossary);
       if (g !== group) { html += '<div class="search-group-title">' + g + "</div>"; group = g; }
       var attr = it.kind === "glossary"
         ? ' data-search-glossary="' + esc(it.ref) + '"'
@@ -815,7 +1009,7 @@
       state.assessment.started = true;
       saveState();
       renderAssessment();
-      toast("Assessment reset — fresh attempt. Best score is kept.");
+      toast(S.retryToast);
     });
   }
 
@@ -872,39 +1066,37 @@
       progress: { compute: computeProgress },
       exportName: "raff_efcore_module_03_progress.json",
       exportStyle: "blob",
-      labels: { lessons: "Lessons", checks: "Checks answered" },
+      labels: { lessons: S.units, checks: S.checks },
       messages: {
-        exportToast: "Progress exported.",
-        exportErrorToast: "Export failed — storage unavailable.",
+        exportToast: S.exportToast,
+        exportErrorToast: S.exportErrorToast,
         importMode: "file",
-        importSuccessToast: "Progress imported successfully.",
-        importErrorToast: "Import failed — the file could not be read.",
-        resetToast: "All module progress was reset.",
+        importSuccessToast: S.importSuccessToast,
+        importErrorToast: S.importErrorToast,
+        resetToast: S.resetToast,
         onFileText: function (text) {
           try {
             applyImported(JSON.parse(text));
             applyTheme();
             renderAll();
             if (courseCtx) courseCtx.refresh();
-            toast("Progress imported successfully.");
+            toast(S.importedToast);
           } catch (e) {
-            toast("Import failed — that file is not a valid Module 3 progress export.");
+            toast(S.importInvalidToast);
           }
         }
       },
       completeToast: function (done) {
-        return done ? "Lesson marked complete — " + lessonsDoneCount() + "/" + LESSON_IDS.length + " lessons." : null;
+        return done ? S.markedComplete(lessonsDoneCount(), LESSON_IDS.length) : null;
       },
 
-      copy: { successToast: "Code copied to clipboard.", failToast: "Copy failed — select the code manually." },
+      copy: { successToast: S.copySuccessToast, failToast: S.copyFailToast },
 
       search: {
         minChars: 2,
-        placeholder: "Search lessons, topics, exercises, and glossary terms… (e.g. \"N+1\", \"shadow\", \"split query\")",
-        hint: '<p style="color:var(--text-muted); font-size:0.85rem;">Type at least two characters. Try “N+1”, “shadow”, “split query”, “lazy loading”, or “projection”.</p>',
-        noMatch: function (q) {
-          return '<p style="color:var(--text-muted); font-size:0.85rem;">No matches for “' + esc(q) + '”.</p>';
-        },
+        placeholder: S.searchPlaceholder,
+        hint: S.searchHintHtml,
+        noMatch: S.searchNoMatch,
         getResults: searchGetResults,
         renderer: searchRenderer,
         onSelect: function (target, el, ctx) {
@@ -923,13 +1115,13 @@
         getDef: function (t) { return t.d; },
         filtersMode: "dynamic",
         initialCat: "All",
-        emptyHtml: '<p style="color:var(--text-muted); font-size:0.85rem;">No terms match.</p>',
+        emptyHtml: '<p style="color:var(--text-muted); font-size:0.85rem;">' + S.glossaryEmpty + '</p>',
         renderItem: function (t) {
           var num = lessonNum(t.l);
           return '<div class="glossary-term-item">' +
             '<div class="glossary-term-name">' + esc(t.t) + '<span class="glossary-term-cat">' + esc(t.c) + "</span></div>" +
             '<div class="glossary-term-def">' + fmtInline(t.d) + "</div>" +
-            '<button class="glossary-term-link" type="button" data-nav-target="' + esc(t.l) + '">Go to ' + esc(num ? "Lesson " + num : lessonTagLabel(t.l)) + " →</button></div>";
+            '<button class="glossary-term-link" type="button" data-nav-target="' + esc(t.l) + '">' + S.goToLabel(esc(num ? S.lessonLabel(num) : lessonTagLabel(t.l))) + "</button></div>";
         }
       },
 
