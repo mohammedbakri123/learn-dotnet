@@ -1099,7 +1099,7 @@ window.RAFF_MODULE_03_AR = {
 
       <div class="lesson-footer-nav">
         <span></span>
-        <button class="btn-primary" data-nav-target="lesson-1" type="button">→ ابدأ الدرس 1: كيف تعمل العلاقات</button>
+        <button class="btn-primary" data-nav-target="lesson-1" type="button">ابدأ الدرس 1: كيف تعمل العلاقات ←</button>
       </div>
     `
     }
