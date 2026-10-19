@@ -59,3 +59,38 @@ html[dir="rtl"] .topic-breakdown-table {text-align: right;}
 
 html[dir="rtl"] .exercise-badge {margin-right: 0; margin-left: 0.5rem;}
 html[dir="rtl"] .toast-container {right: auto; left: 2rem;}
+
+/* ---------------- Module 6 diagrams, JSON, and tokens ---------------- */
+
+html[dir="rtl"] .m6-concept-card,
+html[dir="rtl"] .m6-review-card,
+html[dir="rtl"] .m6-decision-option,
+html[dir="rtl"] .m6-test-row,
+html[dir="rtl"] .m6-request-result,
+html[dir="rtl"] .m6-jwt-detail,
+html[dir="rtl"] .m6-val-result {text-align: right;}
+
+html[dir="rtl"] .m6-component-card,
+html[dir="rtl"] .m6-oauth-node {text-align: center;}
+
+html[dir="rtl"] .m6-oauth-arrow {transform: scaleX(-1);}
+html[dir="rtl"] .m6-component-arrow {transform: scaleY(1);}
+
+html[dir="rtl"] .m6-token-anatomy,
+html[dir="rtl"] .m6-jwt-token,
+html[dir="rtl"] .m6-jwt-segment-btn,
+html[dir="rtl"] .m6-jwt-json,
+html[dir="rtl"] .m6-inline-json,
+html[dir="rtl"] .m6-val-token code {
+  direction: ltr;
+  text-align: left;
+  unicode-bidi: isolate;
+}
+
+html[dir="rtl"] .m6-claim,
+html[dir="rtl"] .m6-jwt-claim-row,
+html[dir="rtl"] .m6-test-row,
+html[dir="rtl"] .m6-request-line {text-align: right;}
+
+html[dir="rtl"] .m6-jwt-token {justify-content: flex-end;}
+html[dir="rtl"] .m6-request-badge {letter-spacing: 0;}
