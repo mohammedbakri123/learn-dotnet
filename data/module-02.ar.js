@@ -601,6 +601,354 @@ window.RAFF_MODULE_02_AR = {
 
   lessons: {
 
+    'lesson-1': {
+      nav: 'النموذج الذهني لـ EF Core',
+      content: `
+      <div class="lesson-header-box">
+        <div class="lesson-badge-top">الدرس 1</div>
+        <h1 class="lesson-title">النموذج الذهني لـ EF Core</h1>
+        <p class="lesson-subtitle">فهم ما يفعله الـ ORM، وانفصال الاستعلامات عن التحديثات، وكيف تُقترن كائنات C# بـ PostgreSQL.</p>
+      </div>
+
+      <h2>1. ما وراء SQL الخام: ما يفعله EF Core فعليًا</h2>
+      <p>عند العمل مع قواعد بيانات علائقية في .NET يمكنك كتابة كود ADO.NET يدويًا باستخدام <code>NpgsqlCommand</code> وربط معاملات SQL بالفهرس وتنفيذ <code>NpgsqlDataReader</code> وكتابة حلقات while أمرية لتعبئة نسخ C# صفًا بصف. يمنحك هذا الأسلوب سرعة خامة لكنه يفرض عليك صيانة سلاسل SQL الهشّة وإدارة دورات حياة الاتصالات يدويًا وصناعة منطق الإسناد الكائني العلائقي بنفسك.</p>
+      <p><strong>Entity Framework Core (EF Core)</strong> مُعيّن كائنات علائقي (ORM). لكنه — بخلاف مكتبات «السجل النشط» (Active Record) المبسّطة — مترجم متطور ونظام إدارة حالة يقف بين كود تطبيق C# ومشغّل قاعدة البيانات.</p>
+
+      <div class="diagram-container">
+        <div class="diagram-title">الشكل 2.1: مسار معمارية EF Core في Raff</div>
+        <svg viewBox="0 0 880 240" class="pipeline-svg" aria-label="مسار معمارية EF Core">
+          <defs>
+            <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 1 L 10 5 L 0 9 z" fill="var(--accent)" />
+            </marker>
+          </defs>
+          <!-- Nodes -->
+          <g transform="translate(10, 80)">
+            <rect width="140" height="80" rx="8" fill="var(--bg-card)" stroke="var(--border-color)" stroke-width="2"/>
+            <text x="70" y="35" text-anchor="middle" fill="var(--text-primary)" font-weight="700" font-size="14">كود التطبيق</text>
+            <text x="70" y="58" text-anchor="middle" fill="var(--text-muted)" font-size="11">وحدات تحكم وخدمات Raff</text>
+          </g>
+          <line x1="150" y1="120" x2="190" y2="120" stroke="var(--accent)" stroke-width="2" marker-end="url(#arrow)" />
+          
+          <g transform="translate(195, 55)">
+            <rect width="180" height="130" rx="8" fill="var(--bg-card)" stroke="var(--accent)" stroke-width="2"/>
+            <text x="90" y="30" text-anchor="middle" fill="var(--accent-light)" font-weight="700" font-size="14">BooksContext (DbContext)</text>
+            <line x1="15" y1="45" x2="165" y2="45" stroke="var(--border-color)" stroke-width="1" />
+            <rect x="15" y="55" width="150" height="28" rx="4" fill="var(--bg-code)" />
+            <text x="90" y="74" text-anchor="middle" fill="var(--text-secondary)" font-size="11">واجهة DbSet&lt;Book&gt;</text>
+            <rect x="15" y="90" width="150" height="28" rx="4" fill="var(--bg-code)" />
+            <text x="90" y="109" text-anchor="middle" fill="var(--warning)" font-size="11">ChangeTracker (لقطات)</text>
+          </g>
+          <line x1="375" y1="120" x2="415" y2="120" stroke="var(--accent)" stroke-width="2" marker-end="url(#arrow)" />
+
+          <g transform="translate(420, 70)">
+            <rect width="180" height="100" rx="8" fill="var(--bg-card)" stroke="var(--border-color)" stroke-width="2"/>
+            <text x="90" y="30" text-anchor="middle" fill="var(--text-primary)" font-weight="700" font-size="14">المحرّك الأساسي لـ EF Core</text>
+            <text x="90" y="52" text-anchor="middle" fill="var(--text-muted)" font-size="11">مترجم LINQ ونموذج SQL</text>
+            <text x="90" y="72" text-anchor="middle" fill="var(--text-muted)" font-size="11">آلة الحالات والتجميع</text>
+          </g>
+          <line x1="600" y1="120" x2="640" y2="120" stroke="var(--accent)" stroke-width="2" marker-end="url(#arrow)" />
+
+          <g transform="translate(645, 80)">
+            <rect width="105" height="80" rx="8" fill="var(--bg-card)" stroke="var(--border-color)" stroke-width="2"/>
+            <text x="52" y="35" text-anchor="middle" fill="var(--text-primary)" font-weight="700" font-size="13">Npgsql</text>
+            <text x="52" y="56" text-anchor="middle" fill="var(--text-muted)" font-size="10">مزوّد PostgreSQL</text>
+          </g>
+          <line x1="750" y1="120" x2="780" y2="120" stroke="var(--accent)" stroke-width="2" marker-end="url(#arrow)" />
+
+          <g transform="translate(785, 80)">
+            <rect width="85" height="80" rx="8" fill="var(--bg-code)" stroke="var(--success)" stroke-width="2"/>
+            <text x="42" y="36" text-anchor="middle" fill="var(--success)" font-weight="700" font-size="14">PostgreSQL</text>
+            <text x="42" y="58" text-anchor="middle" fill="var(--text-muted)" font-size="10">قرص قاعدة البيانات</text>
+          </g>
+        </svg>
+      </div>
+
+      <h2>2. المساران المستقلان: الاستعلامات مقابل التحديثات</h2>
+      <p>من أهم ما ورد في القسم 1.9 من كتاب <em>Entity Framework Core in Action</em> أن EF Core يشغّل مسارين مختلفين جوهريًا:</p>
+      
+      <div class="grid-2">
+        <div class="content-panel">
+          <h3 style="color:var(--accent-light);">🔍 مسار الاستعلام</h3>
+          <p>عندما تكتب استعلام LINQ مثل <code>context.Books.Where(b => b.PublishedYear >= 2020)</code>:</p>
+          <ol>
+            <li><strong>بناء شجرة التعبير:</strong> يترجم مُترجم C# تعبير لامدا إلى شجرة تعبيرات (بنية بيانات).</li>
+            <li><strong>ترجمة المزوّد:</strong> يترجم EF Core وNpgsql شجرة التعبير إلى استعلام <code>SELECT</code> في PostgreSQL.</li>
+            <li><strong>التنفيذ والتجسيد:</strong> يُنفَّذ الاستعلام عبر ADO.NET؛ وتُحلَّل الصفوف الخام وتُنشأ كائنات C# قوية الأنواع من النوع <code>Book</code>.</li>
+            <li><strong>لقطة التتبّع:</strong> إذا كان التتبّع مفعّلًا يحفظ EF Core نسخة لقطة خاصة من كل قيمة خاصية في <code>ChangeTracker</code>.</li>
+          </ol>
+        </div>
+        <div class="content-panel">
+          <h3 style="color:var(--warning);">💾 مسار التعديل</h3>
+          <p>عندما تنشئ كيانات أو تعدّلها أو تحذفها:</p>
+          <ol>
+            <li><strong>تعديل في الذاكرة:</strong> ضبط <code>book.Title = "New Title"</code> لا يعدّل إلا ذاكرة C# في الكومة. ولا يُرسل أي SQL.</li>
+            <li><strong>اكتشاف التغييرات:</strong> أثناء <code>SaveChangesAsync()</code> يقارن EF Core قيم الخصائص الحالية باللقطة المحفوظة.</li>
+            <li><strong>توليد DML:</strong> يولّد EF Core أوامر <code>INSERT</code> أو <code>UPDATE</code> أو <code>DELETE</code> المناسبة للخصائص المعدَّلة.</li>
+            <li><strong>التنفيذ المجمَّع:</strong> تُجمع الأوامر داخل معاملة PostgreSQL ذرّية وتُنفَّذ.</li>
+          </ol>
+        </div>
+      </div>
+
+      <div class="callout callout-warning">
+        <div class="callout-title">⚠️ مفهوم خاطئ شائع: «التنفيذ الفوري»</div>
+        <p>من أخطاء المبتدئين الشائعة افتراض أن تعديل خاصية مثل <code>book.Summary = "New summary";</code> يصدر فورًا استعلام <code>UPDATE</code> عبر الشبكة. <strong>وهذا غير صحيح.</strong> كائنات الكيانات في الذاكرة منفصلة تمامًا عن PostgreSQL حتى تستدعي <code>SaveChangesAsync()</code>.</p>
+      </div>
+
+      <h2>3. مثال برمجي: تهيئة النموذج في Raff</h2>
+      <p>هكذا يُوصَل كيان <code>Book</code> وسياق <code>BooksContext</code> في Raff:</p>
+
+      
+    <div class="code-wrapper">
+      <div class="code-header">
+        <div class="code-badge-group">
+          <span class="code-lang-tag">C#</span>
+          <span class="code-filename">Models/Book.cs</span>
+          <span class="code-type-pill pill-complete example">[مثال كامل]</span>
+        </div>
+        <button class="btn-copy" aria-label="نسخ الكود">📋 نسخ</button>
+      </div>
+      <pre><code class="language-c#">
+namespace Raff.Models;
+
+public class Book
+{
+    public int Id { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string? Summary { get; set; }
+    public int PublishedYear { get; set; }
+    public string? CoverUrl { get; set; }
+    public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+}
+</code></pre>
+      <div class="code-expl">كيان النطاق الأساسي في Raff. لاحظ أنواع المراجع القابلة للعدم في Summary وCoverUrl.</div>
+    </div>
+    
+
+      
+    <div class="code-wrapper">
+      <div class="code-header">
+        <div class="code-badge-group">
+          <span class="code-lang-tag">C#</span>
+          <span class="code-filename">Data/BooksContext.cs</span>
+          <span class="code-type-pill pill-complete example">[مثال كامل]</span>
+        </div>
+        <button class="btn-copy" aria-label="نسخ الكود">📋 نسخ</button>
+      </div>
+      <pre><code class="language-c#">
+using Microsoft.EntityFrameworkCore;
+using Raff.Models;
+
+namespace Raff.Data;
+
+public class BooksContext : DbContext
+{
+    public BooksContext(DbContextOptions&lt;BooksContext&gt; options) : base(options)
+    {
+    }
+
+    public DbSet&lt;Book&gt; Books =&gt; Set&lt;Book&gt;();
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+
+        modelBuilder.Entity&lt;Book&gt;(entity =&gt;
+        {
+            entity.HasKey(b =&gt; b.Id);
+            entity.Property(b =&gt; b.Title).IsRequired().HasMaxLength(250);
+            entity.Property(b =&gt; b.Summary).HasMaxLength(2000);
+            entity.Property(b =&gt; b.CoverUrl).HasMaxLength(500);
+        });
+    }
+}
+</code></pre>
+      <div class="code-expl">تهيئة DbContext باستخدام Fluent API في OnModelCreating لتحديد قيود الأعمدة العلائقية.</div>
+    </div>
+    
+
+      <h2>ملخص الدرس 1</h2>
+      <ul>
+        <li>‏EF Core مُعيّن كائنات علائقي يجمع نمط <strong>Unit of Work</strong> ‏(<code>DbContext</code>) ونمط <strong>Repository</strong> ‏(<code>DbSet&lt;T&gt;</code>).</li>
+        <li><strong>مسار الاستعلام</strong> يحلّل LINQ إلى SQL ويجسّد الكائنات؛ و<strong>مسار التعديل</strong> يفحص لقطات <code>ChangeTracker</code> لتوليد SQL عند <code>SaveChangesAsync()</code>.</li>
+        <li>تعديل خصائص C# بلا أي أثر فوري في قاعدة البيانات.</li>
+        <li>مزوّدو قواعد البيانات مثل <strong>Npgsql</strong> يترجمون عمليات LINQ المجرّدة إلى لهجة SQL الخاصة بـ PostgreSQL.</li>
+      </ul>
+
+      <h2>اختبارات المعرفة</h2>
+      
+    <div class="exercise-card" id="qc-1-1">
+      <div class="exercise-header">
+        <div class="exercise-title-group">
+          <span class="exercise-badge">اختبار المعرفة</span>
+          <span style="font-weight:600; font-size:0.9rem;">النموذج الذهني لـ EF Core</span>
+        </div>
+      </div>
+      <div class="exercise-body">
+        <div class="exercise-prompt">في Raff، عدّل مطوّر خاصية كيان: \`book.PublishedYear = 2026;\`. لماذا لا يرسل هذا السطر فورًا استعلام UPDATE إلى قاعدة بيانات PostgreSQL؟</div>
+        <div class="quiz-options" data-qid="qc-1-1">
+          
+        <div class="quiz-option" data-opt="0">
+          <div class="option-indicator">A</div>
+          <div class="option-text">لأن EF Core يخزّن كل استعلامات SQL في الذاكرة حتى يُفرَّغ مخزن مقبس نظام التشغيل.</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="1">
+          <div class="option-indicator">B</div>
+          <div class="option-text">لأن تعديل خاصية C# عملية اعتيادية في الذاكرة؛ فلا يقارن EF Core لقطات الخصائص ويرسل SQL إلا عند استدعاء SaveChangesAsync().</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="2">
+          <div class="option-indicator">C</div>
+          <div class="option-text">لأن Npgsql يتطلب تثبيت معاملة صريحة قبل إرسال أي حزمة عبر مقبس TCP.</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="3">
+          <div class="option-indicator">D</div>
+          <div class="option-text">لأن BooksContext لا يتزامن مع PostgreSQL إلا عند انتهاء مسار طلب HTTP.</div>
+        </div>
+        
+        </div>
+        <div class="exercise-actions">
+          <button class="btn-primary btn-submit-quiz" data-qid="qc-1-1">أرسل الإجابة</button>
+          <button class="btn-secondary btn-retry-quiz" data-qid="qc-1-1" style="display:none;">إعادة المحاولة</button>
+        </div>
+        <div class="quiz-feedback" id="feedback-qc-1-1"></div>
+      </div>
+    </div>
+    
+      
+    <div class="exercise-card" id="qc-1-2">
+      <div class="exercise-header">
+        <div class="exercise-title-group">
+          <span class="exercise-badge">اختبار المعرفة</span>
+          <span style="font-weight:600; font-size:0.9rem;">النموذج الذهني لـ EF Core</span>
+        </div>
+      </div>
+      <div class="exercise-body">
+        <div class="exercise-prompt">ما الدور الأساسي لمزوّد قاعدة البيانات (مثل Npgsql.EntityFrameworkCore.PostgreSQL) داخل معمارية EF Core؟</div>
+        <div class="quiz-options" data-qid="qc-1-2">
+          
+        <div class="quiz-option" data-opt="0">
+          <div class="option-indicator">A</div>
+          <div class="option-text">يدير حالة متتبّع التغييرات في الذاكرة ويقارن لقطات الخصائص الأصلية.</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="1">
+          <div class="option-indicator">B</div>
+          <div class="option-text">يترجم أشجار تعبيرات LINQ المحايدة تجاه المزوّد إلى لهجة SQL الخاصة بـ PostgreSQL ويتولى تواصل ADO.NET منخفض المستوى.</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="2">
+          <div class="option-indicator">C</div>
+          <div class="option-text">يحوّل كائنات DTO في متحكمات ASP.NET Core تلقائيًا إلى كيانات قاعدة بيانات.</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="3">
+          <div class="option-indicator">D</div>
+          <div class="option-text">يغني عن DbContext بتوفير غلاف مباشر حول جداول PostgreSQL.</div>
+        </div>
+        
+        </div>
+        <div class="exercise-actions">
+          <button class="btn-primary btn-submit-quiz" data-qid="qc-1-2">أرسل الإجابة</button>
+          <button class="btn-secondary btn-retry-quiz" data-qid="qc-1-2" style="display:none;">إعادة المحاولة</button>
+        </div>
+        <div class="quiz-feedback" id="feedback-qc-1-2"></div>
+      </div>
+    </div>
+    
+      
+    <div class="exercise-card" id="qc-1-3">
+      <div class="exercise-header">
+        <div class="exercise-title-group">
+          <span class="exercise-badge">اختبار المعرفة</span>
+          <span style="font-weight:600; font-size:0.9rem;">النموذج الذهني لـ EF Core</span>
+        </div>
+      </div>
+      <div class="exercise-body">
+        <div class="exercise-prompt">أيٌّ ممّا يلي يصف الفرق بين مسار الاستعلام ومسار التعديل في EF Core؟</div>
+        <div class="quiz-options" data-qid="qc-1-3">
+          
+        <div class="quiz-option" data-opt="0">
+          <div class="option-indicator">A</div>
+          <div class="option-text">مسار الاستعلام يترجم تعبيرات LINQ إلى SQL ويجسّد الكائنات؛ ومسار التعديل يعتمد على لقطات متتبّع التغييرات لتوليد أوامر INSERT/UPDATE/DELETE.</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="1">
+          <div class="option-indicator">B</div>
+          <div class="option-text">مسار الاستعلام يستخدم ADO.NET، بينما يتجاوز مسار التعديل SQL ويكتب مباشرة في الذاكرة المشتركة لـ PostgreSQL.</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="2">
+          <div class="option-indicator">C</div>
+          <div class="option-text">مسار الاستعلام يتطلب معاملات صريحة، بينما يعمل مسار التعديل دون معاملات.</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="3">
+          <div class="option-indicator">D</div>
+          <div class="option-text">مسار الاستعلام غير متزامن، بينما مسار التعديل متزامن صرف.</div>
+        </div>
+        
+        </div>
+        <div class="exercise-actions">
+          <button class="btn-primary btn-submit-quiz" data-qid="qc-1-3">أرسل الإجابة</button>
+          <button class="btn-secondary btn-retry-quiz" data-qid="qc-1-3" style="display:none;">إعادة المحاولة</button>
+        </div>
+        <div class="quiz-feedback" id="feedback-qc-1-3"></div>
+      </div>
+    </div>
+    
+      
+    <div class="exercise-card" id="qc-1-4">
+      <div class="exercise-header">
+        <div class="exercise-title-group">
+          <span class="exercise-badge">اختبار المعرفة</span>
+          <span style="font-weight:600; font-size:0.9rem;">النموذج الذهني لـ EF Core</span>
+        </div>
+      </div>
+      <div class="exercise-body">
+        <div class="exercise-prompt">لماذا يختلف كيان EF Core في الذاكرة عن الصف المقابل له في PostgreSQL؟</div>
+        <div class="quiz-options" data-qid="qc-1-4">
+          
+        <div class="quiz-option" data-opt="0">
+          <div class="option-indicator">A</div>
+          <div class="option-text">لأن كيان الذاكرة قد يُجمع كنفاية (garbage collected) بينما يبقى الصف، والتغييرات في الذاكرة لا أثر لها في قاعدة البيانات حتى ينجح SaveChangesAsync في التثبيت.</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="1">
+          <div class="option-indicator">B</div>
+          <div class="option-text">لأن كيان الذاكرة يخزّن كتل الجدول الثنائية الخام، بينما يخزّن PostgreSQL بيانات JSON.</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="2">
+          <div class="option-indicator">C</div>
+          <div class="option-text">لا توجد كيانات في الذاكرة إلا أثناء معاملة قاعدة بيانات نشطة.</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="3">
+          <div class="option-indicator">D</div>
+          <div class="option-text">إنهما في الحقيقة متطابقان؛ فأي تغيير في مؤشر الذاكرة يعدّل تخزين PostgreSQL فورًا عبر ملفات معيّنة للذاكرة.</div>
+        </div>
+        
+        </div>
+        <div class="exercise-actions">
+          <button class="btn-primary btn-submit-quiz" data-qid="qc-1-4">أرسل الإجابة</button>
+          <button class="btn-secondary btn-retry-quiz" data-qid="qc-1-4" style="display:none;">إعادة المحاولة</button>
+        </div>
+        <div class="quiz-feedback" id="feedback-qc-1-4"></div>
+      </div>
+    </div>
+    
+
+      <div class="lesson-footer-nav">
+        <button class="btn-secondary" disabled>→ الدرس السابق</button>
+        <button class="btn-complete-lesson" data-lesson="lesson-1">أكمل الدرس 1 ✓</button>
+        <button class="btn-primary" onclick="switchLesson('lesson-2')">التالي: ‏DbContext ونمط Unit of Work ←</button>
+      </div>
+    `
+    },
+
     'lesson-assessment': {
       nav: 'التقييم الختامي للوحدة',
       content: `
