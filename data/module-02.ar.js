@@ -601,6 +601,332 @@ window.RAFF_MODULE_02_AR = {
 
   lessons: {
 
+    'lesson-7': {
+      nav: 'الإسقاط والتصحيح',
+      content: `
+      <div class="lesson-header-box">
+        <div class="lesson-badge-top">الدرس 7 • أدوات عملية</div>
+        <h1 class="lesson-title">الإسقاط وفحص SQL والتصحيح</h1>
+        <p class="lesson-subtitle">استخدام إسقاطات DTO لإلغاء التتبّع، وفحص SQL عبر ToQueryString()، وتهيئة تسجيل EF Core، والتشخيص العملي للأعطال.</p>
+      </div>
+
+      <h2>1. الإسقاط مباشرة إلى DTOs</h2>
+      <p>تعلّمنا في الدرس 5 من الوحدة 1 أنه لا ينبغي لعقود الواجهة البرمجية إرجاع كيانات EF Core الخام. وإلى جانب تغليف العقود، يوفّر <strong>إسقاط</strong> LINQ عبر <code>.Select()</code> مزايا أداء هائلة لقاعدة البيانات والذاكرة:</p>
+
+      
+    <div class="code-wrapper">
+      <div class="code-header">
+        <div class="code-badge-group">
+          <span class="code-lang-tag">C#</span>
+          <span class="code-filename">Services/BookService.cs</span>
+          <span class="code-type-pill pill-complete example">[مثال كامل]</span>
+        </div>
+        <button class="btn-copy" aria-label="نسخ الكود">📋 نسخ</button>
+      </div>
+      <pre><code class="language-c#">
+public async Task&lt;List&lt;BookSummaryDto&gt;&gt; GetCatalogSummariesAsync()
+{
+    return await _context.Books
+        .Where(b =&gt; b.PublishedYear &gt;= 2000)
+        .OrderBy(b =&gt; b.Title)
+        .Select(b =&gt; new BookSummaryDto(
+            b.Id,
+            b.Title,
+            b.PublishedYear))
+        .ToListAsync();
+}
+</code></pre>
+      <div class="code-expl">يولّد الإسقاط إلى DTOs عددية استعلامات SELECT موجّهة الأعمدة ويتجاوز تتبّع الكيانات كليًا.</div>
+    </div>
+    
+
+      <div class="callout callout-info">
+        <div class="callout-title">💡 لماذا إسقاط DTO أسرع من AsNoTracking()</div>
+        <ul>
+          <li><strong>تضييق الأعمدة:</strong> يفحص EF Core تعبير لامدا داخل <code>.Select()</code> فلا يضمّن في جملة <code>SELECT</code> إلا الأعمدة المطلوبة (مثل <code>SELECT "b"."Id", "b"."Title", "b"."PublishedYear"</code>). ولا تُنقل أعمدة نصية ضخمة مثل <code>Summary</code> أو بيانات ثنائية عبر الشبكة أبدًا.</li>
+          <li><strong>صفر تتبّع للكيانات:</strong> لأن <code>BookSummaryDto</code> ليس كيانًا في نموذجك، يتخطى EF Core متتبّع التغييرات ولا يخصص مصفوفات لقطات.</li>
+        </ul>
+      </div>
+
+      <h2>2. فحص SQL المُولَّد عبر \`ToQueryString()\`</h2>
+      <p>عند تحسين الاستعلامات أو التحقيق في الأداء لا ينبغي أن تخمّن SQL الذي يولّده EF Core. استخدم <code>.ToQueryString()</code> على أي <code>IQueryable</code> غير منفَّذ:</p>
+
+      
+    <div class="code-wrapper">
+      <div class="code-header">
+        <div class="code-badge-group">
+          <span class="code-lang-tag">C#</span>
+          <span class="code-filename">Diagnostics.cs</span>
+          <span class="code-type-pill pill-complete example">[مثال كامل]</span>
+        </div>
+        <button class="btn-copy" aria-label="نسخ الكود">📋 نسخ</button>
+      </div>
+      <pre><code class="language-c#">
+var query = _context.Books
+    .Where(b =&gt; b.PublishedYear &gt;= 2020 &amp;&amp; b.Title.StartsWith("Raff"))
+    .OrderBy(b =&gt; b.Title)
+    .Select(b =&gt; new { b.Id, b.Title });
+
+// Inspect the exact PostgreSQL SQL that Npgsql would execute:
+string sql = query.ToQueryString();
+Console.WriteLine(sql);
+
+// Output:
+// SELECT "b"."Id", "b"."Title"
+// FROM "Books" AS "b"
+// WHERE "b"."PublishedYear" &gt;= 2020 AND "b"."Title" LIKE 'Raff%'
+// ORDER BY "b"."Title"
+</code></pre>
+      <div class="code-expl">يتيح ToQueryString() فحص SQL المُولَّد دون تنفيذ استعلامات أو لمس قاعدة البيانات.</div>
+    </div>
+    
+
+      <h2>3. تهيئة تسجيل EF Core في ASP.NET Core</h2>
+      <p>في بيئة التطوير المحلية يمكنك التقاط كل جملة SQL مُولَّدة وزمن تنفيذها في الطرفية:</p>
+
+      
+    <div class="code-wrapper">
+      <div class="code-header">
+        <div class="code-badge-group">
+          <span class="code-lang-tag">C#</span>
+          <span class="code-filename">Program.cs</span>
+          <span class="code-type-pill pill-complete example">[مثال كامل]</span>
+        </div>
+        <button class="btn-copy" aria-label="نسخ الكود">📋 نسخ</button>
+      </div>
+      <pre><code class="language-c#">
+builder.Services.AddDbContext&lt;BooksContext&gt;(options =&gt;
+{
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"));
+
+    if (builder.Environment.IsDevelopment())
+    {
+        // Log SQL queries to console
+        options.LogTo(Console.WriteLine, LogLevel.Information);
+
+        // Print actual parameter values (e.g. 'Raff Guide') instead of '@p0'
+        options.EnableSensitiveDataLogging();
+
+        // Include detailed exception call stacks from EF Core
+        options.EnableDetailedErrors();
+    }
+});
+</code></pre>
+      <div class="code-expl">تهيئة تسجيل التطوير عبر LogTo وEnableSensitiveDataLogging.</div>
+    </div>
+    
+
+      <h2>4. مصفوفة التصحيح العملية</h2>
+      <table class="concept-table">
+        <thead>
+          <tr><th>العرَض</th><th>السبب الجذري</th><th>التشخيص والحل</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>أمر UPDATE غير متوقع على حقول لم تتغيّر</strong></td>
+            <td>استدعاء <code>context.Books.Update(entity)</code> على كائن مفصول يعلّم كل الأعمدة المعنونة كمعدّلة.</td>
+            <td>افحص <code>context.Entry(entity).State</code>. واستعلم عن الكيان المتتبَّع وعدّل خصائص محددة بدلًا من استدعاء <code>Update()</code>.</td>
+          </tr>
+          <tr>
+            <td><strong>InvalidOperationException: The LINQ expression could not be translated</strong></td>
+            <td>يضمّ الاستعلام أسلوب C# مخصصًا أو أسلوب .NET غير مدعوم في جملة تُقيَّم على الخادم.</td>
+            <td>انقل الحساب إلى أوليات LINQ متوافقة مع PostgreSQL، أو اعزل التقييم على العميل بعد <code>AsEnumerable()</code>.</td>
+          </tr>
+          <tr>
+            <td><strong>استهلاك ذاكرة مرتفع في نقاط نهاية GET</strong></td>
+            <td>يعيد الاستعلام نسخ كيانات مع تفعيل التتبّع لطلبات قراءة فقط.</td>
+            <td>طبّق <code>.AsNoTracking()</code> أو أسقط مباشرة إلى DTOs باستخدام <code>.Select()</code>.</td>
+          </tr>
+          <tr>
+            <td><strong>A second operation was started on this context instance...</strong></td>
+            <td>استعلامات متزامنة أو مهام غير مُنتظرة تصل إلى نسخة <code>DbContext</code> الواحدة ذات عمر Scoped.</td>
+            <td>تأكد من انتظار كل الاستدعاءات غير المتزامنة تباعًا. ولا تستخدم <code>Task.WhenAll</code> مع نسخة السياق نفسها.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>ملخص الدرس 7</h2>
+      <ul>
+        <li>الإسقاط إلى DTOs عددية عبر <code>.Select()</code> يحسّن عرض نطاق الشبكة ويتجاوز كلفة تتبّع الكيانات.</li>
+        <li>استخدم <code>.ToQueryString()</code> للتحقق من SQL المُولَّد دون تنفيذ استعلامات.</li>
+        <li>فعّل <code>LogTo</code> و<code>EnableSensitiveDataLogging</code> أثناء التطوير المحلي لفحص SQL وربط المعاملات.</li>
+        <li>شخّص مشكلات التزامن والترجمة بفهم معمارية EF Core.</li>
+      </ul>
+
+      <h2>اختبارات المعرفة</h2>
+      
+    <div class="exercise-card" id="qc-7-1">
+      <div class="exercise-header">
+        <div class="exercise-title-group">
+          <span class="exercise-badge">اختبار المعرفة</span>
+          <span style="font-weight:600; font-size:0.9rem;">إسقاط DTO</span>
+        </div>
+      </div>
+      <div class="exercise-body">
+        <div class="exercise-prompt">لماذا يحسّن إسقاط استعلام مباشرة إلى DTO عددي (\`.Select(b =&gt; new BookDto(b.Id, b.Title)).ToListAsync()\`) أداء التطبيق في Raff؟</div>
+        <div class="quiz-options" data-qid="qc-7-1">
+          
+        <div class="quiz-option" data-opt="0">
+          <div class="option-indicator">A</div>
+          <div class="option-text">يفعّل ضغط الأعمدة في PostgreSQL.</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="1">
+          <div class="option-indicator">B</div>
+          <div class="option-text">لا تنقل PostgreSQL عبر الشبكة إلا عمودي \`Id\` و\`Title\`، ويتجنّب EF Core تخصيص لقطات التتبّع أو تسجيل الكيانات في متتبّع التغييرات.</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="2">
+          <div class="option-indicator">C</div>
+          <div class="option-text">يتسبب في تجاوز EF Core لـ PostgreSQL والقراءة من التخزين المحلي للمتصفح.</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="3">
+          <div class="option-indicator">D</div>
+          <div class="option-text">يتيح للعميل تحديث قاعدة البيانات دون مصادقة.</div>
+        </div>
+        
+        </div>
+        <div class="exercise-actions">
+          <button class="btn-primary btn-submit-quiz" data-qid="qc-7-1">أرسل الإجابة</button>
+          <button class="btn-secondary btn-retry-quiz" data-qid="qc-7-1" style="display:none;">إعادة المحاولة</button>
+        </div>
+        <div class="quiz-feedback" id="feedback-qc-7-1"></div>
+      </div>
+    </div>
+    
+      
+    <div class="exercise-card" id="qc-7-2">
+      <div class="exercise-header">
+        <div class="exercise-title-group">
+          <span class="exercise-badge">اختبار المعرفة</span>
+          <span style="font-weight:600; font-size:0.9rem;">ToQueryString</span>
+        </div>
+      </div>
+      <div class="exercise-body">
+        <div class="exercise-prompt">ما الفائدة الأساسية من استدعاء \`.ToQueryString()\` على \`IQueryable\` أثناء التطوير؟</div>
+        <div class="quiz-options" data-qid="qc-7-2">
+          
+        <div class="quiz-option" data-opt="0">
+          <div class="option-indicator">A</div>
+          <div class="option-text">يتحقق من مدخلات المستخدم ضد هجمات حقن SQL.</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="1">
+          <div class="option-indicator">B</div>
+          <div class="option-text">يعيد سلسلة SQL المُولَّدة التي سينفّذها EF Core على PostgreSQL دون إرسال أي استعلام فعليًا إلى قاعدة البيانات.</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="2">
+          <div class="option-indicator">C</div>
+          <div class="option-text">ينفّذ الاستعلام ويطبع النتائج في جدول HTML منسّق.</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="3">
+          <div class="option-indicator">D</div>
+          <div class="option-text">ينشئ فهرسًا في PostgreSQL لكل أعمدة الاستعلام.</div>
+        </div>
+        
+        </div>
+        <div class="exercise-actions">
+          <button class="btn-primary btn-submit-quiz" data-qid="qc-7-2">أرسل الإجابة</button>
+          <button class="btn-secondary btn-retry-quiz" data-qid="qc-7-2" style="display:none;">إعادة المحاولة</button>
+        </div>
+        <div class="quiz-feedback" id="feedback-qc-7-2"></div>
+      </div>
+    </div>
+    
+      
+    <div class="exercise-card" id="qc-7-3">
+      <div class="exercise-header">
+        <div class="exercise-title-group">
+          <span class="exercise-badge">اختبار المعرفة</span>
+          <span style="font-weight:600; font-size:0.9rem;">تسجيل EF Core</span>
+        </div>
+      </div>
+      <div class="exercise-body">
+        <div class="exercise-prompt">عند تهيئة \`DbContextOptionsBuilder\` في Raff، ماذا يفعل \`EnableSensitiveDataLogging()\`؟</div>
+        <div class="quiz-options" data-qid="qc-7-3">
+          
+        <div class="quiz-option" data-opt="0">
+          <div class="option-indicator">A</div>
+          <div class="option-text">يشفّر كل سجلات قاعدة البيانات قبل كتابتها على القرص.</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="1">
+          <div class="option-indicator">B</div>
+          <div class="option-text">يضمّن قيم المعاملات (مثل كلمات مرور المستخدمين أو عناوين الكتب) في أوامر SQL المسجَّلة بدلًا من إخفائها كـ\`@p0\`.</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="2">
+          <div class="option-indicator">C</div>
+          <div class="option-text">يعطّل كل تسجيل SQL لمنع التسريبات.</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="3">
+          <div class="option-indicator">D</div>
+          <div class="option-text">يحذف تلقائيًا السجلات الأقدم من 7 أيام.</div>
+        </div>
+        
+        </div>
+        <div class="exercise-actions">
+          <button class="btn-primary btn-submit-quiz" data-qid="qc-7-3">أرسل الإجابة</button>
+          <button class="btn-secondary btn-retry-quiz" data-qid="qc-7-3" style="display:none;">إعادة المحاولة</button>
+        </div>
+        <div class="quiz-feedback" id="feedback-qc-7-3"></div>
+      </div>
+    </div>
+    
+      
+    <div class="exercise-card" id="qc-7-4">
+      <div class="exercise-header">
+        <div class="exercise-title-group">
+          <span class="exercise-badge">اختبار المعرفة</span>
+          <span style="font-weight:600; font-size:0.9rem;">استكشاف أخطاء الترجمة</span>
+        </div>
+      </div>
+      <div class="exercise-body">
+        <div class="exercise-prompt">يكتب مطوّر: \`context.Books.Where(b =&gt; CustomCsharpHelper(b.Title)).ToListAsync()\`. ماذا يحدث عند تنفيذ هذا الاستعلام؟</div>
+        <div class="quiz-options" data-qid="qc-7-4">
+          
+        <div class="quiz-option" data-opt="0">
+          <div class="option-indicator">A</div>
+          <div class="option-text">يترجم Npgsql دالة C# المساعدة تلقائيًا إلى إجراء مخزَّن PL/pgSQL في PostgreSQL.</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="1">
+          <div class="option-indicator">B</div>
+          <div class="option-text">يطلق EF Core استثناء \`InvalidOperationException: The LINQ expression ... could not be translated\` لأن مزوّد الاستعلام لا يستطيع ترجمة أساليب C# الاعتيادية إلى SQL.</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="2">
+          <div class="option-indicator">C</div>
+          <div class="option-text">تنفّذ PostgreSQL الاستعلام دون المرشّح وتتجاهل الدالة المساعدة.</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="3">
+          <div class="option-indicator">D</div>
+          <div class="option-text">تُنفَّذ الدالة المساعدة تلقائيًا في المتصفح.</div>
+        </div>
+        
+        </div>
+        <div class="exercise-actions">
+          <button class="btn-primary btn-submit-quiz" data-qid="qc-7-4">أرسل الإجابة</button>
+          <button class="btn-secondary btn-retry-quiz" data-qid="qc-7-4" style="display:none;">إعادة المحاولة</button>
+        </div>
+        <div class="quiz-feedback" id="feedback-qc-7-4"></div>
+      </div>
+    </div>
+    
+
+      <div class="lesson-footer-nav">
+        <button class="btn-secondary" onclick="switchLesson('lesson-6')">→ الدرس السابق</button>
+        <button class="btn-complete-lesson" data-lesson="lesson-7">أكمل الدرس 7 ✓</button>
+        <button class="btn-primary" onclick="switchLesson('lesson-assessment')">التالي: التقييم الختامي للوحدة 🎓 ←</button>
+      </div>
+    `
+    },
+
     'lesson-6': {
       nav: 'LINQ وتنفيذ الاستعلامات',
       content: `
