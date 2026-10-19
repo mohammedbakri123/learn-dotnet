@@ -241,9 +241,9 @@
       '<div class="toast-container" id="toast-container" aria-live="polite"></div>';
 
     document.body.insertAdjacentHTML('afterbegin', header + modals);
+    document.body.insertBefore(container, document.body.children[1] || null);
 
     sidebar = document.getElementById('app-sidebar');
-    document.body.insertBefore(container, document.body.children[1] || null);
 
     ctx.main = main;
 
