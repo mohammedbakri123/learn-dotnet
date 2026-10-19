@@ -3068,6 +3068,104 @@ var resolved = await context.Books
         <button class="btn-primary" data-nav-target="lesson-challenge" type="button">التالي: التحدي ←</button>
       </div>
     `
+    },
+    "lesson-challenge": {
+      nav: "تحدي مشروع Raff",
+      content: `
+      <div class="lesson-header-box">
+        <div class="lesson-badge-top">تحدٍّ عملي</div>
+        <h1 class="lesson-title">صمّم الاستعلام الذي يقف خلف نقطة نهاية</h1>
+        <p class="lesson-subtitle">يجب أن تعيد نقطة نهاية قائمة للقراءة فقط الشكل التالي بالضبط بعدد ثابت من أوامر قاعدة البيانات. صمّمها.</p>
+      </div>
+
+      <div class="callout callout-info">
+        <div class="callout-title">🎯 المتطلب</div>
+        <p>يجب أن تعيد نقطة النهاية صفحة من الكتب مرتّبة حسب <code>Title</code>، مع: معرّف كل كتاب وعنوانه، وأسماء مؤلفيه كقائمة سلاسل، واسم فئته كسلسلة (أو null)، وعدد إدخالات قراءته. ولا يجب تسلسل أي كيان؛ فالاستجابة لا تحتوي إلا DTO دائمًا.</p>
+      </div>
+
+      <div class="code-wrapper">
+        <div class="code-header">
+          <div class="code-badge-group">
+            <span class="code-lang-tag">C#</span>
+            <span class="code-filename">شكل الاستجابة المطلوب (مُعطى)</span>
+            <span class="code-type-pill pill-complete">مُعطى</span>
+          </div>
+          <button class="btn-copy" type="button" aria-label="نسخ الكود">📋 نسخ</button>
+        </div>
+        <pre><code class="language-c#">
+public record BookCardDto(
+    int Id,
+    string Title,
+    List&lt;string&gt; AuthorNames,
+    string? CategoryName,
+    int ReadingEntryCount);
+</code></pre>
+      </div>
+
+      <h3>قائمة إرشادية</h3>
+      <ul>
+        <li>أي استراتيجية تحميل تنطبق على عقد للقراءة فقط — الكيانات أم الإسقاط؟ ولماذا؟</li>
+        <li>من أين تأتي أسماء المؤلفين، وهل يضيف تسطيحها استعلامات؟ (يقول الدرس 6 إن لا — أثبته.)</li>
+        <li>كيف يدخل اسم الفئة القابل للفراغ وعدد إدخالات القراءة إلى DTO بلا تحميل كيانات؟</li>
+        <li>الترتيب: أين ينبغي أن يستقر <code>OrderBy</code> بالنسبة إلى <code>Select</code>؟ وهل يغيّر SQL؟</li>
+        <li>كيف تبدو خطة الاستعلام لعدد الاستعلامات (كم أمرًا)؟</li>
+      </ul>
+
+      <details class="hint-details">
+        <summary>💡 تلميح 1 — ابدأ من الشكل الهدف</summary>
+        <p>اكتب <code>Select</code> أولًا، ثم الترتيب. وعكس ذلك نادرًا ما يكسر شيئًا، لكن تشكيل الشكل أولًا يجعل عدد الاستعلامات بديهيًّا: فالإسقاط عبارة LINQ واحدة، إذن هو عبارة SQL واحدة.</p>
+      </details>
+      <details class="hint-details">
+        <summary>💡 تلميح 2 — تسطيح المؤلفين</summary>
+        <p><code>b.Authors.Select(a =&gt; a.Name).ToList()</code> داخل الإسقاط مدعوم؛ ويترجمه EF Core إلى وصل (أو استعلام مترابط) بدل استعلام لكل كتاب. وإن كرّرت بدل ذلك بحلقة بعد التجسيد، فقد أعدت إنشاء N+1.</p>
+      </details>
+      <details class="hint-details">
+        <summary>💡 تلميح 3 — الفئة القابلة للفراغ والعدد</summary>
+        <p>استخدم شرطًا: <code>b.Category != null ? b.Category.Name : null</code>. والعدد هو <code>b.ReadingEntries.Count</code>، وتحسبه قاعدة البيانات. ولا يحتاج أيٌّ منهما إلى <code>Include</code>.</p>
+      </details>
+
+      <details class="solution-details">
+        <summary>✅ الحل — استعلام إسقاط واحد، وأمر واحد</summary>
+        <div class="code-wrapper">
+          <div class="code-header">
+            <div class="code-badge-group">
+              <span class="code-lang-tag">C#</span>
+              <span class="code-filename">BookService — الحل (بنمط Raff)</span>
+              <span class="code-type-pill pill-complete">الحل</span>
+            </div>
+            <button class="btn-copy" type="button" aria-label="نسخ الكود">📋 نسخ</button>
+          </div>
+          <pre><code class="language-c#">
+public async Task&lt;List&lt;BookCardDto&gt;&gt; GetCardsAsync(CancellationToken ct = default)
+{
+    return await context.Books
+        .OrderBy(b =&gt; b.Title)
+        .Select(b =&gt; new BookCardDto(
+            b.Id,
+            b.Title,
+            b.Authors.Select(a =&gt; a.Name).ToList(),
+            b.Category != null ? b.Category.Name : null,
+            b.ReadingEntries.Count))
+        .ToListAsync(ct);
+}
+</code></pre>
+        </div>
+        <p><strong>لماذا يحقق المتطلب:</strong> <code>SELECT</code> واحد يعيد صفًّا لكل كتاب بخمسة أعضاء DTO بالضبط؛ والوصل لأسماء المؤلفين، وتقصّي الفئة، والعددان — كلها تُحسب في قاعدة البيانات؛ ولا تُجسَّد كيانات <code>Book</code>/<code>Author</code>/<code>Category</code> أو تُتتبَّع، فلا يمكن للتسلسل أن يسرّب مخططًا أو دورة. وأضف <code>Skip/Take</code> قبل <code>Select</code> (مع <code>OrderBy</code>) لتقسيم الصفحات — ويبقى الشكل نفسه.</p>
+      </details>
+
+      <div class="callout callout-warning">
+        <div class="callout-title">⚠️ أهداف موسّعة (اختيارية)</div>
+        <ul>
+          <li>عدّل الحل ليقسّم الصفحات بـ <code>PagedResult&lt;BookCardDto&gt;</code> المطابق لمساعد تقسيم الصفحات المشترك في Raff، مع إبقاء العدد الإجمالي في <code>CountAsync</code> رخيص منفصل.</li>
+          <li>جهّز DTO ثانيًا لنقطة نهاية يتضمن قائد كل مجموعة قراءة — وهو سيناريو <em>لا يمكن</em> التعبير عنه بإسقاط واحد (مجموعتان شقيقتان)؛ وصِف حل الاستعلامين البديل.</li>
+        </ul>
+      </div>
+
+      <div class="lesson-footer-nav">
+        <button class="btn-secondary" data-nav-target="lesson-7" type="button">→ الدرس 7</button>
+        <button class="btn-primary" data-nav-target="lesson-assessment" type="button">التالي: التقييم ←</button>
+      </div>
+    `
     }
   }
 };
