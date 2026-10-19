@@ -13,6 +13,32 @@
   var fmtInline = function (s) { return RaffUI.fmtInline(s); };
   function toast(msg) { RaffUI.toast(msg); }
 
+  /* ---------------- Arabic overlay (no-op for EN) ---------------- */
+  var OV = (RaffI18n.get() === "ar") ? (window.RAFF_MODULE_03_AR || null) : null;
+  var LESSONS = MODULE_LESSONS;
+  var CHECKS = KNOWLEDGE_CHECKS;
+  var ASSESSMENT = ASSESSMENT_QUESTIONS;
+  var TERMS = GLOSSARY;
+  var META = LESSON_META;
+  var EXPLORER = EXPLORER_DATA;
+  var FIXUP = FIXUP_STEPS;
+  var LAB_OPTS = LAB_OPTIONS;
+  var SCENARIOS = LAB_SCENARIOS;
+  if (OV) {
+    if (OV.lessons) LESSONS = RaffI18n.mergeById(MODULE_LESSONS, OV.lessons);
+    if (OV.knowledgeChecks) CHECKS = KNOWLEDGE_CHECKS.map(function (c) { var o = OV.knowledgeChecks[c.id]; return o ? Object.assign({}, c, o) : c; });
+    if (OV.assessmentQuestions) ASSESSMENT = ASSESSMENT_QUESTIONS.map(function (q) { var o = OV.assessmentQuestions[q.id]; return o ? Object.assign({}, q, o) : q; });
+    if (OV.glossary) TERMS = GLOSSARY.map(function (t) { var o = OV.glossary[t.t]; return o ? Object.assign({}, t, o) : t; });
+    if (OV.lessonMeta) META = LESSON_META.map(function (m) { var o = OV.lessonMeta[m.id]; return o ? Object.assign({}, m, o) : m; });
+    if (OV.explorerData) {
+      EXPLORER = Object.assign({}, EXPLORER_DATA);
+      Object.keys(OV.explorerData).forEach(function (k) { if (EXPLORER[k]) EXPLORER[k] = Object.assign({}, EXPLORER_DATA[k], OV.explorerData[k]); });
+    }
+    if (OV.fixupSteps) FIXUP = FIXUP_STEPS.map(function (s, i) { return OV.fixupSteps[i] ? Object.assign({}, s, OV.fixupSteps[i]) : s; });
+    if (OV.labOptions) LAB_OPTS = OV.labOptions.slice();
+    if (OV.labScenarios) SCENARIOS = LAB_SCENARIOS.map(function (s) { var o = OV.labScenarios[s.id]; return o ? Object.assign({}, s, o) : s; });
+  }
+
   var S = RaffI18n.pick({
     en: {
       lessonDone: (n) => "Lesson " + n + " Completed ✓",
@@ -288,7 +314,7 @@
     return LESSON_IDS.filter(function (id) { return !!state.completedLessons[id]; }).length;
   }
   function checksCorrectCount() {
-    return KNOWLEDGE_CHECKS.filter(function (c) { return state.checks[c.id] && state.checks[c.id].correct; }).length;
+    return CHECKS.filter(function (c) { return state.checks[c.id] && state.checks[c.id].correct; }).length;
   }
   function assessmentPassed() {
     return !!(state.assessment.best && state.assessment.best.passed);
@@ -297,7 +323,7 @@
     var lessons = lessonsDoneCount();
     var total = LESSON_IDS.length;
     var lessonPct = Math.round(lessons / total * 100);
-    var checkPct = checksCorrectCount() / KNOWLEDGE_CHECKS.length;
+    var checkPct = checksCorrectCount() / CHECKS.length;
     var pct = Math.round(lessons / total * 60 + checkPct * 30 + (assessmentPassed() ? 10 : 0));
     Array.prototype.forEach.call(document.querySelectorAll(".btn-complete-lesson"), function (btn) {
       var id = btn.getAttribute("data-lesson");
@@ -309,7 +335,7 @@
     return {
       percent: pct,
       lessonsLabel: lessons + " / " + total + " (" + lessonPct + "%)",
-      checksLabel: checksCorrectCount() + " / " + KNOWLEDGE_CHECKS.length
+      checksLabel: checksCorrectCount() + " / " + CHECKS.length
     };
   }
 
@@ -351,7 +377,7 @@
   function renderChecks() {
     Array.prototype.forEach.call(document.querySelectorAll(".kc-mount"), function (mount) {
       var group = mount.dataset.kcGroup;
-      var list = KNOWLEDGE_CHECKS.filter(function (c) { return c.group === group; });
+      var list = CHECKS.filter(function (c) { return c.group === group; });
       mount.innerHTML = list.map(function (kc, i) { return kcCardHtml(kc, i, list.length); }).join("");
     });
   }
@@ -371,8 +397,8 @@
   function handleCheckSubmit(btn) {
     var id = btn.dataset.checkId;
     var kc = null;
-    for (var i = 0; i < KNOWLEDGE_CHECKS.length; i++) {
-      if (KNOWLEDGE_CHECKS[i].id === id) { kc = KNOWLEDGE_CHECKS[i]; break; }
+    for (var i = 0; i < CHECKS.length; i++) {
+      if (CHECKS[i].id === id) { kc = CHECKS[i]; break; }
     }
     if (!kc) return;
     var st = state.checks[id] || {};
@@ -404,7 +430,7 @@
     var tbody = document.getElementById("lab-tbody");
     if (!tbody) return;
     tbody.innerHTML = "";
-    LAB_SCENARIOS.forEach(function (s) {
+    SCENARIOS.forEach(function (s) {
       var stored = state.lab[s.id] || {};
       var tr = document.createElement("tr");
       tr.dataset.labRow = s.id;
@@ -417,7 +443,7 @@
       sel.className = "sim-select";
       sel.dataset.labId = s.id;
       sel.setAttribute("aria-label", S.labAria(s.id.replace("lab-", "")));
-      sel.innerHTML = '<option value="">' + S.labChoose + '</option>' + LAB_OPTIONS.map(function (o, i) {
+      sel.innerHTML = '<option value="">' + S.labChoose + '</option>' + LAB_OPTS.map(function (o, i) {
         return '<option value="' + i + '"' + (stored.choice === i ? " selected" : "") + ">" + esc(o) + "</option>";
       }).join("");
       td2.appendChild(sel);
@@ -436,10 +462,10 @@
         tbody.appendChild(fb);
       }
     });
-    var checked = LAB_SCENARIOS.filter(function (s) { return state.lab[s.id] && state.lab[s.id].checked; });
+    var checked = SCENARIOS.filter(function (s) { return state.lab[s.id] && state.lab[s.id].checked; });
     var ok = checked.filter(function (s) { return state.lab[s.id].result === "correct" || state.lab[s.id].result === "defensible"; }).length;
     var label = document.getElementById("lab-score-label");
-    if (label) label.textContent = S.checkedOf(checked.length, LAB_SCENARIOS.length);
+    if (label) label.textContent = S.checkedOf(checked.length, SCENARIOS.length);
     var verdict = document.getElementById("lab-verdict");
     if (verdict) {
       if (checked.length === 0) {
@@ -454,7 +480,7 @@
 
   function checkLab() {
     var any = false;
-    LAB_SCENARIOS.forEach(function (s) {
+    SCENARIOS.forEach(function (s) {
       var cur = state.lab[s.id] || {};
       if (cur.choice === undefined || cur.choice === null || cur.choice === "") return;
       any = true;
@@ -650,7 +676,7 @@
   }
 
   function renderExplorer() {
-    var d = EXPLORER_DATA[explorerKey()];
+    var d = EXPLORER[explorerKey()];
     if (!d) return;
     Array.prototype.forEach.call(document.querySelectorAll("#explorer-type-btns .chip-btn"), function (b) {
       var on = b.dataset.type === explorerType;
@@ -682,7 +708,7 @@
   }
 
   /* ---------------- fix-up playground ---------------- */
-  var FIXUP_INITIAL_STORY = "Initial state: a fresh <code>BooksContext</code>. Nothing is tracked yet. Book #7, Author #3, Category #2, and the pairing (Book #7 — Author #3) all exist in the database, but EF Core has not read any of them.";
+  var FIXUP_INITIAL_STORY = (OV && OV.fixupInitialStory) ? OV.fixupInitialStory : "Initial state: a fresh <code>BooksContext</code>. Nothing is tracked yet. Book #7, Author #3, Category #2, and the pairing (Book #7 — Author #3) all exist in the database, but EF Core has not read any of them.";
   var FIXUP_NAV_LABELS = { bookAuthors: "book.Authors", authorBooks: "author.Books", bookCategory: "book.Category" };
   var fixupStep = 0;
 
@@ -695,17 +721,17 @@
 
   function renderFixup() {
     var label = document.getElementById("fixup-step-label");
-    if (label) label.textContent = S.stepOf(fixupStep, FIXUP_STEPS.length);
+    if (label) label.textContent = S.stepOf(fixupStep, FIXUP.length);
     var prog = document.getElementById("fixup-progress");
     if (prog) {
       prog.innerHTML = "";
-      FIXUP_STEPS.forEach(function (_, i) {
+      FIXUP.forEach(function (_, i) {
         var dot = document.createElement("div");
         dot.className = "fixup-dot" + (i < fixupStep ? " done" : "");
         prog.appendChild(dot);
       });
     }
-    var step = fixupStep > 0 ? FIXUP_STEPS[fixupStep - 1] : null;
+    var step = fixupStep > 0 ? FIXUP[fixupStep - 1] : null;
     var story = document.getElementById("fixup-story");
     if (story) {
       story.innerHTML = step
@@ -750,12 +776,12 @@
     var v = document.getElementById("fixup-verdict");
     if (v) v.innerHTML = (step && step.verdict) ? fmtInline(step.verdict) : S.pressNext;
     var next = document.getElementById("fixup-next");
-    if (next) next.disabled = fixupStep >= FIXUP_STEPS.length;
+    if (next) next.disabled = fixupStep >= FIXUP.length;
   }
 
   /* ---------------- assessment ---------------- */
   function lessonTagLabel(id) {
-    var meta = LESSON_META.filter(function (m) { return m.id === id; })[0];
+    var meta = META.filter(function (m) { return m.id === id; })[0];
     return meta ? meta.label : id;
   }
   function lessonNum(id) {
@@ -764,12 +790,12 @@
   }
 
   function assessmentResultsHtml(last) {
-    var wrong = ASSESSMENT_QUESTIONS.map(function (q, i) { return { q: q, i: i, sel: state.assessment.selections[q.id] }; })
+    var wrong = ASSESSMENT.map(function (q, i) { return { q: q, i: i, sel: state.assessment.selections[q.id] }; })
       .filter(function (x) { return x.sel !== x.q.correct; });
     var lessons = [];
-    ASSESSMENT_QUESTIONS.forEach(function (q) { if (lessons.indexOf(q.lesson) === -1) lessons.push(q.lesson); });
+    ASSESSMENT.forEach(function (q) { if (lessons.indexOf(q.lesson) === -1) lessons.push(q.lesson); });
     var breakdown = lessons.map(function (lid) {
-      var qs = ASSESSMENT_QUESTIONS.filter(function (q) { return q.lesson === lid; });
+      var qs = ASSESSMENT.filter(function (q) { return q.lesson === lid; });
       var c = qs.filter(function (q) { return state.assessment.selections[q.id] === q.correct; }).length;
       var n = lessonNum(lid);
       return '<button class="glossary-term-link" type="button" data-nav-target="' + lid + '">' +
@@ -812,7 +838,7 @@
     if (actions) actions.hidden = !a.started;
     if (a.started) {
       qHost.innerHTML = "";
-      ASSESSMENT_QUESTIONS.forEach(function (q, qi) {
+      ASSESSMENT.forEach(function (q, qi) {
         var sel = a.selections[q.id];
         var isSubmitted = !!a.submitted;
         var correctHere = isSubmitted && sel === q.correct;
@@ -830,7 +856,7 @@
         card.className = "exercise-card";
         card.innerHTML =
           '<div class="exercise-header">' +
-            "<div><span class=\"exercise-badge exercise\">" + S.qOf(qi + 1, ASSESSMENT_QUESTIONS.length) + '</span> <span class="exercise-badge">' + esc(num ? S.lessonLabel(num) : lessonTagLabel(q.lesson)) + "</span></div>" +
+            "<div><span class=\"exercise-badge exercise\">" + S.qOf(qi + 1, ASSESSMENT.length) + '</span> <span class="exercise-badge">' + esc(num ? S.lessonLabel(num) : lessonTagLabel(q.lesson)) + "</span></div>" +
             (isSubmitted ? '<span class="score-chip ' + (correctHere ? "pass" : "fail") + '">' + (correctHere ? S.correctChip : S.incorrectChip) + "</span>" : "") +
           "</div>" +
           '<div class="exercise-body">' +
@@ -850,13 +876,13 @@
 
   function submitAssessment() {
     var a = state.assessment;
-    var total = ASSESSMENT_QUESTIONS.length;
-    var answered = ASSESSMENT_QUESTIONS.filter(function (q) { return a.selections[q.id] !== undefined; }).length;
+    var total = ASSESSMENT.length;
+    var answered = ASSESSMENT.filter(function (q) { return a.selections[q.id] !== undefined; }).length;
     if (answered < total) {
       toast(S.answerAll(answered, total));
       return;
     }
-    var score = ASSESSMENT_QUESTIONS.filter(function (q) { return a.selections[q.id] === q.correct; }).length;
+    var score = ASSESSMENT.filter(function (q) { return a.selections[q.id] === q.correct; }).length;
     var pct = Math.round(score / total * 100);
     var passed = pct >= a.threshold;
     var last = { score: score, total: total, pct: pct, passed: passed, threshold: a.threshold, at: new Date().toISOString() };
@@ -874,17 +900,17 @@
   /* ---------------- search ---------------- */
   function searchGetResults(q) {
     var items = [];
-    LESSON_META.filter(function (m) {
+    META.filter(function (m) {
       return (m.label + " " + m.keywords + " " + m.summary).toLowerCase().indexOf(q) !== -1;
     }).slice(0, 6).forEach(function (m) {
       var num = lessonNum(m.id);
       items.push({ kind: "lesson", ref: m.id, title: (num ? S.lessonTitlePrefix(num) : "") + m.label, snippet: m.summary.slice(0, 150) });
     });
-    KNOWLEDGE_CHECKS.filter(function (c) { return c.prompt.toLowerCase().indexOf(q) !== -1; }).slice(0, 6).forEach(function (c) {
+    CHECKS.filter(function (c) { return c.prompt.toLowerCase().indexOf(q) !== -1; }).slice(0, 6).forEach(function (c) {
       var num = lessonNum(c.group);
       items.push({ kind: "kc", ref: c.group, title: S.kcTitle(num), snippet: c.prompt.slice(0, 150) });
     });
-    GLOSSARY.filter(function (t) {
+    TERMS.filter(function (t) {
       return (t.t + " " + t.d).toLowerCase().indexOf(q) !== -1;
     }).slice(0, 6).forEach(function (t) {
       items.push({ kind: "glossary", ref: t.t, title: t.t, snippet: t.d.slice(0, 150) + "…" });
@@ -975,7 +1001,7 @@
     var bind = function (id, ev, fn) { var el = document.getElementById(id); if (el) el.addEventListener(ev, fn); };
 
     bind("fixup-next", "click", function () {
-      if (fixupStep < FIXUP_STEPS.length) { fixupStep += 1; renderFixup(); }
+      if (fixupStep < FIXUP.length) { fixupStep += 1; renderFixup(); }
     });
     bind("fixup-reset", "click", function () { fixupStep = 0; renderFixup(); });
     bind("n1-run", "click", runN1);
@@ -1030,7 +1056,7 @@
     RaffContent.boot({
       moduleId: "module-03",
       storageKey: STORAGE_KEY,
-      lessons: MODULE_LESSONS,
+      lessons: LESSONS,
       startId: "lesson-0",
 
       state: {
@@ -1109,7 +1135,7 @@
       },
 
       glossary: {
-        items: GLOSSARY,
+        items: TERMS,
         getTerm: function (t) { return t.t; },
         getCat: function (t) { return t.c; },
         getDef: function (t) { return t.d; },
