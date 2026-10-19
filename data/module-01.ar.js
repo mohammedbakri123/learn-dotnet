@@ -876,6 +876,340 @@ Date: Mon, 13 Oct 2026 18:30:00 GMT
 `
     },
 
+    'lesson-2': {
+      nav: 'REST وأساليب HTTP',
+      content: `
+  <div class="lesson-header-box">
+    <div class="lesson-meta-bar">
+      <span class="lesson-pill">الدرس 2</span>
+      <span class="badge-time">قراءة وتمارين في 35 دقيقة</span>
+    </div>
+    <h1 class="lesson-h1">مبادئ REST وأساليب HTTP</h1>
+    <p class="lesson-lead">
+      تعلّم كيف تمثّل REST واجهتك الخلفية كموارد تُعرَف بأسماء، وافهم الفرق الجوهري بين الأساليب الآمنة ولا متمايزة، وأتقن رموز حالة HTTP القياسية.
+    </p>
+  </div>
+
+  <div class="content-body">
+    <h2>1. الموارد وعناوين URL الموجّهة نحو الموارد</h2>
+    <p>
+      في <strong>نقل الحالة التمثيلي (REST)</strong> تعرض واجهتك <em>موارد</em> — أشياء لا أفعال. وفي <strong>Raff</strong> الموارد هي الكتب والمؤلفون والمستخدمون وسجلات تقدّم القراءة.
+    </p>
+    <p>
+      ينبغي أن تكون عناوين URI للموارد <strong>أسماء</strong>، بصيغة الجمع للمجموعات، وهرمية للموارد الفرعية:
+    </p>
+    <ul>
+      <li><code>GET /api/books</code> — مجموعة الكتب.</li>
+      <li><code>GET /api/books/42</code> — الكتاب المحدّد ذو المعرّف <code>42</code>.</li>
+      <li><code>POST /api/books</code> — إنشاء كتاب جديد في المجموعة.</li>
+      <li><code>PUT /api/books/42</code> — استبدال حالة الكتاب <code>42</code> بالكامل.</li>
+      <li><code>PATCH /api/books/42</code> — تعديل الكتاب <code>42</code> جزئيًا.</li>
+      <li><code>DELETE /api/books/42</code> — حذف الكتاب <code>42</code>.</li>
+      <li><code>GET /api/books/42/authors</code> — المورد الفرعي الذي يجمع المؤلفين المرتبطين بالكتاب <code>42</code>.</li>
+    </ul>
+
+    <div class="callout callout-warning">
+      <div class="callout-icon">⚠️</div>
+      <div class="callout-content">
+        <div class="callout-title">نمط مضاد: الأفعال في عناوين URL</div>
+        <p>
+          تجنّب نقاط نهاية مثل <code>/api/books/getall</code> أو <code>/api/books/create</code> أو <code>/api/books/delete/42</code>. في REST يحدّد فعل HTTP ‏(<code>GET</code> و<code>POST</code> و<code>DELETE</code>) العملية، بينما يحدّد URI المورد.
+        </p>
+      </div>
+    </div>
+
+    <h2>2. الأساليب الآمنة ولا متمايزة</h2>
+    <p>
+      يرسّخ RFC 9110 خاصيتين تقنيتين جوهريتين لأساليب HTTP يجب أن يفهمهما كل مطوّر خلفيات مبتدئ:
+    </p>
+
+    <div class="callout callout-note">
+      <div class="callout-icon">🛡️</div>
+      <div class="callout-content">
+        <div class="callout-title">التعريفات الرسمية</div>
+        <p>
+          <strong>آمن (Safe):</strong> يكون أسلوب HTTP <em>آمنًا</em> إذا كانت دلالاته للقراءة فقط؛ فلا يجوز أن يغيّر استدعاؤه حالة الموارد على الخادم (وتُسمح الآثار الجانبية للتسجيل والتخزين المؤقت). ويمكن للعملاء تنفيذ الطلبات الآمنة مرارًا دون حذر.
+        </p>
+        <p style="margin-top: 0.5rem;">
+          <strong>لا متمايز (Idempotent):</strong> يكون أسلوب HTTP <em>لا متمايزًا</em> إذا كان تكرار الطلب المتطابق يُحدث على الخادم الأثر المقصود ذاته الذي يحدثه طلب واحد. فإذا انقطعت الشبكة دفع العميل إلى إعادة محاولة طلب لا متمايز، لا تفسد حالة الخادم.
+        </p>
+      </div>
+    </div>
+
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>الأسلوب</th>
+            <th>الغرض الأساسي</th>
+            <th>آمن؟</th>
+            <th>لا متمايز؟</th>
+            <th>جسم الطلب؟</th>
+            <th>رمز النجاح المعتاد</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>GET</code></td>
+            <td>استرجاع تمثيل المورد</td>
+            <td><strong style="color:var(--success);">نعم</strong></td>
+            <td><strong style="color:var(--success);">نعم</strong></td>
+            <td>لا</td>
+            <td><span class="status-badge status-2xx">200 OK</span></td>
+          </tr>
+          <tr>
+            <td><code>POST</code></td>
+            <td>إنشاء مورد جديد أو تشغيل عملية</td>
+            <td><strong style="color:var(--danger);">لا</strong></td>
+            <td><strong style="color:var(--danger);">لا</strong></td>
+            <td>نعم</td>
+            <td><span class="status-badge status-2xx">201 Created</span> / <code>200 OK</code></td>
+          </tr>
+          <tr>
+            <td><code>PUT</code></td>
+            <td>استبدال كامل للمورد المستهدف</td>
+            <td><strong style="color:var(--danger);">لا</strong></td>
+            <td><strong style="color:var(--success);">نعم</strong></td>
+            <td>نعم (كامل)</td>
+            <td><span class="status-badge status-2xx">200 OK</span> / <code>204 No Content</code></td>
+          </tr>
+          <tr>
+            <td><code>PATCH</code></td>
+            <td>تعديل جزئي للمورد المستهدف</td>
+            <td><strong style="color:var(--danger);">لا</strong></td>
+            <td><strong style="color:var(--warning);">يعتمد*</strong></td>
+            <td>نعم (فرق)</td>
+            <td><span class="status-badge status-2xx">200 OK</span> / <code>204 No Content</code></td>
+          </tr>
+          <tr>
+            <td><code>DELETE</code></td>
+            <td>حذف المورد المستهدف</td>
+            <td><strong style="color:var(--danger);">لا</strong></td>
+            <td><strong style="color:var(--success);">نعم</strong></td>
+            <td>اختياري</td>
+            <td><span class="status-badge status-2xx">204 No Content</span> / <code>200 OK</code></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="font-size:0.85rem; color:var(--text-muted); margin-top:-0.5rem;">
+      * ملاحظة عن تفرّد PATCH: بينما يكون ضبط قيم الحقول عبر JSON Merge Patch ‏(RFC 7396) لا متمايزًا، فإن عمليات المصفوفات في JSON Patch ‏(RFC 6902) ‏(مثل "إلحاق عنصر") ليست كذلك.
+    </p>
+
+    <h2>3. الاستبدال الكامل (PUT) مقابل التعديل الجزئي (PATCH)</h2>
+    <p>
+      التمييز بين <code>PUT</code> و<code>PATCH</code> من أكثر المفاهيم تكرارًا في مقابلات الخلفيات:
+    </p>
+    <ul>
+      <li>
+        <strong>‏PUT /api/books/42:</strong> يمثّل <em>استبدالًا كاملًا</em> للمورد؛ يرسل العميل التمثيل الكامل للكتاب، وأي خصائص قائمة أُغفلت في الحمولة تُستبدل بقيمها الافتراضية (أو null).
+      </li>
+      <li>
+        <strong>‏PATCH /api/books/42:</strong> يمثّل <em>تعديلًا جزئيًا</em>؛ يرسل العميل الخصائص التي تحتاج تغييرًا فقط، وتبقى الخصائص غير الممسوسة دون تغيير على الخادم.
+      </li>
+    </ul>
+
+    <h2>4. رموز حالة HTTP الأساسية لواجهات الويب</h2>
+    <p>
+      الواجهة الممتازة تستخدم رموز الحالة بدقة للتواصل عن النتيجة:
+    </p>
+    <ul>
+      <li><span class="status-badge status-2xx">200 OK</span> — نجاح قياسي مع جسم استجابة (مثل <code>GET /api/books/42</code>).</li>
+      <li><span class="status-badge status-2xx">201 Created</span> — أُنشئ المورد، ويجب أن تتضمن ترويسة <code>Location</code> تشير إلى المورد الجديد.</li>
+      <li><span class="status-badge status-2xx">204 No Content</span> — نجح الإجراء لكن لا يوجد جسم لإرجاعه (قياسي في <code>DELETE</code> أو بعض تحديثات <code>PUT</code>).</li>
+      <li><span class="status-badge status-4xx">400 Bad Request</span> — JSON مشوّه أو فشل تحقق من النموذج أو أنواع معاملات غير صالحة.</li>
+      <li><span class="status-badge status-4xx">401 Unauthorized</span> — غياب بيانات مصادقة صالحة (المستخدم غير مصادَق).</li>
+      <li><span class="status-badge status-4xx">403 Forbidden</span> — العميل مصادَق لكنه يفتقر إلى صلاحية الوصول إلى هذا المورد أو تعديله.</li>
+      <li><span class="status-badge status-4xx">404 Not Found</span> — عنوان URI المطلوب لا يطابق موردًا موجودًا.</li>
+      <li><span class="status-badge status-4xx">409 Conflict</span> — الطلب يتعارض مع حالة الخادم الراهنة (مثل تكرار ISBN فريد أو عدم تطابق نسخة التزامن).</li>
+      <li><span class="status-badge status-5xx">500 Internal Server Error</span> — وقع استثناء غير معالَج على الخادم.</li>
+    </ul>
+
+    <div class="callout callout-important">
+      <div class="callout-icon">🔍</div>
+      <div class="callout-content">
+        <div class="callout-title">سلوك إطار العمل مقابل أعراف الواجهة في Raff</div>
+        <p>
+          لننظر إلى ملفك الحالي <code>BookController.cs</code>:
+        </p>
+        <pre style="margin-top:0.5rem; padding:0.75rem;"><code class="language-csharp">[HttpPost]
+public async Task&lt;IActionResult&gt; Add([FromBody] createBookDto dto)
+{
+    var book = await _bookService.CreateBookAsync(dto);
+    return Ok(book); // &lt;-- يعيد 200 OK!
+}</code></pre>
+        <p style="margin-top:0.5rem;">
+          لا يعترض ASP.NET Core عندما تعيد <code>Ok(book)</code> من إجراء <code>HttpPost</code>. لكن أعراف REST تقتضي عند إنشاء مورد إرجاع <span class="status-badge status-2xx">201 Created</span> مع ترويسة <code>Location</code> عبر <code>CreatedAtAction</code>:
+        </p>
+        <pre style="margin-top:0.5rem; padding:0.75rem;"><code class="language-csharp">return CreatedAtAction(nameof(GetBook), new { id = book.Id }, book);</code></pre>
+      </div>
+    </div>
+
+    <!-- Knowledge Check 2.1 -->
+    <div class="exercise-card" id="qc-2-1">
+      <div class="exercise-header">
+        <div class="exercise-title-group">
+          <span class="exercise-badge">تمرين سيناريو 2.1</span>
+          <span>اختيار أسلوب HTTP ورمز الحالة</span>
+        </div>
+      </div>
+      <div class="exercise-body">
+        <div class="exercise-prompt">
+          <strong>السيناريو:</strong> ينقر مستخدم على «حذف الكتاب رقم 42» في عميل Raff على الويب. الكتاب موجود ويُحذف بنجاح من قاعدة بيانات PostgreSQL. ولا تحتاج الواجهة إلى إرجاع أي بيانات كتاب في جسم الاستجابة. فما أسلوب HTTP ورمز الحالة الأكثر قياسية؟
+        </div>
+        <div class="quiz-options" data-qid="qc-2-1">
+          <div class="quiz-option" data-opt="0">
+            <div class="option-indicator">A</div>
+            <div class="option-text"><code>POST /api/books/delete/42</code> مع إرجاع <code>200 OK</code></div>
+          </div>
+          <div class="quiz-option" data-opt="1">
+            <div class="option-indicator">B</div>
+            <div class="option-text"><code>DELETE /api/books/42</code> مع إرجاع <code>204 No Content</code></div>
+          </div>
+          <div class="quiz-option" data-opt="2">
+            <div class="option-indicator">C</div>
+            <div class="option-text"><code>GET /api/books/42?action=remove</code> مع إرجاع <code>200 OK</code></div>
+          </div>
+          <div class="quiz-option" data-opt="3">
+            <div class="option-indicator">D</div>
+            <div class="option-text"><code>PUT /api/books/42</code> مع إرجاع <code>201 Created</code></div>
+          </div>
+        </div>
+        <div class="exercise-footer">
+          <button class="btn-primary btn-submit-quiz" data-qid="qc-2-1">أرسل الإجابة</button>
+          <button class="btn-secondary btn-retry-quiz" data-qid="qc-2-1" style="display:none;">إعادة المحاولة</button>
+        </div>
+        <div class="quiz-feedback" id="feedback-qc-2-1"></div>
+      </div>
+    </div>
+
+    <!-- Knowledge Check 2.2 -->
+    <div class="exercise-card" id="qc-2-2">
+      <div class="exercise-header">
+        <div class="exercise-title-group">
+          <span class="exercise-badge">تمرين سيناريو 2.2</span>
+          <span>الدلالات الآمنة مقابل لا متمايزة</span>
+        </div>
+      </div>
+      <div class="exercise-body">
+        <div class="exercise-prompt">
+          يرسل عميل جوّال على شبكة متذبذبة طلب <code>POST /api/books</code> لإنشاء كتاب. تنتهي مهلة الشبكة قبل استلام الاستجابة، فيعيد العميل إرسال الطلب <code>POST</code> نفسه حرفيًا. ما الخطر القائم إذا لم تُصمَّم نقطة النهاية مع إزالة تكرار مخصصة؟
+        </div>
+        <div class="quiz-options" data-qid="qc-2-2">
+          <div class="quiz-option" data-opt="0">
+            <div class="option-indicator">A</div>
+            <div class="option-text">لا خطر، لأن POST أسلوب HTTP لا متمايز بحكم تعريفه في RFC 9110.</div>
+          </div>
+          <div class="quiz-option" data-opt="1">
+            <div class="option-indicator">B</div>
+            <div class="option-text">قد ينشئ الخادم سجلّي كتاب مكررين متطابقين، لأن POST ليس آمنًا ولا لا متمايزًا.</div>
+          </div>
+          <div class="quiz-option" data-opt="2">
+            <div class="option-indicator">C</div>
+            <div class="option-text">يلغي ASP.NET Core الطلب الثاني تلقائيًا ويعيد 304 Not Modified.</div>
+          </div>
+          <div class="quiz-option" data-opt="3">
+            <div class="option-indicator">D</div>
+            <div class="option-text">تحوّل PostgreSQL طلب POST الثاني تلقائيًا إلى طلب PUT.</div>
+          </div>
+        </div>
+        <div class="exercise-footer">
+          <button class="btn-primary btn-submit-quiz" data-qid="qc-2-2">أرسل الإجابة</button>
+          <button class="btn-secondary btn-retry-quiz" data-qid="qc-2-2" style="display:none;">إعادة المحاولة</button>
+        </div>
+        <div class="quiz-feedback" id="feedback-qc-2-2"></div>
+      </div>
+    </div>
+
+    <!-- Knowledge Check 2.3 -->
+    <div class="exercise-card" id="qc-2-3">
+      <div class="exercise-header">
+        <div class="exercise-title-group">
+          <span class="exercise-badge">تمرين سيناريو 2.3</span>
+          <span>دقة رموز الحالة</span>
+        </div>
+      </div>
+      <div class="exercise-body">
+        <div class="exercise-prompt">
+          يحاول عميل إنشاء كتاب جديد بالمعرّف الدولي ISBN <code>978-0131101630</code>، لكن كتابًا بهذا الـ ISBN نفسه موجود بالفعل في جدول قاعدة بيانات Raff، ما يخالف قيدًا فريدًا. أي رمز حالة HTTP ينبغي أن تعيده الواجهة؟
+        </div>
+        <div class="quiz-options" data-qid="qc-2-3">
+          <div class="quiz-option" data-opt="0">
+            <div class="option-indicator">A</div>
+            <div class="option-text"><code>404 Not Found</code></div>
+          </div>
+          <div class="quiz-option" data-opt="1">
+            <div class="option-indicator">B</div>
+            <div class="option-text"><code>500 Internal Server Error</code></div>
+          </div>
+          <div class="quiz-option" data-opt="2">
+            <div class="option-indicator">C</div>
+            <div class="option-text"><code>409 Conflict</code></div>
+          </div>
+          <div class="quiz-option" data-opt="3">
+            <div class="option-indicator">D</div>
+            <div class="option-text"><code>401 Unauthorized</code></div>
+          </div>
+        </div>
+        <div class="exercise-footer">
+          <button class="btn-primary btn-submit-quiz" data-qid="qc-2-3">أرسل الإجابة</button>
+          <button class="btn-secondary btn-retry-quiz" data-qid="qc-2-3" style="display:none;">إعادة المحاولة</button>
+        </div>
+        <div class="quiz-feedback" id="feedback-qc-2-3"></div>
+      </div>
+    </div>
+
+    <!-- Knowledge Check 2.4 -->
+    <div class="exercise-card" id="qc-2-4">
+      <div class="exercise-header">
+        <div class="exercise-title-group">
+          <span class="exercise-badge">تمرين سيناريو 2.4</span>
+          <span>دلالات PUT مقابل PATCH</span>
+        </div>
+      </div>
+      <div class="exercise-body">
+        <div class="exercise-prompt">
+          لسجل كتاب قائم في Raff عنوان وملخص وسنة نشر ورابط غلاف. يرسل عميل طلب <code>PUT /api/books/42</code> بحمولة JSON تحتوي فقط على <code>{"title": "عنوان محدَّث"}</code>. وفق دلالات <code>PUT</code> الصارمة، ماذا ينبغي أن يحدث للخصائص الأخرى (الملخص وسنة النشر ورابط الغلاف)؟
+        </div>
+        <div class="quiz-options" data-qid="qc-2-4">
+          <div class="quiz-option" data-opt="0">
+            <div class="option-indicator">A</div>
+            <div class="option-text">يجب أن تبقى كما كانت تمامًا قبل الطلب دون أي مساس.</div>
+          </div>
+          <div class="quiz-option" data-opt="1">
+            <div class="option-indicator">B</div>
+            <div class="option-text">لأن PUT استبدال كامل، يجب استبدال الحقول المُغفَلة بقيم افتراضية/null وفق التمثيل الجديد.</div>
+          </div>
+          <div class="quiz-option" data-opt="2">
+            <div class="option-indicator">C</div>
+            <div class="option-text">يجب على الخادم حذف الكتاب من قاعدة البيانات وإعادة إنشائه بالمعرّف 1.</div>
+          </div>
+          <div class="quiz-option" data-opt="3">
+            <div class="option-indicator">D</div>
+            <div class="option-text">يحوّل ASP.NET Core طلبات PUT تلقائيًا إلى طلبات PATCH.</div>
+          </div>
+        </div>
+        <div class="exercise-footer">
+          <button class="btn-primary btn-submit-quiz" data-qid="qc-2-4">أرسل الإجابة</button>
+          <button class="btn-secondary btn-retry-quiz" data-qid="qc-2-4" style="display:none;">إعادة المحاولة</button>
+        </div>
+        <div class="quiz-feedback" id="feedback-qc-2-4"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="lesson-nav-footer">
+    <button class="btn-complete-lesson" data-lesson="lesson-2">
+      <span class="complete-checkbox">✓</span> أكمل الدرس 2
+    </button>
+    <button class="btn-primary btn-next-lesson" data-target="lesson-3">
+      التالي: التوجيه والمتحكمات ←
+    </button>
+  </div>
+`
+    },
+
     'assessment': {
       nav: 'التقييم الختامي (80%)',
       content: `
