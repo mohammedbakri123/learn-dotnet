@@ -45,5 +45,16 @@ window.RAFF_MODULES = [
     subtitle: 'ModelState, validation attributes, rule layers, PATCH, and ProblemDetails',
     file: 'pages/module-04.html',
     storageKey: 'raff_aspnet_module_04_state'
+  },
+  {
+    id: 'module-05',
+    number: '5',
+    icon: '🧩',
+    title: 'Services, Dependency Injection, and Application Architecture',
+    title_ar: 'الخدمات وحقن التبعيات ومعمارية التطبيق',
+    subtitle: 'From Controllers to Maintainable ASP.NET Core Applications',
+    subtitle_ar: 'من المتحكمات إلى تطبيقات ASP.NET Core قابلة للصيانة',
+    file: 'pages/module-05.html',
+    storageKey: 'raff_aspnet_module_05_state'
   }
 ];

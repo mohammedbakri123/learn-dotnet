@@ -543,3 +543,43 @@ tr:nth-child(even) td {background: rgba(255, 255, 255, 0.01);}
 .m4-empty-note {font-size: 0.85rem; color: var(--text-muted); font-style: italic;}
 
 .m4-mode-note {font-size: 0.82rem; color: var(--text-muted); margin-top: 0.6rem;}
+
+/* ============================================================
+   Module 5 — Services, Dependency Injection & Architecture
+   Bespoke widget styles (responsibility lab, lifetime simulator,
+   dependency-graph exercise).
+   ============================================================ */
+
+.assessment-config-row {display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; margin-top: 1rem;}
+.assessment-config-row label {font-size: 0.85rem; color: var(--text-secondary); font-weight: 600;}
+.assessment-select {background: var(--bg-tertiary); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.45rem 0.65rem; border-radius: var(--radius-sm); font-family: inherit; font-size: 0.85rem;}
+
+.m5-lifetime-grid {display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem;}
+.m5-scope-panel {display: flex; flex-direction: column; min-width: 0;}
+.m5-scope-note {font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.4rem;}
+.m5-instance-list {display: flex; flex-wrap: wrap; gap: 0.4rem; align-content: flex-start; min-height: 2.5rem; padding: 0.55rem; margin-bottom: 0.7rem; background: var(--bg-secondary); border: 1px dashed var(--border-color); border-radius: var(--radius-sm);}
+.m5-instance {font-family: var(--font-mono); font-size: 0.78rem; font-weight: 700; color: var(--accent-light); background: var(--bg-accent-subtle); border: 1px solid var(--accent); border-radius: 999px; padding: 0.2rem 0.55rem;}
+.m5-empty-note {font-size: 0.8rem; color: var(--text-muted); font-style: italic;}
+
+.m5-graph-wrap {overflow-x: auto; padding: 0.25rem 0;}
+.m5-graph {display: flex; flex-direction: column; gap: 0.2rem; min-width: 0;}
+.m5-node {position: relative; background: var(--bg-secondary); border: 1px solid var(--border-color); border-left: 3px solid var(--accent); border-radius: var(--radius-md); padding: 0.65rem 0.8rem;}
+.m5-node-risk {border-color: var(--danger-border); border-left-color: var(--danger); background: var(--danger-bg);}
+.m5-node-label {font-family: var(--font-mono); font-size: 0.82rem; font-weight: 700; color: var(--text-primary); word-break: break-word;}
+.m5-node-meta {display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-top: 0.3rem; font-size: 0.75rem; color: var(--text-muted);}
+.m5-lifetime {font-family: var(--font-mono); font-size: 0.7rem; color: var(--accent-light); background: var(--bg-accent-subtle); border: 1px solid var(--accent); border-radius: 999px; padding: 0.1rem 0.45rem;}
+.m5-risk-badge {position: absolute; top: 0.5rem; right: 0.55rem; font-size: 0.65rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: var(--danger);}
+.m5-edge {text-align: center; font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-muted); padding: 0.15rem 0;}
+.m5-edge-risk {color: var(--danger); font-weight: 700;}
+.m5-graph-fix-wrap {margin-top: 1rem; padding: 0.8rem; background: var(--success-bg); border: 1px solid var(--success-border); border-radius: var(--radius-md);}
+.m5-fix-title {font-size: 0.8rem; font-weight: 700; color: var(--success); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.5rem;}
+.m5-graph-fix .m5-node {background: var(--bg-card); border-color: var(--success-border); border-left-color: var(--success);}
+
+[dir="rtl"] .m5-node {border-left: 1px solid var(--border-color); border-right: 3px solid var(--accent);}
+[dir="rtl"] .m5-node-risk {border-left-color: var(--danger-border); border-right-color: var(--danger);}
+[dir="rtl"] .m5-risk-badge {right: auto; left: 0.55rem;}
+[dir="rtl"] .m5-graph-fix .m5-node {border-right-color: var(--success);}
+
+@media (max-width: 760px) {
+  .m5-lifetime-grid {grid-template-columns: 1fr;}
+}
