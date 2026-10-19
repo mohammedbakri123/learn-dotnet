@@ -1102,6 +1102,353 @@ window.RAFF_MODULE_03_AR = {
         <button class="btn-primary" data-nav-target="lesson-1" type="button">ابدأ الدرس 1: كيف تعمل العلاقات ←</button>
       </div>
     `
+    },
+    "lesson-1": {
+      nav: "كيف تعمل العلاقات",
+      content: `
+      <div class="lesson-header-box">
+        <div class="lesson-badge-top">الدرس 1</div>
+        <h1 class="lesson-title">كيف تعمل علاقات EF Core</h1>
+        <p class="lesson-subtitle">علاقة واحدة بوجهين: مفتاح أجنبي في العالم العلائقي، وخاصية تنقل في مخطط كائنات C#.</p>
+      </div>
+
+      <h2>1. وجهان للعلاقة نفسها</h2>
+      <p>توجد العلاقة بين كيانين في قاعدة بياناتك <strong>و</strong> في نموذج C# لديك. يصف الوجهان الحقيقة نفسها بمفردتين مختلفتين:</p>
+
+      <table class="concept-table">
+        <thead>
+          <tr><th>المنظور العلائقي (PostgreSQL)</th><th>منظور الكائنات (C# / EF Core)</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>عمود مفتاح أجنبي</strong> يخزّن القيمة التي تربط الجدولين، مثل <code>books.CategoryId</code>.</td><td><strong>خاصية تنقل</strong> تمنحك مرجعًا إلى كائن، مثل <code>book.Category</code>.</td></tr>
+          <tr><td>القيد <code>FK_books_Categories_CategoryId</code> يضمن وجود القيمة في المفتاح الأساسي للجدول المُشار إليه.</td><td>تُعرَّف العلاقة مرة واحدة في النموذج (بالاصطلاح أو صراحةً) ويحافظ EF Core على تزامن الطرفين.</td></tr>
+          <tr><td>تتبع الرابط بـ <code>JOIN</code>.</td><td>تتبع الرابط بـ <code>book.Category.Name</code> — <em>إن</em> كانت البيانات المرتبطة متاحة في الذاكرة (الدرس 4).</td></tr>
+        </tbody>
+      </table>
+
+      <p><strong>مهمة ORM</strong> هي الترجمة بين هذين العالمين: استنادًا إلى استعلام LINQ لديك تولّد الـ JOINs التي يحتاجها العالم العلائقي؛ واستنادًا إلى الصفوف المُجسَّدة تملأ مخطط الكائنات الذي يتوقعه كود C# لديك. يقوم EF Core بهذه الترجمة عبر <strong>النموذج</strong> — البيانات الوصفية التي تصف كل كيان ومفتاح وعلاقة. يُبنى هذا النموذج مرة واحدة عند أول استخدام للسياق، من الاصطلاحات مضافًا إليها أي تهيئة تضيفها.</p>
+
+      <h2>2. المفاتيح والأدوار: أساسي، أجنبي، رئيسي، تابع</h2>
+      <p>أربعة مصطلحات تظهر في كل نقاش عن علاقات EF Core. أتقنها الآن:</p>
+
+      <div class="steps-container">
+        <div class="step-item">
+          <div class="step-num">1</div>
+          <div class="step-text"><strong>المفتاح الأساسي (PK):</strong> العمود (أو الأعمدة) الذي يميّز الصف تفرّدًا تامًّا. في Raff لكل كيان <code>int Id</code> مُهيَّأ بـ <code>UseIdentityAlwaysColumn()</code> (عمود PostgreSQL <code>GENERATED ALWAYS AS IDENTITY</code>).</div>
+        </div>
+        <div class="step-item">
+          <div class="step-num">2</div>
+          <div class="step-text"><strong>المفتاح الأجنبي (FK):</strong> عمود في جدول يجب أن تطابق قيمته مفتاحًا أساسيًا (أو مفتاحًا بديلًا) في جدول آخر. المفتاح الأجنبي هو ما يجعل العلاقة <em>حقيقية</em> في قاعدة البيانات — فالقيد تفرضه PostgreSQL.</div>
+        </div>
+        <div class="step-item">
+          <div class="step-num">3</div>
+          <div class="step-text"><strong>الكيان الرئيسي:</strong> الكيان الذي تتم الإشارة إلى مفتاحه — طرف <em>"الواحد"</em>. مثال: <code>Category</code> في علاقة <code>Book → Category</code>.</div>
+        </div>
+        <div class="step-item">
+          <div class="step-num">4</div>
+          <div class="step-text"><strong>الكيان التابع:</strong> الكيان الحامل للمفتاح الأجنبي — الطرف الذي "يشير إلى" الرئيسي. مثال: <code>Book</code>، لأن <code>books.CategoryId</code> يوجد في جدول books.</div>
+        </div>
+      </div>
+
+      <div class="callout callout-info">
+        <div class="callout-title">💡 حيلة للحفظ</div>
+        <p>الكيان <strong>التابع</strong> <em>يعتمد على</em> وجود الرئيسي: لا يمكنك إدراج <code>Book</code> يشير إلى <code>CategoryId = 99</code> إن لم تكن الفئة 99 موجودة. المفتاح الأجنبي يوجد دائمًا في طرف التابع؛ والرئيسي هو الكيان المُشار إليه.</p>
+      </div>
+
+      <h2>3. خصائص التنقل: مرجعية ومجموعية</h2>
+      <p>خصائص التنقل أعضاء في C# تتيح لك عبور العلاقة كمرجع كائن بدلًا من البحث بالمفتاح. يتعرّف EF Core على شكلين:</p>
+
+      <ul>
+        <li><strong>تنقل مرجعي</strong> — يشير إلى كيان مرتبط واحد: <code>public Category? Category { get; set; }</code>. استخدمه حين لا يكون للكتاب إلا فئة واحدة على الأكثر.</li>
+        <li><strong>تنقل مجموعي</strong> — يشير إلى كيانات مرتبطة متعددة: <code>public ICollection&lt;Book&gt; Books { get; }</code> أو <code>public ICollection&lt;ReadingEntry&gt; ReadingEntries { get; set; }</code>. استخدمه حين يملك الرئيسي تابعين كثيرين.</li>
+        <li><strong>التنقل المعاكس</strong> — الطرف القرين في الجهة الأخرى. <code>Book.Category</code> و<code>Category.Books</code> متعاكسان. التنقلان اللذان يشيران إلى العلاقة نفسها هما طرفاها.</li>
+      </ul>
+
+      <p>حقيقتان مهمتان يخطئ فيهما كثير من المطوّرين:</p>
+      <ul>
+        <li><strong>العلاقات لا تتطلب تنقلات على الطرفين معًا.</strong> نموذج Raff دليل: <code>Book</code> يعرّف <code>Category? Category</code>، لكن <code>Category</code> لا تعرّف <em>أي</em> مجموعة كتب. ومع ذلك يكتشف EF Core علاقة واحد-إلى-متعدد كاملة، وينشئ المفتاح الأجنبي، ويفرضه. التنقل المعاكس بيانات وصفية اختيارية، لا شرطًا.</li>
+        <li><strong>التنقلات بيانات وصفية في النموذج، لا بيانات محمَّلة.</strong> الخاصية موجودة في كل نسخة <code>Book</code> لحظة ترجمة الصنف. أما هل <em>تحتوي</em> على فئة في الذاكرة بعد تنفيذ استعلام، فسؤال منفصل تمامًا (القسم 6 والدرس 4).</li>
+      </ul>
+
+      <h2>4. علاقة ملموسة: Category وBook في Raff</h2>
+      <p>هذا هو الشكل الفعلي لكياني <code>Category</code> و<code>Book</code> (مختصرًا حيث أُشير). اقرأ كل تعليق — فهو يربط كل خاصية بدورها.</p>
+
+      <div class="code-wrapper">
+        <div class="code-header">
+          <div class="code-badge-group">
+            <span class="code-lang-tag">C#</span>
+            <span class="code-filename">Data/Models/Categoty.cs (Raff)</span>
+            <span class="code-type-pill pill-fragment">مقتطف</span>
+          </div>
+          <button class="btn-copy" type="button" aria-label="نسخ الكود">📋 نسخ</button>
+        </div>
+        <pre><code class="language-c#">
+public class Category
+{
+    public int Id { get; set; }                    // PK: principal entity's key
+
+    public required string Name { get; set; }      // required property (C# + NOT NULL)
+}
+</code></pre>
+        <div class="code-expl">لاحظ ما هو غائب: لا يوجد <code>ICollection&lt;Book&gt; Books</code> هنا. العلاقة ما زالت تعمل بكامل وظائفها — فالتنقل المعاكس اختياري. (لاحظ أيضًا أن اسم الملف في مستودعك <code>Categoty.cs</code>؛ الأخطاء المطبعية في أسماء الملفات لا تؤثر في EF Core.)</div>
+      </div>
+
+      <div class="code-wrapper">
+        <div class="code-header">
+          <div class="code-badge-group">
+            <span class="code-lang-tag">C#</span>
+            <span class="code-filename">Data/Models/Book.cs (Raff, abridged)</span>
+            <span class="code-type-pill pill-fragment">مقتطف</span>
+          </div>
+          <button class="btn-copy" type="button" aria-label="نسخ الكود">📋 نسخ</button>
+        </div>
+        <pre><code class="language-c#">
+public partial class Book
+{
+    public int Id { get; set; }                    // PK
+
+    public string Title { get; set; } = null!;
+    public int? PublishedYear { get; set; }
+    public string? Summary { get; set; }
+    public string? CoverUrl { get; set; }
+
+    // Reference navigation: zero or one Category per Book.
+    // There is NO CategoryId property in this class and NO inverse
+    // collection on Category — EF Core keeps a SHADOW foreign key
+    // named "CategoryId" in the books table instead.
+    public Category? Category { get; set; }
+
+    // Collection navigation: one Book has many ReadingEntries.
+    public virtual ICollection&lt;ReadingEntry&gt; ReadingEntries { get; set; }
+        = new List&lt;ReadingEntry&gt;();
+
+    // Collection navigation (skip navigation, Lesson 2): many Authors.
+    public virtual ICollection&lt;Author&gt; Authors { get; set; }
+        = new List&lt;Author&gt;();
+}
+</code></pre>
+        <div class="code-expl">ثلاث علاقات ظاهرة هنا: Book→Category (متعدد-إلى-واحد اختياري)، وBook→ReadingEntry (واحد-إلى-متعدد)، وBook↔Author (متعدد-إلى-متعدد عبر جدول الربط <code>book_authors</code>).</div>
+      </div>
+
+      <h2>5. إلزامي مقابل اختياري — وما يحدده فعلًا</h2>
+      <p>كل علاقة إما <strong>إلزامية</strong> (يجب أن يشير التابع إلى رئيسي) وإما <strong>اختيارية</strong> (قد لا تشير إلى شيء). الإشارة الحاسمة هي <strong>قابلية المفتاح الأجنبي للقيمة الفارغة</strong>:</p>
+
+      <table class="concept-table">
+        <thead>
+          <tr><th>حالة المفتاح الأجنبي</th><th>العلاقة</th><th>الأثر في قاعدة البيانات</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>int CategoryId</code> (غير قابل للقيمة الفارغة)</td>
+            <td><strong>إلزامية</strong></td>
+            <td><code>books.CategoryId</code> هو <code>NOT NULL</code>. يجب أن يشير كل صف كتاب إلى فئة حقيقية. حذف فئة مُشار إليها مقيَّد (أو يتسلسل، حسب سلوك الحذف).</td>
+          </tr>
+          <tr>
+            <td><code>int? CategoryId</code> (قابل للقيمة الفارغة)</td>
+            <td><strong>اختيارية</strong></td>
+            <td><code>books.CategoryId</code> يقبل <code>NULL</code>. كتاب "بلا فئة" صالح؛ يمكن أن يوجد صف كتاب بلا هدف علاقة.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p>في Raff المفتاح الأجنبي خاصية <em>ظلّية</em> — موجودة في نموذج EF فقط، لا في صنف C# لديك. وعندما يكون المفتاح الأجنبي ظلًّا، يستنتج EF Core قابلية الفراغ من <strong>التنقل</strong>: لأن <code>Category?</code> قابل للقيمة الفارغة (وأنواع المراجع القابلة للفراغ مُفعَّلة في مشروعك)، ينشئ EF Core <strong>مفتاحًا أجنبيًا ظلّيًا قابلًا للقيمة الفارغة</strong> وعلاقة <strong>اختيارية</strong>. والترحيل يثبت ذلك:</p>
+
+      <div class="code-wrapper">
+        <div class="code-header">
+          <div class="code-badge-group">
+            <span class="code-lang-tag">C#</span>
+            <span class="code-filename">Data/Migrations/20261011201657_AddCategoryToBooks.cs (Raff)</span>
+            <span class="code-type-pill pill-fragment">مقتطف</span>
+          </div>
+          <button class="btn-copy" type="button" aria-label="نسخ الكود">📋 نسخ</button>
+        </div>
+        <pre><code class="language-c#">
+migrationBuilder.AddColumn&lt;int&gt;(
+    name: "CategoryId",
+    table: "books",
+    type: "integer",
+    nullable: true);                     // ← optional relationship
+
+migrationBuilder.CreateIndex(
+    name: "IX_books_CategoryId",         // ← EF indexes FKs by convention
+    table: "books",
+    column: "CategoryId");
+
+migrationBuilder.AddForeignKey(
+    name: "FK_books_Categories_CategoryId",
+    table: "books",
+    column: "CategoryId",
+    principalTable: "Categories",
+    principalColumn: "Id");
+</code></pre>
+        <div class="code-expl">عمود المفتاح الأجنبي وفهرسه والقيد كلها حقائق على مستوى قاعدة البيانات. أنشأها EF Core بسبب العلاقة التي اكتشفها في النموذج.</div>
+      </div>
+
+      <h3>نمذجة العلاقة الاختيارية بمفتاح أجنبي صريح</h3>
+      <p>تفضّل فرق كثيرة خاصية CLR ظاهرة على خاصية ظلّية، لأن المفتاح الأجنبي يصبح قابلًا للاستخدام في إسقاطات LINQ وربط DTO وكود التحديث. النموذج الصريح المكافئ:</p>
+
+      <div class="code-wrapper">
+        <div class="code-header">
+          <div class="code-badge-group">
+            <span class="code-lang-tag">C#</span>
+            <span class="code-filename">نسخة توضيحية من Book في Raff</span>
+            <span class="code-type-pill pill-illustrative">توضيحي</span>
+          </div>
+          <button class="btn-copy" type="button" aria-label="نسخ الكود">📋 نسخ</button>
+        </div>
+        <pre><code class="language-c#">
+public class Book
+{
+    public int Id { get; set; }
+    public string Title { get; set; } = null!;
+
+    public int? CategoryId { get; set; }        // nullable FK    → OPTIONAL
+    public Category? Category { get; set; }     // nullable nav   → OPTIONAL
+}
+</code></pre>
+        <div class="code-expl">العلاقة نفسها والاختيارية نفسها — لكن كود C# لديك يستطيع قراءة <code>book.CategoryId</code> مباشرة بدل المرور عبر <code>context.Entry(book).Property("CategoryId")</code>. ستضيف هذه الخاصية إلى <code>Book</code> وتدع ترحيلًا يتبنّاها؛ فعمود قاعدة البيانات موجود بالفعل.</div>
+      </div>
+
+      <p>جعل العلاقة <strong>إلزامية</strong> يعني قلب الإعلانين معًا — <code>int CategoryId</code> و<code>Category Category</code> — وتوليد ترحيل يجعل العمود <code>NOT NULL</code>. وإن احتوت الصفوف الحالية على قيم <code>NULL</code> فسيفشل الترحيل حتى تملأها؛ وهذا هو PostgreSQL يفرض قرارك، وهو بالضبط ما تريده.</p>
+
+      <div class="callout callout-danger">
+        <div class="callout-title">🚨 تنقل قابل للقيمة الفارغة لا يثبت أن قاعدة البيانات تسمح بـ NULL</div>
+        <p>لا تستنتج شكل العلاقة في قاعدة البيانات من إعلانات C# وحدها. يمكن أن تتعارض ثلاثة أمور:</p>
+        <ul>
+          <li>نيّتك ("الفئات إلزامية دائمًا").</li>
+          <li>ما <em>يعلنه</em> نموذجك (FK قابل للقيمة الفارغة + تنقل قابل للقيمة الفارغة = اختياري بالاصطلاح).</li>
+          <li>ما <em>تفرضه</em> قاعدة البيانات (القيد الفعلي الذي أنشأته ترحيلاتك).</li>
+        </ul>
+        <p>المصدر الموثوق الوحيد للحقيقة هو تهيئة النموذج، وفي النهاية SQL والمخطط المُولَّدان. فخاصية تنقل غير قابلة للقيمة الفارغة بلا عمود مفتاح أجنبي غير قابل للقيمة الفارغة تقابلها خطأ تهيئة ينتظر الظهور. لهذا تتحقق الفرق بـ <code>dotnet ef migrations script</code>، وتفحص تهيئة Fluent في <code>OnModelCreating</code>، وتقرأ الترحيلات في المراجعة.</p>
+      </div>
+
+      <h2>6. مخطط العلاقة</h2>
+      <div class="diagram-container">
+        <div class="diagram-title">Category (1) ───── (many) Book — علاقة Raff الفعلية الاختيارية</div>
+        <svg viewBox="0 0 860 260" role="img" aria-label="مخطط علاقة الكيانات: جدول Categories على اليسار متصل بجدول books على اليمين بعلاقة واحد-إلى-متعدد. المفتاح الأجنبي CategoryId في جدول books وقابل للقيمة الفارغة.">
+          <!-- Categories box -->
+          <rect class="erd-rect" x="30" y="70" width="300" height="88" rx="8"></rect>
+          <path class="erd-head" d="M30 78 a8 8 0 0 1 8-8 h284 a8 8 0 0 1 8 8 v28 h-300 z"></path>
+          <text class="erd-name" x="44" y="97">Categories (رئيسي)</text>
+          <text class="erd-prop" x="44" y="133">Id</text>
+          <text class="erd-pk" x="316" y="133" text-anchor="end">PK</text>
+          <text class="erd-prop" x="44" y="155">Name</text>
+          <text class="erd-role" x="316" y="155" text-anchor="end">NOT NULL</text>
+          <text class="erd-label" x="180" y="185" text-anchor="middle">الدور: طرف "الواحد" المُشار إليه</text>
+
+          <!-- Books box -->
+          <rect class="erd-rect" x="530" y="50" width="300" height="114" rx="8"></rect>
+          <path class="erd-head" d="M530 58 a8 8 0 0 1 8-8 h284 a8 8 0 0 1 8 8 v28 h-300 z"></path>
+          <text class="erd-name" x="544" y="77">books (تابع)</text>
+          <rect class="erd-fk-col" x="531" y="105" width="298" height="25" rx="0"></rect>
+          <text class="erd-prop" x="544" y="121">Id</text>
+          <text class="erd-pk" x="816" y="121" text-anchor="end">PK</text>
+          <text class="erd-prop" x="544" y="147">CategoryId</text>
+          <text class="erd-fk" x="816" y="147" text-anchor="end">FK · قابل للفراغ</text>
+          <text class="erd-prop" x="544" y="169">Title</text>
+          <text class="erd-role" x="816" y="169" text-anchor="end">NOT NULL</text>
+          <text class="erd-label" x="680" y="193" text-anchor="middle">الدور: طرف "الكثير" الحامل للمفتاح الأجنبي</text>
+
+          <!-- Connector -->
+          <line class="erd-line" x1="330" y1="114" x2="530" y2="114"></line>
+          <line class="erd-line" x1="330" y1="104" x2="330" y2="124"></line>
+          <line class="erd-line" x1="516" y1="100" x2="530" y2="114"></line>
+          <line class="erd-line" x1="516" y1="128" x2="530" y2="114"></line>
+          <text class="erd-card" x="352" y="106">1</text>
+          <text class="erd-card" x="492" y="106" text-anchor="end">N</text>
+          <text class="erd-label" x="430" y="140" text-anchor="middle">FK constraint: books.CategoryId → Categories.Id</text>
+          <text class="erd-note" x="430" y="228" text-anchor="middle">جهة C#: Book.Category (تنقل مرجعي) — لا توجد مجموعة معاكسة على Category</text>
+        </svg>
+        <div class="legend-row">
+          <span class="legend-item"><span class="legend-dot dot-pk"></span> مفتاح أساسي</span>
+          <span class="legend-item"><span class="legend-dot dot-fk"></span> مفتاح أجنبي</span>
+          <span class="legend-item"><span class="legend-dot dot-nav"></span> خاصية تنقل (في النموذج فقط)</span>
+        </div>
+      </div>
+
+      <p>اقرأ المخطط في الاتجاهين:</p>
+      <ul>
+        <li><strong>علائقيًا:</strong> جدول <code>books</code> فيه عمود <code>CategoryId</code> قابل للقيمة الفارغة مع فهرس وقيد مفتاح أجنبي إلى <code>Categories.Id</code>. يمكن أن توجد فئة بلا أي كتب. ويمكن أن يوجد كتاب بلا فئة.</li>
+        <li><strong>في C#:</strong> يمنحك <code>book.Category</code> كائن <code>Category</code> المرتبط عندما يكون متتبَّعًا أو محمَّلًا؛ أما <code>book.CategoryId</code> فغير موجود لأن المفتاح الأجنبي خاصية ظلّية.</li>
+      </ul>
+
+      <div class="callout callout-warning">
+        <div class="callout-title">⚠️ وجود تنقل لا يعني أن البيانات جُلبت</div>
+        <p>بعد <code>await context.Books.ToListAsync()</code>، لكل <code>Book</code> خاصية <code>Category</code> — لكنها ستكون <code>null</code> ما لم تُحمَّل الفئة. الخاصية موجودة في <em>النموذج</em>؛ أما المرجع في <em>مخطط الكائنات</em> فلا يظهر إلا حين تصبح الصفوف المرتبطة في ذاكرة EF Core (محمَّلة بهذا الاستعلام، أو محمَّلة سابقًا في السياق نفسه، أو مجلوبة بالتحميل الكسول إن فعّلته — وRaff لم يفعّله).</p>
+      </div>
+
+      <h2>7. مستكشف العلاقات التفاعلي</h2>
+      <p>استخدم المستكشف أدناه لمقارنة أشكال العلاقات الثلاثة. يعرض: الكيانات وخصائصها، والطرف الحامل للمفتاح الأجنبي، وعلامات التعددية، والتمثيل العلائقي، وكيف تُهيَّأ العلاقة في EF Core. ونموذجا واحد-إلى-متعدد ومتعدد-إلى-متعدد من Raff (الأسماء تطابق مخططك)؛ أما نموذج واحد-إلى-واحد فمثال توضيحي موسوم بوضوح.</p>
+
+      <div class="explorer-box" id="rel-explorer">
+        <div class="explorer-header">
+          <div class="explorer-title">🧭 مستكشف العلاقات — نموذج تعليمي، وليس تشغيلًا حيًّا لـ EF Core</div>
+          <div class="explorer-controls">
+            <div class="explorer-control-group">
+              <span class="explorer-control-label" id="explorer-type-label">نوع العلاقة</span>
+              <div class="chip-group" id="explorer-type-btns" role="group" aria-labelledby="explorer-type-label">
+                <button class="chip-btn" data-type="one-to-many" type="button" aria-pressed="false">واحد-إلى-متعدد</button>
+                <button class="chip-btn" data-type="one-to-one" type="button" aria-pressed="false">واحد-إلى-واحد</button>
+                <button class="chip-btn" data-type="many-to-many" type="button" aria-pressed="false">متعدد-إلى-متعدد</button>
+              </div>
+            </div>
+            <div class="explorer-control-group">
+              <span class="explorer-control-label" id="explorer-optionality-label">مرجع إلزامي أم اختياري</span>
+              <div class="chip-group" id="explorer-optionality" role="group" aria-labelledby="explorer-optionality-label">
+                <button class="chip-btn" data-mode="required" type="button" aria-pressed="false">إلزامي</button>
+                <button class="chip-btn" data-mode="optional" type="button" aria-pressed="false">اختياري</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="explorer-body">
+          <div class="explorer-svg-wrap" id="explorer-svg-host" aria-live="polite"></div>
+          <div class="legend-row">
+            <span class="legend-item"><span class="legend-dot dot-pk"></span> مفتاح أساسي</span>
+            <span class="legend-item"><span class="legend-dot dot-fk"></span> مفتاح أجنبي</span>
+            <span class="legend-item"><span class="legend-dot dot-nav"></span> خاصية تنقل</span>
+          </div>
+          <div class="explorer-grid">
+            <div class="explorer-panel">
+              <div class="explorer-panel-title">التمثيل العلائقي</div>
+              <div id="explorer-relational"></div>
+            </div>
+            <div class="explorer-panel">
+              <div class="explorer-panel-title">نموذج EF Core وتهيئته</div>
+              <div id="explorer-ef"></div>
+            </div>
+          </div>
+          <div class="explorer-note" id="explorer-note"></div>
+        </div>
+      </div>
+
+      <h2>خلاصة الدرس 1</h2>
+      <ul>
+        <li>لكل علاقة <strong>رئيسي</strong> (طرف "الواحد"، المُشار إليه) و<strong>تابع</strong> (الطرف الحامل للمفتاح الأجنبي).</li>
+        <li><strong>التنقلات المرجعية</strong> تشير إلى كيان واحد؛ و<strong>التنقلات المجموعية</strong> تشير إلى كيانات متعددة. والتنقلات المعاكسة اختيارية في أي من الطرفين.</li>
+        <li><strong>إلزامي مقابل اختياري</strong> يحدده قابلية المفتاح الأجنبي للقيمة الفارغة — وهي، للمفاتيح الظلّية مثل <code>CategoryId</code> في Raff، تُستنتج من قابلية تنقل القيمة للفراغ مع أنواع المراجع القابلة للفراغ.</li>
+        <li>تنقّل في المخطط بـ C#، لكن تذكّر: <strong>التنقلات في النموذج ≠ بيانات في الذاكرة</strong>.</li>
+        <li>ثق بتهيئة النموذج والمخطط المُولَّد، لا بإعلانات C# وحدها، عند الاستدلال على سلوك قاعدة البيانات.</li>
+      </ul>
+
+      <h2>فحوص المعرفة</h2>
+      <div class="kc-mount" data-kc-group="lesson-1"></div>
+
+      <div class="refs-block">
+        <div class="refs-title">مراجع رسمية لهذا الدرس</div>
+        <ul>
+          <li><a href="https://learn.microsoft.com/en-us/ef/core/modeling/relationships/" target="_blank" rel="noopener noreferrer">EF Core — مقدمة إلى العلاقات</a></li>
+          <li><a href="https://learn.microsoft.com/en-us/ef/core/modeling/relationships/navigations" target="_blank" rel="noopener noreferrer">EF Core — تنقلات العلاقات</a></li>
+          <li><a href="https://learn.microsoft.com/en-us/ef/core/modeling/relationships/one-to-many" target="_blank" rel="noopener noreferrer">EF Core — علاقات واحد-إلى-متعدد</a></li>
+        </ul>
+      </div>
+
+      <div class="lesson-footer-nav">
+        <button class="btn-secondary" data-nav-target="lesson-0" type="button">→ نظرة عامة</button>
+        <button class="btn-complete-lesson" data-lesson="lesson-1" type="button">أكمل الدرس 1 ✓</button>
+        <button class="btn-primary" data-nav-target="lesson-2" type="button">التالي: أنواع العلاقات ←</button>
+      </div>
+    `
     }
   }
 };
