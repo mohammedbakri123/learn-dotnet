@@ -1891,6 +1891,190 @@ modelBuilder.Entity&lt;Book&gt;()
         <button class="btn-primary" data-nav-target="lesson-3" type="button">التالي: التنقلات والـ fix-up ←</button>
       </div>
     `
+    },
+    "lesson-3": {
+      nav: "التنقلات والـ fix-up",
+      content: `
+      <div class="lesson-header-box">
+        <div class="lesson-badge-top">الدرس 3</div>
+        <h1 class="lesson-title">خصائص التنقل والـ fix-up للعلاقات</h1>
+        <p class="lesson-subtitle">كيف يُبقي EF Core المفاتيح الأجنبية وخصائص التنقل متزامنة — ولماذا يغيّر ذلك ما تحتويه تنقلاتك.</p>
+      </div>
+
+      <h2>1. فيمَ تفيد التنقلات</h2>
+      <p>المفتاح الأجنبي رقم؛ والتنقل كائن. وفي كود الأعمال تريد الكائن دائمًا تقريبًا:</p>
+
+      <div class="code-wrapper">
+        <div class="code-header">
+          <div class="code-badge-group">
+            <span class="code-lang-tag">C#</span>
+            <span class="code-filename">لماذا توجد التنقلات</span>
+            <span class="code-type-pill pill-fragment">مقتطف</span>
+          </div>
+          <button class="btn-copy" type="button" aria-label="نسخ الكود">📋 نسخ</button>
+        </div>
+        <pre><code class="language-c#">
+// FK style (idiomatic SQL thinking): you must know the key and fetch again
+var authorNames = authorIds.Select(id =&gt; context.Authors.Find(id)!.Name);
+
+// Navigation style (idiomatic EF Core): you traverse the object graph
+var authorNames = book.Authors.Select(a =&gt; a.Name);
+
+// Better still for reads — let the database do it in one query (Lesson 6):
+var dto = await context.Books
+    .Where(b =&gt; b.Id == id)
+    .Select(b =&gt; new { b.Title, AuthorNames = b.Authors.Select(a =&gt; a.Name).ToList() })
+    .SingleAsync();
+</code></pre>
+        <div class="code-expl">التنقلات مريحة، لكن "عبور مخطط الكائنات" لا يعمل إلا إذا كان المخطط ممتلئًا. وبقية هذا الدرس عن متى يحدث ذلك وكيف — ومتى لا يحدث.</div>
+      </div>
+
+      <p>لكل علاقة طرفان، ولكل طرف أن يعلن تنقلًا:</p>
+      <ul>
+        <li><strong>تنقل مرجعي</strong>: كيان مرتبط واحد — <code>Book.Category</code>، <code>ReadingEntry.Book</code>، <code>ReadingEntry.User</code>.</li>
+        <li><strong>تنقل مجموعي</strong>: مجموعة كيانات مرتبطة — <code>Book.ReadingEntries</code>، <code>User.ReadingEntries</code>، <code>Book.Authors</code>.</li>
+        <li>ولكل تنقل <strong>خاصية مفتاح أجنبي</strong> مقترنة به (في CLR أو ظلّية). فالمفتاح الأجنبي للتنقل <code>ReadingEntry.Book</code> خاصية حقيقية هي <code>ReadingEntry.BookId</code>؛ وللتنقل <code>Book.Category</code> خاصية ظلّية هي <code>CategoryId</code>.</li>
+      </ul>
+
+      <h2>2. إبقاء المفتاح الأجنبي والتنقل متزامنين</h2>
+      <p>لو استطاع المفتاح الأجنبي والتنقل الانفصال، لكذب مخطط كائناتك. ويمنع EF Core ذلك بتزامن ثنائي الاتجاه:</p>
+
+      <table class="concept-table">
+        <thead>
+          <tr><th>عندما تغيّر…</th><th>فإن EF Core يحدّث…</th><th>متى</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>الـ<strong>تنقل</strong> (<code>entry.Book = book7</code>)</td>
+            <td>الـ<strong>مفتاح الأجنبي</strong> (<code>entry.BookId = 7</code>)</td>
+            <td>عند <code>DetectChanges()</code> التالية — وهي تعمل تلقائيًّا داخل <code>SaveChangesAsync()</code> وقبل تنفيذ الاستعلامات.</td>
+          </tr>
+          <tr>
+            <td>الـ<strong>مفتاح الأجنبي</strong> (<code>entry.BookId = 7</code>)</td>
+            <td>الـ<strong>تنقل</strong> — يُعيَّن إلى الكائن <code>Book</code> رقم 7 المتتبَّع إن وُجد، وإلا إلى <code>null</code></td>
+            <td>عند <code>DetectChanges()</code> التالية.</td>
+          </tr>
+          <tr>
+            <td>عضوية <strong>المجموعة</strong> (<code>book.Authors.Add(author)</code>، <code>.Remove(...)</code>)</td>
+            <td>قيم المفاتيح الأجنبية للتابعين المتأثرين (وصفوف الربط في التنقلات التجاوزية)</td>
+            <td>عند <code>DetectChanges()</code> التالية؛ ثم يكتب <code>SaveChangesAsync()</code> عبارات INSERT/DELETE.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="callout callout-info">
+        <div class="callout-title">💡 لماذا "عند DetectChanges" وليس "فورًا"؟</div>
+        <p><code>Book</code> و<code>ReadingEntry</code> صنفان عاديان — فإسناد <code>entry.Book = book7</code> ينفّذ C# عاديًّا ولا يُخطَر EF Core. ويكتشف متتبع التغييرات التغيير في المرة التالية التي يقارن فيها القيم الحالية بلقطته (الوحدة 2). ويمكن لوكلاء تتبع التغييرات (الدرس 4ج) وكيانات <code>INotifyPropertyChanged</code> أن يجعلوا ذلك فوريًّا، لكن النموذج الافتراضي مبني على اللقطات. عمليًّا: ما دمت تستدعي <code>SaveChangesAsync()</code> قبل الاعتماد على قيم متزامنة، فأنت بخير.</p>
+      </div>
+
+      <h2>3. تعريف الـ fix-up للعلاقات</h2>
+      <p>الـ fix-up هو التوصيل التلقائي الذي يجريه EF Core لخصائص التنقل بين الكيانات <strong>المتتبَّعة</strong>:</p>
+      <div class="callout callout-success">
+        <div class="callout-title">✅ التعريف</div>
+        <p><strong>الـ fix-up للعلاقات</strong> عملية يعيّن بها EF Core خصائص التنقل على الكيانات التي يتتبعها بحيث يطابق مخطط الكائنات في الذاكرة قيم المفاتيح الأجنبية، سواء عند تجسيد الكيانات من استعلام أو عند إرفاقها أو إضافتها أو تعديلها. وهو متعدٍّ: فإضافة كيان واحد إلى متتبع التغييرات قد تملأ تنقلات كيانات <em>أخرى</em> متتبَّعة سابقًا.</p>
+      </div>
+
+      <p>نتيجتان ينبغي استيعابهما:</p>
+      <ol>
+        <li><strong>قد يُملأ تنقل باستعلام مختلف تمامًا عن الاستعلام الذي حمّل الكيان.</strong> حمّل <code>Book</code> الآن؛ وحمّل الفئات لاحقًا؛ فإن وصلت الفئة ذات المفتاح الأجنبي الظلّي المطابق في الاستعلام الثاني، عيّن EF Core <code>book.Category</code> — رغم أن استعلام كتابك لم يذكر الفئات أبدًا.</li>
+        <li><strong>التنقل المجموعي لا يكتمل إلا بقدر ما في الذاكرة من بيانات.</strong> يعكس <code>book.ReadingEntries</code> الإدخالات التي رآها EF Core (محمَّلة عبر Include، أو موصَّلة من استعلامات أخرى) — وليست بالضرورة كل الإدخالات الموجودة في قاعدة البيانات.</li>
+      </ol>
+
+      <h2>4. ثلاثة أسئلة منفصلة عن كل تنقل</h2>
+      <table class="concept-table">
+        <thead>
+          <tr><th>السؤال</th><th>يحدده</th><th>كيف تتحقق</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>هل التنقل موجود في النموذج؟</strong></td>
+            <td>صنفا كيانك + التهيئة. حقيقة وقت ترجمة.</td>
+            <td>إنه في الشيفرة المصدرية؛ <code>dotnet ef dbcontext info</code> أو عرض تصحيح النموذج.</td>
+          </tr>
+          <tr>
+            <td><strong>هل يحمل قيمة الآن؟</strong></td>
+            <td>حالة تتبع التغييرات: ما حمّله هذا السياق أو أرفقه، والـ fix-up.</td>
+            <td>هل <code>book.Category</code> يساوي null أم لا؛ <code>book.Authors.Count</code>؛ افحص بمنقّح.</td>
+          </tr>
+          <tr>
+            <td><strong>هل حُمِّلت البيانات المرتبطة من قاعدة البيانات؟</strong></td>
+            <td>استراتيجية التحميل التي اخترتها (Include، أو تحميل صريح، أو تحميل كسول، أو لا شيء).</td>
+            <td><code>context.Entry(book).Collection(b =&gt; b.Authors).IsLoaded</code> / <code>.Reference(b =&gt; b.Category).IsLoaded</code>؛ وراجع أي SQL نُفّذ في السجلات.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p>والسؤال الثالث هو المكلف في بيئة الإنتاج: <strong>لا استثناء، ولا استعلام، ولا بيانات</strong>. في Raff — حيث التحميل الكسول غير مهيأ — إرجاع <code>book.Authors</code> بعد استعلام عادي قائمة فارغة (تذكّر: المجموعة مهيأة بـ <code>new List&lt;Author&gt;()</code>، وليست null أبدًا). فيحسب كودك الإجابة الخاطئة في صمت بدل أن ينهار. ونمط الفشل هذا بالضبط هو سبب أهمية دروس التحميل التالية.</p>
+
+      <h2>5. ساحة الـ fix-up</h2>
+      <p>تنقّل عبر سيناريو صغير بسياق <code>BooksContext</code> جديد. تعرض الساحة أي الكيانات متتبَّعة، وما قيم مفاتيحها الأجنبية، والأهم: كيف تتغير خصائص التنقل مع دخول كيانات جديدة إلى متتبع التغييرات. وتذكر كل خطوة الكود الذي يعمل؛ ولا شيء هنا ينفّذ EF Core أو SQL (إنه نموذج تعليمي مبسّط لسلوك fix-up موثَّق).</p>
+
+      <div class="simulator-box" id="fixup-playground">
+        <div class="simulator-header">
+          <div class="simulator-title">🎮 ساحة الـ fix-up — شاهد التنقلات توصّل نفسها</div>
+          <div class="simulator-controls">
+            <button class="btn-sim primary" id="fixup-next" type="button">▶ طبّق الخطوة التالية</button>
+            <button class="btn-sim" id="fixup-reset" type="button">↺ إعادة تعيين</button>
+            <span class="explorer-control-label" id="fixup-step-label">الخطوة 0 من 8</span>
+          </div>
+          <div class="fixup-progress" id="fixup-progress" aria-hidden="true"></div>
+        </div>
+        <div class="simulator-body">
+          <div class="fixup-story" id="fixup-story">الحالة الابتدائية: سياق <code>BooksContext</code> جديد. لا شيء متتبَّع بعد. الكتاب رقم 7، والمؤلف رقم 3، والفئة رقم 2، والاقتران (الكتاب 7 — المؤلف 3) موجودة كلها في قاعدة البيانات، لكن EF Core لم يقرأ أيًّا منها.</div>
+          <div class="fixup-state-grid">
+            <div class="fixup-panel">
+              <div class="fixup-panel-title">الكيانات المتتبَّعة (متتبع التغييرات)</div>
+              <div id="fixup-tracked"></div>
+            </div>
+            <div class="fixup-panel">
+              <div class="fixup-panel-title">قيم التنقلات الآن</div>
+              <div id="fixup-navs"></div>
+            </div>
+          </div>
+          <div class="sim-verdict" id="fixup-verdict">اضغط "طبّق الخطوة التالية" لتنفيذ الاستعلام الأول.</div>
+          <p class="assumption-list" style="margin-top:1rem;">افتراضات المحاكاة: الكيانات تسلك كما توثق EF Core — يعمل الـ fix-up بين الكيانات <em>المتتبَّعة</em> عند تجسيدها أو إرفاقها؛ ويحدث التزامن من المفتاح الأجنبي إلى التنقل ومن التنقل إلى المفتاح الأجنبي أثناء <code>DetectChanges()</code>، وتطبّقه الساحة صراحةً بعد كل خطوة معدِّلة؛ وتحتوي قاعدة البيانات الصفوف الموصوفة أعلاه ولا شيء غيرها. أما توقيت <code>DetectChanges</code> الحقيقي ودقة الهوية وسلوك عدم التتبع فتشمل حالات أكثر مما تنمذجه هذه الساحة — ولاحظ أن الاستعلامات المنفَّذة بـ <code>AsNoTracking()</code> لا تشارك في الـ fix-up خارج مجموعة نتائجها.</p>
+        </div>
+      </div>
+
+      <h2>6. الـ fix-up مع استعلامات عدم التتبع</h2>
+      <p>يعتمد الـ fix-up على متتبع التغييرات، فله حد:</p>
+      <ul>
+        <li>مع استعلام <strong>متتبِّع</strong>، يبقى الكيان وكل ما ضُمِّن في السياق. ويمكن للاستعلامات اللاحقة أن تصل تنقلاته.</li>
+        <li>مع استعلام <strong><code>AsNoTracking()</code></strong>، لا تُتتبَّع الكيانات. وتُملأ التنقلات من مجموعة نتائج ذلك الاستعلام وحدها (بما فيها بيانات <code>Include</code>) — فلا تستطيع استعلامات لاحقة على السياق نفسه الاتصال بهذه النسخ، لأن السياق لا يعلم بوجودها.</li>
+      </ul>
+      <p>ويعتمد Raff على هذا بالفعل: يستخدم <code>BookService.GetBooksAsync</code> الاستدعاء <code>AsNoTracking()</code> مع <code>Include(b =&gt; b.Authors)</code>، ويربطها بـ DTOs فورًا، ويتخلى عن الكيانات. فلا شيء لاحقًا في ذلك الطلب يعتمد على الـ fix-up — تصميم صحيح لنقطة نهاية قائمة للقراءة فقط.</p>
+
+      <div class="callout callout-warning">
+        <div class="callout-title">⚠️ بيانات مفاجئة في التنقلات</div>
+        <p>لأن الـ fix-up متعدٍّ، قد تختلف محتويات تنقل حسب ما سبق أن حمّلته نسخة <code>DbContext</code> نفسها. فاستعلامان متطابقان على السياق نفسه قد ينتجان مخططين مختلفين في الذاكرة: نفّذ <code>Books.Where(b =&gt; b.Id == 42)</code> مرتين، وقد يحمل الناتج الثاني <code>Category</code> لم يكن في الأول — إن كان شيء آخر قد حمّل الفئة 3 بينهما. هذا سلوك صحيح (المخطط يُحفظ دقيقًا)، لكنه يعني أن "<em>ما الذي في تنقلي؟</em>" يجيب عنه تتبّع الحالة، لا SQL الاستعلام الذي أنتج الكيان. فكن صريحًا في التحميل (الدرس 4) بدل الاعتماد على حالة ضمنية.</p>
+      </div>
+
+      <h2>فحوص المعرفة</h2>
+      <div class="kc-mount" data-kc-group="lesson-3"></div>
+
+      <h2>خلاصة الدرس 3</h2>
+      <ul>
+        <li>تمنح التنقلات وصولًا إلى مخطط الكائنات؛ ويبقى المفتاح الأجنبي هو الحقيقة العلائقية. ويحفظ EF Core تزامنهما.</li>
+        <li>يحدث التزامن من التنقل إلى المفتاح الأجنبي ومن المفتاح الأجنبي إلى التنقل عند <code>DetectChanges()</code> — تلقائيًّا داخل <code>SaveChangesAsync()</code> وقبل الاستعلامات.</li>
+        <li>يربط <strong>الـ fix-up</strong> التنقلات تلقائيًّا بين الكيانات المتتبَّعة، وقد يملأ تنقلًا باستعلام مختلف عن الذي حمّل الكيان.</li>
+        <li>ميّز دائمًا: التنقل موجود في النموذج / يحمل قيمة في الذاكرة / حُمِّل من قاعدة البيانات. والثالث وحده يعني أن بياناتك كاملة.</li>
+        <li>كيانات <code>AsNoTracking()</code> لا تشارك في الـ fix-up العابر للاستعلامات.</li>
+      </ul>
+
+      <div class="refs-block">
+        <div class="refs-title">مراجع رسمية لهذا الدرس</div>
+        <ul>
+          <li><a href="https://learn.microsoft.com/en-us/ef/core/modeling/relationships/navigations" target="_blank" rel="noopener noreferrer">EF Core — تنقلات العلاقات</a></li>
+          <li><a href="https://learn.microsoft.com/en-us/ef/core/change-tracking/relationship-changes" target="_blank" rel="noopener noreferrer">EF Core — تغيير المفاتيح الأجنبية والتنقلات</a></li>
+        </ul>
+      </div>
+
+      <div class="lesson-footer-nav">
+        <button class="btn-secondary" data-nav-target="lesson-2" type="button">→ الدرس 2</button>
+        <button class="btn-complete-lesson" data-lesson="lesson-3" type="button">أكمل الدرس 3 ✓</button>
+        <button class="btn-primary" data-nav-target="lesson-4" type="button">التالي: تحميل البيانات المرتبطة ←</button>
+      </div>
+    `
     }
   }
 };
