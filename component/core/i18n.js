@@ -38,6 +38,7 @@
       'common.units': 'Units',
       'common.checksAnswered': 'Checks answered',
 
+      'hub.docTitle': 'Raff Backend Academy — Curriculum',
       'hub.title': 'Curriculum Modules',
       'hub.lede': 'Pick a module to start learning. Progress is saved locally per module — use each module\'s Export button to back it up or move it between machines.',
       'hub.footer': 'Each module is self-contained: lessons, knowledge checks, interactive labs, and a final assessment with a local progress file.',
@@ -110,6 +111,7 @@
       'common.units': 'الوحدات',
       'common.checksAnswered': 'الاختبارات المُجابة',
 
+      'hub.docTitle': 'أكاديمية Raff للبرمجة الخلفية — المنهج',
       'hub.title': 'وحدات المنهج',
       'hub.lede': 'اختر وحدة لبدء التعلّم. يُحفظ تقدّمك محليًا في كل وحدة — استخدم زر التصدير داخل الوحدة للاحتفاظ بنسخة احتياطية منه أو لنقله بين الأجهزة.',
       'hub.footer': 'كل وحدة قائمة بذاتها: دروس واختبارات معرفية ومختبرات تفاعلية وتقييم نهائي، مع ملف تقدّم محفوظ محليًا.',

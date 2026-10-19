@@ -9,7 +9,9 @@ window.RAFF_MODULES = [
     number: '1',
     icon: '🌐',
     title: 'ASP.NET Core Web APIs',
+    title_ar: 'واجهات برمجة تطبيقات الويب في ASP.NET Core',
     subtitle: 'HTTP, routing, controllers, and the request pipeline',
+    subtitle_ar: 'بروتوكول HTTP، والتوجيه، والمتحكمات، وخط أنابيب الطلبات',
     file: 'pages/module-01.html',
     storageKey: 'raff_aspnet_module_01_state'
   },
@@ -18,7 +20,9 @@ window.RAFF_MODULES = [
     number: '2',
     icon: '🗄️',
     title: 'EF Core Internals & Querying',
+    title_ar: 'أعماق EF Core والاستعلامات',
     subtitle: 'DbContext, change tracking, LINQ translation, and SQL inspection',
+    subtitle_ar: 'سياق DbContext، وتتبع التغييرات، وترجمة LINQ، وفحص SQL',
     file: 'pages/module-02.html',
     storageKey: 'raff_efcore_module_02_state'
   },
@@ -27,7 +31,9 @@ window.RAFF_MODULES = [
     number: '3',
     icon: '⚡',
     title: 'EF Core Relationships & Query Performance',
+    title_ar: 'علاقات EF Core وأداء الاستعلامات',
     subtitle: 'Navigations, loading strategies, N+1, projections, and fix-up',
+    subtitle_ar: 'خصائص التنقل، واستراتيجيات التحميل، ومشكلة N+1، والإسقاطات، وربط الكيانات (fix-up)',
     file: 'pages/module-03.html',
     storageKey: 'raff_efcore_module_03_state'
   }
