@@ -10,6 +10,134 @@
   const showToast = (msg) => RaffUI.toast(msg);
   const escapeHtml = (str) => RaffUI.escapeHtml(str);
 
+  const S = RaffI18n.pick({
+    en: {
+      lessonsLabel: (done, total, pct) => `${done} / ${total} Lessons (${pct}%)`,
+      checksLabel: (answered, total) => `${answered} / ${total}`,
+      sim: {
+        new: '<strong>Action:</strong> <code>var book = new Book Ellipsis;</code> instantiated on the C# heap. EF Core is unaware of this instance.',
+        added: '<strong>Action:</strong> <code>context.Books.Add(book);</code> invoked. Entity is now tracked as <strong>Added</strong>. SaveChangesAsync() will generate an INSERT.',
+        queried: '<strong>Action:</strong> <code>await context.Books.FindAsync(42);</code> queried row from PostgreSQL. Entity enters ChangeTracker as <strong>Unchanged</strong> with a private snapshot copy.',
+        mutated: '<strong>Action:</strong> <code>book.Title = "Muqaddimah (Second Edition)";</code> mutated in C# RAM. Note: The ChangeTracker snapshot still has the old title, but DetectChanges has not run yet.',
+        detected: '<strong>Action:</strong> <code>context.ChangeTracker.DetectChanges();</code> compared C# properties with snapshot. Discovered title difference! State updated to <strong>Modified</strong>.',
+        detectNone: '<strong>Action:</strong> <code>DetectChanges();</code> ran, but no differences were found between current properties and original snapshot.',
+        removed: '<strong>Action:</strong> <code>context.Books.Remove(book);</code> marked entity state as <strong>Deleted</strong>. SaveChangesAsync() will generate a DELETE statement targeting primary key 42.',
+        saved: '<strong>Action:</strong> <code>await context.SaveChangesAsync();</code> committed successfully! Entity state reset to <strong>Unchanged</strong>, and new snapshot was recorded.',
+        deleted: '<strong>Action:</strong> <code>await context.SaveChangesAsync();</code> executed DELETE. Row removed from database; entity transitioned to <strong>Detached</strong>.',
+        noChanges: '<strong>Action:</strong> <code>await context.SaveChangesAsync();</code> detected 0 changes. 0 SQL commands sent.',
+        reset: 'Simulator reset to initial Detached state.'
+      },
+      play: {
+        thId: 'Id',
+        thTitle: 'Title',
+        thYear: 'PublishedYear',
+        thSummary: 'Summary',
+        where: '<span class="badge badge-server">Server: IQueryable.Where()</span> ',
+        orderBy: '<span class="badge badge-server">Server: IQueryable.OrderBy()</span> ',
+        select: '<span class="badge badge-server">Server: IQueryable.Select(DTO)</span> ',
+        terminal: '<span class="badge badge-execution">Terminal: await ToListAsync()</span> ',
+        clientSearch: '<span class="badge badge-client">Client: In-Memory .Where(Title has "a")</span>'
+      },
+      selectOption: 'Please select an option first.',
+      correct: '✓ Correct!',
+      notQuite: '✗ Not quite.',
+      reviewRecommended: '✗ Review Recommended.',
+      assessmentBadge: (n) => `Assessment Scenario #${n}`,
+      unansweredWarn: (n) => `⚠️ Please answer all questions (${n} remaining).`,
+      passedHeadline: '🎉 Module 2 Mastered!',
+      failedHeadline: '📚 Additional Study Recommended',
+      passedSubtext: (thr) => `Congratulations! You scored above the ${thr}% passing threshold, demonstrating strong command of EF Core internals.`,
+      failedSubtext: (thr) => `You scored below the configured ${thr}% threshold. Review the diagnostic breakdown below and revisit recommended lessons.`,
+      breakdown: 'Diagnostic Skill Breakdown',
+      thCompetency: 'Core Competency',
+      thScore: 'Score',
+      thMastery: 'Mastery',
+      retake: '↺ Retake Assessment',
+      changeThreshold: '⚙️ Change Passing Threshold',
+      threshold: {
+        title: '⚙️ Assessment Passing Threshold',
+        desc: 'Adjust your desired passing score threshold for the final assessment (defaults to 80%):',
+        save: 'Save Setting',
+        saved: (x) => `Passing threshold updated to ${x}%!`
+      },
+      units: 'Lessons',
+      checks: 'Checks answered',
+      exportToast: 'Progress exported to JSON!',
+      exportErrorToast: 'Export failed — progress could not be serialized.',
+      importSuccessToast: 'Progress successfully restored!',
+      importErrorToast: '❌ Malformed JSON. Please check the file.',
+      resetToast: 'All progress reset.',
+      markedComplete: 'Lesson marked complete! 🎉',
+      unmarked: 'Lesson unmarked.',
+      copyFailToast: 'Failed to copy code to clipboard.',
+      searchNoMatch: 'No matching sections found.'
+    },
+    ar: {
+      lessonsLabel: (done, total, pct) => `${done} / ${total} دروس (${pct}%)`,
+      checksLabel: (answered, total) => `${answered} / ${total}`,
+      sim: {
+        new: '<strong>الإجراء:</strong> <code>var book = new Book Ellipsis;</code> أُنشئ الكائن على كومة C#، وEF Core غير مُدرك لهذه النسخة.',
+        added: '<strong>الإجراء:</strong> استُدعي <code>context.Books.Add(book);</code> وأصبح الكيان الآن متتبَّعًا بحالة <strong>Added</strong>. وسيولّد SaveChangesAsync() أمر INSERT.',
+        queried: '<strong>الإجراء:</strong> نفّذ <code>await context.Books.FindAsync(42);</code> استعلامًا عن الصف من PostgreSQL. ويدخل الكيان إلى متتبّع التغييرات بحالة <strong>Unchanged</strong> مع نسخة لقطة (snapshot) خاصة.',
+        mutated: '<strong>الإجراء:</strong> عُدّل <code>book.Title = "Muqaddimah (Second Edition)";</code> في ذاكرة C#. ملاحظة: لقطة متتبّع التغييرات ما زالت تحمل العنوان القديم، لكن DetectChanges لم يعمل بعد.',
+        detected: '<strong>الإجراء:</strong> قارن <code>context.ChangeTracker.DetectChanges();</code> خصائص C# باللقطة، فاكتشف اختلاف العنوان! وحُدّثت الحالة إلى <strong>Modified</strong>.',
+        detectNone: '<strong>الإجراء:</strong> عمل <code>DetectChanges();</code> لكن لم تُعثر على أي فروق بين الخصائص الحالية واللقطة الأصلية.',
+        removed: '<strong>الإجراء:</strong> وسم <code>context.Books.Remove(book);</code> حالة الكيان بـ<strong>Deleted</strong>. وسيولّد SaveChangesAsync() جملة DELETE تستهدف المفتاح الأساسي 42.',
+        saved: '<strong>الإجراء:</strong> نجح <code>await context.SaveChangesAsync();</code> في التثبيت! وأُعيدت حالة الكيان إلى <strong>Unchanged</strong> مع تسجيل لقطة جديدة.',
+        deleted: '<strong>الإجراء:</strong> نفّذ <code>await context.SaveChangesAsync();</code> أمر DELETE. حُذف الصف من قاعدة البيانات وانتقل الكيان إلى <strong>Detached</strong>.',
+        noChanges: '<strong>الإجراء:</strong> اكتشف <code>await context.SaveChangesAsync();</code> صفر تغييرات، فأُرسل صفر أمر SQL.',
+        reset: 'أُعيدت تهيئة المحاكي إلى الحالة الأولية Detached.'
+      },
+      play: {
+        thId: 'المعرّف',
+        thTitle: 'العنوان',
+        thYear: 'سنة النشر',
+        thSummary: 'الملخص',
+        where: '<span class="badge badge-server">على الخادم: IQueryable.Where()</span> ',
+        orderBy: '<span class="badge badge-server">على الخادم: IQueryable.OrderBy()</span> ',
+        select: '<span class="badge badge-server">على الخادم: IQueryable.Select(DTO)</span> ',
+        terminal: '<span class="badge badge-execution">المشغّل النهائي: await ToListAsync()</span> ',
+        clientSearch: '<span class="badge badge-client">على العميل: .Where في الذاكرة (العنوان يحتوي "a")</span>'
+      },
+      selectOption: 'الرجاء اختيار إجابة أولًا.',
+      correct: '✓ صحيح!',
+      notQuite: '✗ ليست صحيحة تمامًا.',
+      reviewRecommended: '✗ يُنصح بالمراجعة.',
+      assessmentBadge: (n) => `سيناريو التقييم ${n}`,
+      unansweredWarn: (n) => {
+        const q = n === 1 ? 'سؤال واحد متبقٍ' : (n === 2 ? 'سؤالان متبقيان' : (n <= 10 ? n + ' أسئلة متبقية' : n + ' سؤالًا متبقيًا'));
+        return `⚠️ الرجاء الإجابة عن جميع الأسئلة (${q}).`;
+      },
+      passedHeadline: '🎉 أتممت الوحدة الثانية بإتقان!',
+      failedHeadline: '📚 يُوصى بدراسة إضافية',
+      passedSubtext: (thr) => `مبروك! تجاوزت حد النجاح المحدد عند ${thr}%، ما يدل على إلمام قوي بأعماق EF Core.`,
+      failedSubtext: (thr) => `نتيجتك أقل من الحد المحدد عند ${thr}%. راجع التفصيل التشخيصي أدناه وأعد زيارة الدروس الموصى بها.`,
+      breakdown: 'تفصيل المهارات التشخيصي',
+      thCompetency: 'الكفاءة الأساسية',
+      thScore: 'النتيجة',
+      thMastery: 'الإتقان',
+      retake: '↺ إعادة التقييم',
+      changeThreshold: '⚙️ تغيير حد النجاح',
+      threshold: {
+        title: '⚙️ حد النجاح في التقييم',
+        desc: 'اضبط حد النجاح المطلوب من التقييم النهائي (القيمة الافتراضية 80%):',
+        save: 'حفظ الإعداد',
+        saved: (x) => `تم تحديث حد النجاح إلى ${x}%!`
+      },
+      units: 'الدروس',
+      checks: 'الاختبارات المُجابة',
+      exportToast: 'تم تصدير التقدّم إلى JSON!',
+      exportErrorToast: 'فشل التصدير — تعذّر تسلسل بيانات التقدّم.',
+      importSuccessToast: 'تمت استعادة التقدّم بنجاح!',
+      importErrorToast: '❌ ملف JSON غير صالح. الرجاء التحقق من الملف.',
+      resetToast: 'أُعيد تعيين كل التقدّم.',
+      markedComplete: 'تم تحديد الدرس كمكتمل! 🎉',
+      unmarked: 'أُلغي تحديد الدرس.',
+      copyFailToast: 'تعذّر نسخ الكود إلى الحافظة.',
+      searchNoMatch: 'لا توجد أقسام مطابقة.'
+    }
+  });
+
   let appState = {
     theme: 'dark',
     completedLessons: {},
@@ -58,8 +186,8 @@
 
     return {
       percent: pct,
-      lessonsLabel: `${completedCount} / ${LESSON_KEYS.length} Lessons (${pct}%)`,
-      checksLabel: `${answered} / ${totalChecks}`
+      lessonsLabel: S.lessonsLabel(completedCount, LESSON_KEYS.length, pct),
+      checksLabel: S.checksLabel(answered, totalChecks)
     };
   }
 
@@ -108,14 +236,14 @@
 
     document.getElementById('sim-btn-new').addEventListener('click', () => {
       simState = { step: 'new', book: { id: 42, title: "Muqaddimah", publishedYear: 1377 }, original: null, isModified: false, state: 'Detached' };
-      commentary.innerHTML = '<strong>Action:</strong> <code>var book = new Book Ellipsis;</code> instantiated on the C# heap. EF Core is unaware of this instance.';
+      commentary.innerHTML = S.sim.new;
       updateSimDisplay();
     });
 
     document.getElementById('sim-btn-add').addEventListener('click', () => {
       simState.state = 'Added';
       simState.original = null;
-      commentary.innerHTML = '<strong>Action:</strong> <code>context.Books.Add(book);</code> invoked. Entity is now tracked as <strong>Added</strong>. SaveChangesAsync() will generate an INSERT.';
+      commentary.innerHTML = S.sim.added;
       updateSimDisplay();
     });
 
@@ -124,13 +252,13 @@
       simState.book = { id: 42, title: "Muqaddimah", publishedYear: 1377 };
       simState.original = { id: 42, title: "Muqaddimah", publishedYear: 1377 };
       simState.isModified = false;
-      commentary.innerHTML = '<strong>Action:</strong> <code>await context.Books.FindAsync(42);</code> queried row from PostgreSQL. Entity enters ChangeTracker as <strong>Unchanged</strong> with a private snapshot copy.';
+      commentary.innerHTML = S.sim.queried;
       updateSimDisplay();
     });
 
     document.getElementById('sim-btn-mutate').addEventListener('click', () => {
       simState.book.title = "Muqaddimah (Second Edition)";
-      commentary.innerHTML = '<strong>Action:</strong> <code>book.Title = "Muqaddimah (Second Edition)";</code> mutated in C# RAM. Note: The ChangeTracker snapshot still has the old title, but DetectChanges has not run yet.';
+      commentary.innerHTML = S.sim.mutated;
       updateSimDisplay();
     });
 
@@ -138,16 +266,16 @@
       if (simState.original && simState.book.title !== simState.original.title) {
         simState.isModified = true;
         simState.state = 'Modified';
-        commentary.innerHTML = '<strong>Action:</strong> <code>context.ChangeTracker.DetectChanges();</code> compared C# properties with snapshot. Discovered title difference! State updated to <strong>Modified</strong>.';
+        commentary.innerHTML = S.sim.detected;
       } else {
-        commentary.innerHTML = '<strong>Action:</strong> <code>DetectChanges();</code> ran, but no differences were found between current properties and original snapshot.';
+        commentary.innerHTML = S.sim.detectNone;
       }
       updateSimDisplay();
     });
 
     document.getElementById('sim-btn-remove').addEventListener('click', () => {
       simState.state = 'Deleted';
-      commentary.innerHTML = '<strong>Action:</strong> <code>context.Books.Remove(book);</code> marked entity state as <strong>Deleted</strong>. SaveChangesAsync() will generate a DELETE statement targeting primary key 42.';
+      commentary.innerHTML = S.sim.removed;
       updateSimDisplay();
     });
 
@@ -156,20 +284,20 @@
         simState.original = Object.assign({}, simState.book);
         simState.state = 'Unchanged';
         simState.isModified = false;
-        commentary.innerHTML = '<strong>Action:</strong> <code>await context.SaveChangesAsync();</code> committed successfully! Entity state reset to <strong>Unchanged</strong>, and new snapshot was recorded.';
+        commentary.innerHTML = S.sim.saved;
       } else if (simState.state === 'Deleted') {
         simState.state = 'Detached';
         simState.original = null;
-        commentary.innerHTML = '<strong>Action:</strong> <code>await context.SaveChangesAsync();</code> executed DELETE. Row removed from database; entity transitioned to <strong>Detached</strong>.';
+        commentary.innerHTML = S.sim.deleted;
       } else {
-        commentary.innerHTML = '<strong>Action:</strong> <code>await context.SaveChangesAsync();</code> detected 0 changes. 0 SQL commands sent.';
+        commentary.innerHTML = S.sim.noChanges;
       }
       updateSimDisplay();
     });
 
     document.getElementById('sim-btn-reset').addEventListener('click', () => {
       simState = { step: 'new', book: { id: 42, title: "Muqaddimah", publishedYear: 1377 }, original: null, isModified: false, state: 'Detached' };
-      commentary.innerHTML = 'Simulator reset to initial Detached state.';
+      commentary.innerHTML = S.sim.reset;
       updateSimDisplay();
     });
 
@@ -212,13 +340,13 @@
 
     const badgesContainer = document.getElementById('play-pipeline-badges');
     let badgesHtml = '';
-    if (sqlWhere) badgesHtml += '<span class="badge badge-server">Server: IQueryable.Where()</span> ';
-    badgesHtml += '<span class="badge badge-server">Server: IQueryable.OrderBy()</span> ';
-    if (projection === 'dto') badgesHtml += '<span class="badge badge-server">Server: IQueryable.Select(DTO)</span> ';
-    badgesHtml += '<span class="badge badge-execution">Terminal: await ToListAsync()</span> ';
+    if (sqlWhere) badgesHtml += S.play.where;
+    badgesHtml += S.play.orderBy;
+    if (projection === 'dto') badgesHtml += S.play.select;
+    badgesHtml += S.play.terminal;
 
     if (clientFilter === 'client_search') {
-      badgesHtml += '<span class="badge badge-client">Client: In-Memory .Where(Title has "a")</span>';
+      badgesHtml += S.play.clientSearch;
       filtered = filtered.filter(b => b.title.toLowerCase().includes('a'));
     }
     badgesContainer.innerHTML = badgesHtml;
@@ -228,10 +356,10 @@
     document.getElementById('play-result-count').textContent = filtered.length;
 
     if (projection === 'dto') {
-      thead.innerHTML = '<th>Id</th><th>Title</th><th>PublishedYear</th>';
+      thead.innerHTML = `<th>${S.play.thId}</th><th>${S.play.thTitle}</th><th>${S.play.thYear}</th>`;
       tbody.innerHTML = filtered.map(b => `<tr><td>${b.id}</td><td><strong>${b.title}</strong></td><td>${b.publishedYear}</td></tr>`).join('');
     } else {
-      thead.innerHTML = '<th>Id</th><th>Title</th><th>PublishedYear</th><th>Summary</th>';
+      thead.innerHTML = `<th>${S.play.thId}</th><th>${S.play.thTitle}</th><th>${S.play.thYear}</th><th>${S.play.thSummary}</th>`;
       tbody.innerHTML = filtered.map(b => `<tr><td>${b.id}</td><td><strong>${b.title}</strong></td><td>${b.publishedYear}</td><td style="color:var(--text-muted); font-size:0.78rem;">${b.summary}</td></tr>`).join('');
     }
   }
@@ -267,7 +395,7 @@
         const feedback = document.getElementById(`feedback-${qid}`);
 
         if (!selected) {
-          showToast('Please select an option first.');
+          showToast(S.selectOption);
           return;
         }
 
@@ -281,7 +409,7 @@
         });
 
         feedback.className = isCorrect ? 'quiz-feedback success' : 'quiz-feedback error';
-        feedback.innerHTML = `<strong>${isCorrect ? '✓ Correct!' : '✗ Not quite.'}</strong> ${qData.exp}`;
+        feedback.innerHTML = `<strong>${isCorrect ? S.correct : S.notQuite}</strong> ${qData.exp}`;
 
         btn.style.display = 'none';
         const retryBtn = document.querySelector(`.btn-retry-quiz[data-qid="${qid}"]`);
@@ -334,7 +462,7 @@
         const feedback = document.getElementById(`feedback-${qid}`);
         if (feedback) {
           feedback.className = qRes.correct ? 'quiz-feedback success' : 'quiz-feedback error';
-          feedback.innerHTML = `<strong>${qRes.correct ? '✓ Correct!' : '✗ Not quite.'}</strong> ${qData.exp}`;
+          feedback.innerHTML = `<strong>${qRes.correct ? S.correct : S.notQuite}</strong> ${qData.exp}`;
         }
         const submitBtn = document.querySelector(`.btn-submit-quiz[data-qid="${qid}"]`);
         if (submitBtn) submitBtn.style.display = 'none';
@@ -356,7 +484,7 @@
         <div class="exercise-card" id="${id}">
           <div class="exercise-header">
             <div class="exercise-title-group">
-              <span class="exercise-badge">Assessment Scenario #${idx + 1}</span>
+              <span class="exercise-badge">${S.assessmentBadge(idx + 1)}</span>
               <span style="font-weight:600; font-size:0.9rem;">${q.topic}</span>
             </div>
           </div>
@@ -419,7 +547,7 @@
     });
 
     if (unanswered > 0) {
-      showToast(`⚠️ Please answer all questions (${unanswered} remaining).`);
+      showToast(S.unansweredWarn(unanswered));
       return;
     }
 
@@ -451,7 +579,7 @@
         const fb = document.getElementById(`feedback-${qid}`);
         if (fb) {
           fb.className = ans.correct ? 'quiz-feedback success' : 'quiz-feedback error';
-          fb.innerHTML = `<strong>${ans.correct ? '✓ Correct!' : '✗ Review Recommended.'}</strong> ${qData.exp}`;
+          fb.innerHTML = `<strong>${ans.correct ? S.correct : S.reviewRecommended}</strong> ${qData.exp}`;
         }
       }
     }
@@ -480,14 +608,14 @@
       <div class="content-panel" style="border: 2px solid ${passed ? 'var(--success)' : 'var(--danger)'};">
         <div style="text-align:center; padding:1.5rem 0;">
           <div style="font-size:3rem; font-weight:900; color:${passed ? 'var(--success)' : 'var(--danger)'}">${score}%</div>
-          <h2 style="border:none; margin:0.5rem 0;">${passed ? '🎉 Module 2 Mastered!' : '📚 Additional Study Recommended'}</h2>
-          <p>${passed ? `Congratulations! You scored above the ${threshold}% passing threshold, demonstrating strong command of EF Core internals.` : `You scored below the configured ${threshold}% threshold. Review the diagnostic breakdown below and revisit recommended lessons.`}</p>
+          <h2 style="border:none; margin:0.5rem 0;">${passed ? S.passedHeadline : S.failedHeadline}</h2>
+          <p>${passed ? S.passedSubtext(threshold) : S.failedSubtext(threshold)}</p>
         </div>
 
-        <h3>Diagnostic Skill Breakdown</h3>
+        <h3>${S.breakdown}</h3>
         <table class="concept-table">
           <thead>
-            <tr><th>Core Competency</th><th>Score</th><th>Mastery</th></tr>
+            <tr><th>${S.thCompetency}</th><th>${S.thScore}</th><th>${S.thMastery}</th></tr>
           </thead>
           <tbody>
             ${diagnosticRows}
@@ -495,8 +623,8 @@
         </table>
 
         <div style="margin-top:1.5rem; display:flex; justify-content:center; gap:1rem;">
-          <button class="btn-secondary" id="btn-retake-assessment">↺ Retake Assessment</button>
-          <button class="btn-secondary" id="btn-open-threshold-config">⚙️ Change Passing Threshold</button>
+          <button class="btn-secondary" id="btn-retake-assessment">${S.retake}</button>
+          <button class="btn-secondary" id="btn-open-threshold-config">${S.changeThreshold}</button>
         </div>
       </div>
     `;
@@ -534,7 +662,7 @@
         appState.passingThreshold = parseInt(slider.value, 10);
         saveState();
         RaffUI.closeModal('config-threshold-modal');
-        showToast(`Passing threshold updated to ${appState.passingThreshold}%!`);
+        showToast(S.threshold.saved(appState.passingThreshold));
         notifyChange();
         if (appState.assessment && appState.assessment.submitted) {
           renderAssessmentResults();
@@ -548,18 +676,18 @@
   <div class="modal-overlay" id="config-threshold-modal" role="dialog" aria-modal="true" aria-labelledby="config-threshold-title">
     <div class="modal-dialog" style="max-width:440px;">
       <div class="modal-header">
-        <div class="modal-title" id="config-threshold-title">⚙️ Assessment Passing Threshold</div>
-        <button class="btn-icon" data-close-modal="config-threshold-modal" type="button" aria-label="Close">✕</button>
+        <div class="modal-title" id="config-threshold-title">${S.threshold.title}</div>
+        <button class="btn-icon" data-close-modal="config-threshold-modal" type="button" aria-label="${RaffI18n.t('common.close')}">✕</button>
       </div>
       <div class="modal-body">
-        <p style="margin-bottom:1rem; font-size:0.9rem;">Adjust your desired passing score threshold for the final assessment (defaults to 80%):</p>
+        <p style="margin-bottom:1rem; font-size:0.9rem;">${S.threshold.desc}</p>
         <div style="display:flex; align-items:center; gap:1rem; margin-bottom:1.5rem;">
           <input type="range" id="threshold-slider" min="50" max="100" step="5" value="80" style="flex:1;">
           <strong id="threshold-slider-val" style="font-size:1.2rem; color:var(--accent-light);">80%</strong>
         </div>
         <div style="display:flex; justify-content:flex-end; gap:0.75rem;">
-          <button class="btn-secondary" data-close-modal="config-threshold-modal" type="button">Cancel</button>
-          <button class="btn-primary" id="btn-save-threshold" type="button">Save Setting</button>
+          <button class="btn-secondary" data-close-modal="config-threshold-modal" type="button">${RaffI18n.t('common.cancel')}</button>
+          <button class="btn-primary" id="btn-save-threshold" type="button">${S.threshold.save}</button>
         </div>
       </div>
     </div>
@@ -617,23 +745,23 @@
       progress: { compute: computeProgress },
       exportName: 'raff_efcore_module_02_progress.json',
       exportStyle: 'dataurl',
-      labels: { lessons: 'Lessons', checks: 'Checks answered' },
+      labels: { lessons: S.units, checks: S.checks },
       messages: {
-        exportToast: 'Progress exported to JSON!',
-        exportErrorToast: 'Export failed — progress could not be serialized.',
+        exportToast: S.exportToast,
+        exportErrorToast: S.exportErrorToast,
         importMode: 'textarea',
-        importSuccessToast: 'Progress successfully restored!',
-        importErrorToast: '❌ Malformed JSON. Please check the file.',
-        resetToast: 'All progress reset.'
+        importSuccessToast: S.importSuccessToast,
+        importErrorToast: S.importErrorToast,
+        resetToast: S.resetToast
       },
-      completeToast: (done) => (done ? 'Lesson marked complete! 🎉' : 'Lesson unmarked.'),
+      completeToast: (done) => (done ? S.markedComplete : S.unmarked),
 
-      copy: { feedback: true, colorFeedback: false, failToast: 'Failed to copy code to clipboard.' },
+      copy: { feedback: true, colorFeedback: false, failToast: S.copyFailToast },
 
       search: {
         minChars: 1,
         hint: '',
-        noMatch: 'No matching sections found.',
+        noMatch: S.searchNoMatch,
         items: SEARCH_INDEX.map(it => ({ target: it.id, title: it.title, snippet: it.snippet }))
       },
 
