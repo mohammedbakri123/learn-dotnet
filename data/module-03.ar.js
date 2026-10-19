@@ -961,5 +961,147 @@ window.RAFF_MODULE_03_AR = {
 
   /* keyed by lesson id */
   lessons: {
+    "lesson-0": {
+      nav: "نظرة عامة والنتائج",
+      content: `
+      <div class="lesson-header-box">
+        <div class="lesson-badge-top">الوحدة 3 • نمذجة البيانات وأداء الاستعلامات</div>
+        <h1 class="lesson-title">العلاقات واستراتيجيات التحميل وأداء الاستعلامات</h1>
+        <p class="lesson-subtitle">نمذج العلاقات كما يفعل مهندس خلفيات محترف، وحمّل البيانات المرتبطة بتأنٍّ، وأزل استعلامات N+1 من Raff API.</p>
+        <div class="lesson-meta-bar">
+          <span>🎯 المستوى: سنة رابعة علوم حاسوب / مهندس .NET مبتدئ</span>
+          <span>⏱️ الوتيرة: ذاتية (7 دروس + تحدٍّ)</span>
+          <span>🐘 المحرّك: EF Core 10 + Npgsql + PostgreSQL</span>
+        </div>
+      </div>
+
+      <div class="callout callout-info">
+        <div class="callout-title">📖 أين تقع هذه الوحدة</div>
+        <p>في <strong>الوحدة 1</strong> بنيت طبقة HTTP في Raff: المتحكمات وقوالب المسارات وأكواد الحالة وعقود DTOs. وفي <strong>الوحدة 2</strong> دخلت عمق EF Core: متتبّع التغييرات وحالات الكيانات وأعمار <code>DbContext</code> وترجمة LINQ وSQL المُولَّد.</p>
+        <p>تربط هذه الوحدة العالمين. فالـ APIs الحقيقية ليست مجموعات جداول معزولة — إنها <strong>رسوم بيانية من بيانات مترابطة</strong>. للكتاب مؤلفون، والفئة تجمع كتبًا، والمستخدمون ينشئون إدخالات قراءة. ستتعلم كيف تنمذج هذه العلاقات، وكيف يقرر EF Core متى تسافر الصفوف المرتبطة عبر الشبكة، وكيف تحوّل خيارات التحميل الساذجة نقطة نهاية سريعة إلى بطيئة.</p>
+      </div>
+
+      <h2>خارطة الوحدة</h2>
+      <div class="roadmap-grid">
+        <div class="roadmap-card">
+          <div class="roadmap-num">01</div>
+          <div class="roadmap-title">كيف تعمل العلاقات</div>
+          <div class="roadmap-desc">المفاتيح الأساسية والأجنبية، والكيانان الرئيسي والتابع، وتنقلات المرجع والمجموعات، والإلزامي مقابل الاختياري. مع مستكشف العلاقات التفاعلي.</div>
+        </div>
+        <div class="roadmap-card">
+          <div class="roadmap-num">02</div>
+          <div class="roadmap-title">أنواع العلاقات وتهيئتها</div>
+          <div class="roadmap-desc">واحد-إلى-متعدد وواحد-إلى-واحد ومتعدد-إلى-متعدد. الاصطلاحات وسمات البيانات وFluent API وجداول الربط والتنقلات التجاوزية وكيانات الربط الصريحة.</div>
+        </div>
+        <div class="roadmap-card">
+          <div class="roadmap-num">03</div>
+          <div class="roadmap-title">خصائص التنقل والـ fix-up</div>
+          <div class="roadmap-desc">كيف يبقي متتبّع التغييرات المفاتيح الأجنبية وخصائص التنقل متزامنة، ولماذا لا تعني «التنقل موجود» أن «البيانات حُمِّلت». مع ساحة تتبّع خطوة بخطوة.</div>
+        </div>
+        <div class="roadmap-card">
+          <div class="roadmap-num">04</div>
+          <div class="roadmap-title">تحميل البيانات المرتبطة</div>
+          <div class="roadmap-desc">التحميل المتلهّف والصريح والكسول. <code>Include</code> و<code>ThenInclude</code>، والتضمينات المُرشَّحة، ومتطلبات الوكلاء، ومختبر قرار استراتيجية التحميل.</div>
+        </div>
+        <div class="roadmap-card">
+          <div class="roadmap-num">05</div>
+          <div class="roadmap-title">مشكلة الاستعلامات N+1</div>
+          <div class="roadmap-desc">كيف تتحول عملية منطقية واحدة إلى N+1 رحلة ذهاب وإياب إلى قاعدة البيانات، وكيف تعرفها في السجلات، وكيف تصلحها. مع محاكي N+1.</div>
+        </div>
+        <div class="roadmap-card">
+          <div class="roadmap-num">06</div>
+          <div class="roadmap-title">استعلامات فعّالة وإسقاطات DTO</div>
+          <div class="roadmap-desc">أسقط فقط ما تحتاجه نقطة النهاية، وصفِّح بتأنٍّ، وعُدّ في قاعدة البيانات، وافحص SQL بـ <code>ToQueryString()</code>.</div>
+        </div>
+        <div class="roadmap-card">
+          <div class="roadmap-num">07</div>
+          <div class="roadmap-title">استعلام واحد مقابل الاستعلامات المقسَّمة</div>
+          <div class="roadmap-desc">تفرّع الوصلات، والانفجار الديكارتي مع مجموعات الأشقاء، <code>AsSplitQuery()</code>، والمقايضات الحقيقية. مع حاسبة تضاعف الصفوف.</div>
+        </div>
+        <div class="roadmap-card">
+          <div class="roadmap-num">08</div>
+          <div class="roadmap-title">تحدي مشروع Raff</div>
+          <div class="roadmap-desc">صمّم ونفّذ نقطة نهاية مُصفَّحة حقيقية لـ Raff بإسقاط DTO، ثم تحقق من SQL. مع تلميحات تدريجية.</div>
+        </div>
+      </div>
+
+      <h2>أهداف التعلّم</h2>
+      <p>بنهاية هذه الوحدة ينبغي أن تكون قادرًا على:</p>
+      <ol>
+        <li>شرح كيف تُقابل العلاقات العلائقية نموذج كيانات EF Core.</li>
+        <li>التمييز بين المفاتيح الأساسية والأجنبية والكيانات الرئيسية والتابعة وخصائص التنقل.</li>
+        <li>نمذجة علاقات واحد-إلى-متعدد وواحد-إلى-واحد ومتعدد-إلى-متعدد.</li>
+        <li>استنتاج عواقب العلاقات الإلزامية والاختيارية على قاعدة البيانات.</li>
+        <li>تهيئة العلاقات بالاصطلاحات وسمات البيانات حيث تنطبق وFluent API.</li>
+        <li>شرح جداول الربط والتنقلات التجاوزية ومتى يستحق كيان ربط صريح كتابته.</li>
+        <li>تحميل البيانات المرتبطة بالتحميل المتلهّف والصريح والكسول — وتبرير كل اختيار.</li>
+        <li>استخدام <code>Include</code> و<code>ThenInclude</code> استخدامًا صحيحًا.</li>
+        <li>شرح كيف يتفاعل الـ fix-up مع الكيانات المتتبَّعة.</li>
+        <li>تحديد مشكلة N+1 وشرح سبب حدوثها.</li>
+        <li>الاختيار بين تحميل الكيانات والإسقاط إلى DTOs.</li>
+        <li>التعرّف على الاسترجاع المفرط للبيانات والانفجار الديكارتي.</li>
+        <li>شرح المقايضات بين الاستعلامات المفردة والمقسَّمة.</li>
+        <li>فحص SQL المُولَّد واستخدام تسجيل الاستعلامات للتحقيق في الأداء.</li>
+        <li>اتخاذ قرارات تحميل وإسقاط معقولة لـ ASP.NET Core API حقيقي.</li>
+      </ol>
+
+      <div class="callout callout-success">
+        <div class="callout-title">✅ حقائق موثَّقة عن مشروع Raff</div>
+        <p>فُحصت ملفاتك المصدرية قبل كتابة هذه الوحدة (<code>Data/Models/*.cs</code>، <code>Data/BooksContext.cs</code>، <code>Data/Migrations/*</code>، <code>Services/BookService.cs</code>، <code>Controllers/BookController.cs</code>، <code>shared/pagination.cs</code>). الأمثلة الموسومة <strong>بـ Raff</strong> مأخوذة من ذلك الكود. والأمثلة الموسومة <strong>بالتوضيحية</strong> نماذج تعليمية لا <em>توجد</em> في مشروعك بعد. وبالتحديد، نموذج Raff الحالي هو:</p>
+        <ul>
+          <li><code>Book</code> يملك تنقلًا مرجعيًّا <code>Category? Category</code>. ولا <strong>خاصية CLR باسم <code>CategoryId</code></strong> ولا مجموعة <code>Books</code> على <code>Category</code> — يُبقي EF Core <strong>مفتاحًا أجنبيًّا ظلّيًّا</strong> باسم <code>CategoryId</code> في جدول <code>books</code>.</li>
+          <li>ولأن المفتاح الأجنبي الظلّي <strong>قابل للقيمة الفارغة</strong> (فالعلاقة اختيارية)، أُنشئ <code>books.CategoryId</code> بـ <code>nullable: true</code> في الترحيل <code>20261011201657_AddCategoryToBooks</code>.</li>
+          <li><code>Book</code> ↔ <code>Author</code> متعدد-إلى-متعدد عبر جدول الربط <code>book_authors</code> (<code>book_id</code>، <code>author_id</code>، مفتاح أساسي مركّب). ويعلن الطرفان تنقلات تجاوزية (<code>Book.Authors</code>، <code>Author.Books</code>).</li>
+          <li><code>ReadingEntry</code> يملك مفتاحين أجنبيين غير قابلين للقيمة الفارغة <code>UserId</code> / <code>BookId</code> بعلاقتين إلزاميتين بـ <code>User</code> و<code>Book</code>، مع المجموعتين المعكوستين <code>User.ReadingEntries</code> و<code>Book.ReadingEntries</code>. وفهرس فريد (<code>UserId</code>، <code>BookId</code>) يمنع الإدخالات المكررة.</li>
+          <li>كل تنقلات المجموعات <code>virtual</code> ومهيَّأة إلى <code>new List&lt;...&gt;()</code> — وعند عدم تحميلها تكون <strong>فارغة، لا null</strong>.</li>
+          <li><strong>التحميل الكسول غير مفعَّل في Raff</strong>: لا حزمة <code>Microsoft.EntityFrameworkCore.Proxies</code> ولا استدعاء <code>UseLazyLoadingProxies()</code>. لذا فالوصول إلى <code>book.Authors</code> لا يستعلم قاعدة البيانات.</li>
+          <li><code>BookService.GetBooksAsync</code> يستخدم بالفعل <code>AsNoTracking()</code> و<code>Include(b =&gt; b.Authors)</code> وترقيم <code>Skip</code>/<code>Take</code> و<code>CountAsync()</code> منفصلًا.</li>
+        </ul>
+      </div>
+
+      <h2>كيف تقرأ هذه الوحدة</h2>
+      <table class="concept-table">
+        <thead>
+          <tr><th>الوسم</th><th>المعنى</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="code-type-pill pill-complete">مثال كامل</span></td>
+            <td>طريقة أو صنف كامل قابل للتصريف في سياقه. يمكنك نسخه إلى مشروع تجريبي.</td>
+          </tr>
+          <tr>
+            <td><span class="code-type-pill pill-fragment">مقتطف</span></td>
+            <td>جزء من طريقة أكبر؛ مفيد للسلوك المحدد الذي نعلّمه، وغير قابل للتصريف وحده.</td>
+          </tr>
+          <tr>
+            <td><span class="code-type-pill pill-anti-pattern">نمط مضاد</span></td>
+            <td>كود سيّئ عن قصد يُعرض ليعلمك ما يجب تجنّبه.</td>
+          </tr>
+          <tr>
+            <td><span class="code-type-pill pill-illustrative">توضيحي</span></td>
+            <td>نموذج تعليمي ليس جزءًا من مخطط Raff الحالي.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="callout callout-warning">
+        <div class="callout-title">⚠️ المحاكيات مقابل التنفيذ الحقيقي</div>
+        <p>تحوي هذه الوحدة محاكي N+1 وحاسبة الانفجار الديكارتي وساحة fix-up. إنها <strong>نماذج تعليمية منفَّذة بـ JavaScript</strong>، لا EF Core ولا PostgreSQL. وهي توضح سلوكًا موثَّقًا بافتراضات مبسَّطة (مذكورة بجانب كل أداة)؛ أما أعداد الاستعلامات الفعلية وأحجام النتائج فتعتمد دائمًا على تهيئتك وبياناتك وإصدار المزوّد وحالة التتبّع.</p>
+      </div>
+
+      <h2>فحص المتطلبات المسبقة</h2>
+      <ul>
+        <li>تستطيع بالفعل كتابة استعلامات LINQ على <code>BooksContext</code> وقراءة SQL المُولَّد (الوحدة 2).</li>
+        <li>تعرف حالات الكيانات الخمس (<code>Detached</code>، <code>Unchanged</code>، <code>Added</code>، <code>Modified</code>، <code>Deleted</code>) وماذا يفعل <code>SaveChangesAsync()</code>.</li>
+        <li>تعرف ما يغيّره <code>AsNoTracking()</code> في الهوية والـ fix-up.</li>
+      </ul>
+      <p>إن كان أي منها غير راسخ، تصفّح درس الوحدة 2 المقابل أولًا — فالمفاهيم تُستدعى باستمرار من هنا فصاعدًا.</p>
+
+      <div class="lesson-footer-nav">
+        <span></span>
+        <button class="btn-primary" data-nav-target="lesson-1" type="button">→ ابدأ الدرس 1: كيف تعمل العلاقات</button>
+      </div>
+    `
+    }
   }
 };
