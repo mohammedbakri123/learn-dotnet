@@ -1449,6 +1449,448 @@ public class Book
         <button class="btn-primary" data-nav-target="lesson-2" type="button">التالي: أنواع العلاقات ←</button>
       </div>
     `
+    },
+    "lesson-2": {
+      nav: "أنواع العلاقات وتهيئتها",
+      content: `
+      <div class="lesson-header-box">
+        <div class="lesson-badge-top">الدرس 2</div>
+        <h1 class="lesson-title">أنواع العلاقات والتهيئة</h1>
+        <p class="lesson-subtitle">واحد-إلى-متعدد، وواحد-إلى-واحد، ومتعدد-إلى-متعدد — يكتشفها الاصطلاح، وتصقلها واجهة Fluent API.</p>
+      </div>
+
+      <p>ينمذج EF Core ثلاثة أشكال للعلاقات فحسب. وكل ما عداها تنويع عليها:</p>
+
+      <table class="concept-table">
+        <thead>
+          <tr><th>النوع</th><th>التعددية</th><th>مثال من Raff</th><th>أين يوجد المفتاح الأجنبي</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>واحد-إلى-متعدد</strong></td>
+            <td>1 → N</td>
+            <td><code>Category</code> → <code>Book</code> (اختياري في Raff)</td>
+            <td>في طرف "الكثير" (<code>books.CategoryId</code>)</td>
+          </tr>
+          <tr>
+            <td><strong>واحد-إلى-واحد</strong></td>
+            <td>1 ↔ 1</td>
+            <td>ليس في Raff بعد — مثال توضيحي <code>User</code> / <code>UserProfile</code></td>
+            <td>في طرف التابع، <em>مع قيد تفرّد</em> يمنعه من أن يصير واحد-إلى-متعدد</td>
+          </tr>
+          <tr>
+            <td><strong>متعدد-إلى-متعدد</strong></td>
+            <td>N ↔ M</td>
+            <td><code>Book</code> ↔ <code>Author</code> عبر <code>book_authors</code></td>
+            <td>في أي مكان — <strong>جدول ربط</strong> يحمل مفتاحين أجنبيين</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>أ. واحد-إلى-متعدد</h2>
+      <p>الشكل الأكثر شيوعًا في Raff. يمكن لفئة <code>Category</code> واحدة تصنيف صفوف <code>Book</code> كثيرة؛ ويشير كل كتاب إلى فئة واحدة على الأكثر. رأيت النموذج في الدرس 1 — راجع الآن كيف <em>اكتُشف</em> وكيف تهيئه صراحةً.</p>
+
+      <h3>كيف اكتشف الاصطلاح علاقة Raff</h3>
+      <div class="steps-container">
+        <div class="step-item">
+          <div class="step-num">1</div>
+          <div class="step-text">يمسح EF Core النموذج بحثًا عن <strong>التنقلات</strong>. فيجد <code>Book.Category</code> — تنقل مرجعي إلى نوع كيان معروف.</div>
+        </div>
+        <div class="step-item">
+          <div class="step-num">2</div>
+          <div class="step-text">يبحث عن خاصية مفتاح أجنبي باسم <code>CategoryId</code> أو <code>CategoryID</code> أو <code>Category_Id</code> أو … لا شيء. لا خاصية CLR مطابقة. لذلك ينشئ EF Core <strong>خاصية ظلّية</strong> باسم <code>CategoryId</code> على كيان <code>Book</code>.</div>
+        </div>
+        <div class="step-item">
+          <div class="step-num">3</div>
+          <div class="step-text">يبحث عن تنقل معاكس على <code>Category</code> (مجموعة <code>Book</code>). فلا يجد — وهذا لا يضر. تُنشأ العلاقة بتنقل واحد.</div>
+        </div>
+        <div class="step-item">
+          <div class="step-num">4</div>
+          <div class="step-text">ولأن التنقل قابل للقيمة الفارغة مع أنواع المراجع القابلة للفراغ (<code>Category?</code>) يصبح المفتاح الأجنبي الظلّي قابلًا للقيمة الفارغة وتكون العلاقة <strong>اختيارية</strong>. ثم ينشئ ترحيل العمود والفهرس وقيد المفتاح الأجنبي الذي رأيته سابقًا.</div>
+        </div>
+      </div>
+
+      <div class="callout callout-info">
+        <div class="callout-title">💡 الخصائص الظلّية حقيقية — لكنها غير مرئية</div>
+        <p>تشارك الخاصية الظلّية في الاستعلامات والتحديثات والترحيلات تمامًا كخاصية CLR. تستطيع قراءتها وكتابتها عبر الواجهة: <code>context.Entry(book).Property("CategoryId").CurrentValue</code>. لكنها لا تظهر أبدًا في كود C#، ولا يمكنك إسقاطها بـ <code>b.CategoryId</code> في LINQ. وفي الإسقاطات يمكنك استخدام <code>EF.Property&lt;int?&gt;(b, "CategoryId")</code>، أو ببساطة الإسقاط عبر التنقل (<code>b.Category != null ? b.Category.Name : null</code>) كما يفعل تحدي الدرس 8.</p>
+      </div>
+
+      <div class="code-wrapper">
+        <div class="code-header">
+          <div class="code-badge-group">
+            <span class="code-lang-tag">C#</span>
+            <span class="code-filename">Program.cs أو Data/DependencyInjection.cs (متوافق مع Raff، اختياري)</span>
+            <span class="code-type-pill pill-fragment">مقتطف</span>
+          </div>
+          <button class="btn-copy" type="button" aria-label="نسخ الكود">📋 نسخ</button>
+        </div>
+        <pre><code class="language-c#">
+// This relationship is discovered by convention, so Raff doesn't need
+// this code — but this is what explicitly configuring it would look like.
+modelBuilder.Entity&lt;Book&gt;()
+    .HasOne(b =&gt; b.Category)        // Book "has one" Category  (start from the dependent)
+    .WithMany()                     // Category has no inverse collection navigation
+    .HasForeignKey("CategoryId")    // the (shadow) FK is books.CategoryId
+    .IsRequired(false);             // nullable FK → optional relationship
+</code></pre>
+        <div class="code-expl">تُقرأ الاستدعاءات الأربعة جملةً واحدة: "لكتاب Book فئة Category واحدة؛ ويمكن لجهة Category أن تملك كتبًا كثيرة (هنا: لا مجموعة معلَنة)؛ والمفتاح الأجنبي هو CategoryId؛ والعلاقة اختيارية."</div>
+      </div>
+
+      <p>أما النسخة الإلزامية — للمقارنة — فتضيف المجموعة المعاكسة وتُسقط قابلية القيمة الفارغة للمفتاح:</p>
+
+      <div class="code-wrapper">
+        <div class="code-header">
+          <div class="code-badge-group">
+            <span class="code-lang-tag">C#</span>
+            <span class="code-filename">نسخة إلزامية من واحد-إلى-متعدد (توضيحية)</span>
+            <span class="code-type-pill pill-illustrative">توضيحي</span>
+          </div>
+          <button class="btn-copy" type="button" aria-label="نسخ الكود">📋 نسخ</button>
+        </div>
+        <pre><code class="language-c#">
+// Model side (illustrative variant — not Raff's current code)
+public class Category
+{
+    public int Id { get; set; }
+    public required string Name { get; set; }
+    public ICollection&lt;Book&gt; Books { get; } = new List&lt;Book&gt;();  // inverse collection
+}
+
+public class Book
+{
+    public int Id { get; set; }
+    public string Title { get; set; } = null!;
+    public int CategoryId { get; set; }                  // non-nullable FK → REQUIRED
+    public Category Category { get; set; } = null!;      // non-nullable navigation
+}
+
+// Fluent configuration for the required version
+modelBuilder.Entity&lt;Book&gt;()
+    .HasOne(b =&gt; b.Category)
+    .WithMany(c =&gt; c.Books)          // now pointing at the inverse collection
+    .HasForeignKey(b =&gt; b.CategoryId)
+    .IsRequired();                   // books.CategoryId becomes NOT NULL
+</code></pre>
+        <div class="code-expl">نوع العلاقة نفسه بقواعد أشد: يجب أن يشير كل كتاب إلى فئة، وتفرض ذلك PostgreSQL، وتتيح <code>Category.Books</code> عبور العلاقة من جهة الرئيسي.</div>
+      </div>
+
+      <h3>سمات البيانات: صالحة للاستخدام، لكن أقل تعبيرًا</h3>
+      <p>في الحالات البسيطة يمكنك التأثير في العلاقات بالسمات. سمات البيانات مريحة وسهلة الاكتشاف؛ وواجهة Fluent API أقوى وتُبقي التهيئة في مكان واحد. ومعظم فرق EF Core تستخدم السمات للتحقق (<code>[Required]</code>، <code>[MaxLength]</code>) وواجهة Fluent API للعلاقات.</p>
+
+      <div class="code-wrapper">
+        <div class="code-header">
+          <div class="code-badge-group">
+            <span class="code-lang-tag">C#</span>
+            <span class="code-filename">تهيئة بالسمات (توضيحية)</span>
+            <span class="code-type-pill pill-illustrative">توضيحي</span>
+          </div>
+          <button class="btn-copy" type="button" aria-label="نسخ الكود">📋 نسخ</button>
+        </div>
+        <pre><code class="language-c#">
+public class Book
+{
+    public int Id { get; set; }
+
+    [ForeignKey(nameof(Category))]      // tells EF "this FK pairs with the Category nav"
+    public int CategoryId { get; set; }
+
+    public Category? Category { get; set; }
+}
+
+public class Author
+{
+    public int Id { get; set; }
+
+    // [InverseProperty] disambiguates when a single entity pair has
+    // more than one relationship (e.g. two Author references on Book).
+    [InverseProperty(nameof(BookReview.Author))]
+    public ICollection&lt;BookReview&gt; Reviews { get; } = new List&lt;BookReview&gt;();
+}
+</code></pre>
+        <div class="code-expl">لا تستطيع السمات التعبير عن كل ما تستطيعه واجهة Fluent API (المفاتيح الأجنبية المركّبة، والمفاتيح البديلة، وسلوك الحذف، وتهيئة كيان الربط)، لذا تهيئ هذه الوحدة العلاقات بواجهة Fluent API وتحفظ السمات للتحقق.</div>
+      </div>
+
+      <h2>ب. واحد-إلى-واحد</h2>
+      <p>تقول علاقة واحد-إلى-واحد: لمستخدم <code>User</code> واحد ملف <code>UserProfile</code> واحد بالضبط أو لا شيء. وعلائقيًا، ما زالت <strong>منفَّذة بمفتاح أجنبي</strong> — فواحد-إلى-واحد مجرد واحد-إلى-متعدد تُلزَم قاعدة البيانات بإبقائه فريدًا.</p>
+
+      <h3>اختيار طرف التابع</h3>
+      <p>بخلاف واحد-إلى-متعدد (حيث يجب أن يحمل طرف "الكثير" المفتاح الأجنبي)، يمكن أن يكون أي من طرفي واحد-إلى-واحد هو التابع. اختر حسب المعنى:</p>
+      <ul>
+        <li>ضع المفتاح الأجنبي حيث تكون قيم <code>NULL</code> مقبولة أو حيث تكون الصفوف اختيارية — مثل <code>UserProfile.UserId</code>. فيمكن أن يوجد مستخدم بلا ملف تعريف.</li>
+        <li>أما ملف التعريف فلا معنى له دون مستخدمه — فجعل <code>UserProfile</code> هو التابع يعبّر عن ذلك بأناقة أيضًا.</li>
+      </ul>
+
+      <div class="code-wrapper">
+        <div class="code-header">
+          <div class="code-badge-group">
+            <span class="code-lang-tag">C#</span>
+            <span class="code-filename">نموذج واحد-إلى-واحد (توضيحي — ليس جزءًا من Raff حاليًّا)</span>
+            <span class="code-type-pill pill-illustrative">توضيحي</span>
+          </div>
+          <button class="btn-copy" type="button" aria-label="نسخ الكود">📋 نسخ</button>
+        </div>
+        <pre><code class="language-c#">
+public class User
+{
+    public int Id { get; set; }
+    public string Username { get; set; } = null!;
+
+    // Reference navigation, "zero or one" from the user's perspective.
+    public UserProfile? Profile { get; set; }
+}
+
+public class UserProfile
+{
+    public int Id { get; set; }
+    public string Bio { get; set; } = null!;
+
+    public int UserId { get; set; }              // FK lives on the dependent…
+    public User User { get; set; } = null!;      // …with its inverse reference navigation
+}
+
+// Configuration: name the dependent and its FK explicitly.
+modelBuilder.Entity&lt;UserProfile&gt;()
+    .HasOne(p =&gt; p.User)                     // UserProfile has one User
+    .WithOne(u =&gt; u.Profile)                 // User has one Profile
+    .HasForeignKey&lt;UserProfile&gt;(p =&gt; p.UserId) // the FK is UserProfile.UserId
+    .IsRequired();                           // required 1:1; use IsRequired(false) for optional
+</code></pre>
+        <div class="code-expl">سينشئ EF Core <strong>فهرسًا فريدًا</strong> على <code>UserProfile.UserId</code>. وقيد التفرّد هذا هو ما يحوّل "قد يشير إليّ كثير من المستخدمين" إلى واحد-إلى-واحد حقيقي تفرضه قاعدة البيانات.</div>
+      </div>
+
+      <div class="callout callout-warning">
+        <div class="callout-title">⚠️ لماذا يهم قيد التفرّد</div>
+        <p>بلا تفرّد على عمود المفتاح الأجنبي، سيسمح المخطط بسرور بصفّي <code>UserProfile</code> يشيران إلى المستخدم نفسه — فيتحول واحد-إلى-واحد عندك إلى واحد-إلى-متعدد في صمت. لذلك فعلاقة واحد-إلى-واحد <strong>حقيقتان</strong>: قيد مفتاح أجنبي <em>و</em> ضمان تفرّد في طرف التابع. وإن كتبت العلاقة يدويًّا في SQL، فعليك إضافة الاثنين.</p>
+        <p>ولماذا تُهيَّأ واحد-إلى-واحد صراحةً أكثر من واحد-إلى-متعدد؟ لأن اصطلاحات EF تستطيع عادةً تخمين أي طرف هو التابع عند وجود التنقلين، لكنها قد تختار طرفًا مختلفًا عن <em>مقصودك</em>، خاصةً حين لا يكون لاسم خاصية المفتاح الأجنبي دلالة واضحة. وتسمية التابع والمفتاح الأجنبي تزيل كل شك.</p>
+      </div>
+
+      <h2>ج. متعدد-إلى-متعدد</h2>
+      <p>قد يكون للكتاب مؤلفون متعددون؛ وقد يكتب المؤلف كتبًا عدة. ولا يمكن لأي من الجدولين حمل المفتاح الأجنبي — فعمر واحد لا يخزّن قائمة. وتحل قواعد البيانات العلائقية ذلك بـ<strong>جدول ربط</strong> (ويُسمى أيضًا جدول وصل أو اقتران) يحمل مفتاحًا أجنبيًّا لكل طرف:</p>
+
+      <div class="diagram-container">
+        <div class="diagram-title">Books ← book_authors → Authors — الشكل العلائقي لمتعدد-إلى-متعدد في Raff</div>
+        <svg viewBox="0 0 860 300" role="img" aria-label="مخطط متعدد-إلى-متعدد: جدولا books وauthors متصلان عبر جدول الربط book_authors الذي يضم مفتاحًا أجنبيًّا لكل طرف ومفتاحًا أساسيًّا مركّبًا.">
+          <!-- books -->
+          <rect class="erd-rect" x="20" y="40" width="230" height="114" rx="8"></rect>
+          <path class="erd-head" d="M20 48 a8 8 0 0 1 8-8 h214 a8 8 0 0 1 8 8 v28 h-230 z"></path>
+          <text class="erd-name" x="34" y="67">books</text>
+          <text class="erd-prop" x="34" y="111">Id</text>
+          <text class="erd-pk" x="236" y="111" text-anchor="end">PK</text>
+          <text class="erd-prop" x="34" y="137">Title</text>
+          <text class="erd-nav" x="236" y="137" text-anchor="end">NAV: Authors</text>
+
+          <!-- book_authors -->
+          <rect class="erd-rect" x="315" y="30" width="230" height="140" rx="8" style="stroke: var(--accent);"></rect>
+          <path class="erd-head" d="M315 38 a8 8 0 0 1 8-8 h214 a8 8 0 0 1 8 8 v28 h-230 z"></path>
+          <text class="erd-name" x="329" y="57">book_authors (جدول ربط)</text>
+          <text class="erd-prop" x="329" y="101">book_id</text>
+          <text class="erd-fk" x="531" y="101" text-anchor="end">FK + PK</text>
+          <text class="erd-prop" x="329" y="127">author_id</text>
+          <text class="erd-fk" x="531" y="127" text-anchor="end">FK + PK</text>
+          <text class="erd-label" x="430" y="152" text-anchor="middle">مفتاح أساسي مركّب (book_id, author_id)</text>
+
+          <!-- authors -->
+          <rect class="erd-rect" x="610" y="40" width="230" height="114" rx="8"></rect>
+          <path class="erd-head" d="M610 48 a8 8 0 0 1 8-8 h214 a8 8 0 0 1 8 8 v28 h-230 z"></path>
+          <text class="erd-name" x="624" y="67">authors</text>
+          <text class="erd-prop" x="624" y="111">Id</text>
+          <text class="erd-pk" x="826" y="111" text-anchor="end">PK</text>
+          <text class="erd-prop" x="624" y="137">Name</text>
+          <text class="erd-nav" x="826" y="137" text-anchor="end">NAV: Books</text>
+
+          <!-- connectors -->
+          <line class="erd-line" x1="250" y1="100" x2="315" y2="100"></line>
+          <text class="erd-card" x="268" y="92">1</text>
+          <text class="erd-card" x="296" y="92" text-anchor="end">N</text>
+          <line class="erd-line" x1="545" y1="100" x2="610" y2="100"></line>
+          <text class="erd-card" x="562" y="92">N</text>
+          <text class="erd-card" x="598" y="92" text-anchor="end">1</text>
+          <text class="erd-label" x="430" y="216" text-anchor="middle">كل صف ربط هو زوج (book, author) واحد. المفتاح الأساسي المركّب يمنع الأزواج المكررة؛ والمفتاحان الأجنبيان يجعلان الطرفين إلزاميين.</text>
+          <text class="erd-note" x="430" y="248" text-anchor="middle">جهة C#: Book.Authors وAuthor.Books خاصيتا تنقل تجاوزيتان — تتيحان عبور الزوج دون كشف كيان الربط.</text>
+        </svg>
+      </div>
+
+      <h3>التنقلات التجاوزية: الاختصار الكائني</h3>
+      <p>يعلن صنفا الكيان لديك مجموعتين تعبران <em>فوق</em> جدول الربط:</p>
+
+      <div class="code-wrapper">
+        <div class="code-header">
+          <div class="code-badge-group">
+            <span class="code-lang-tag">C#</span>
+            <span class="code-filename">Data/Models/Book.cs وAuthor.cs (Raff، مختصر)</span>
+            <span class="code-type-pill pill-fragment">مقتطف</span>
+          </div>
+          <button class="btn-copy" type="button" aria-label="نسخ الكود">📋 نسخ</button>
+        </div>
+        <pre><code class="language-c#">
+public partial class Book
+{
+    public int Id { get; set; }
+    public string Title { get; set; } = null!;
+
+    // SKIP navigation: Book.Authors exposes Authors directly,
+    // skipping over the book_authors join entity.
+    public virtual ICollection&lt;Author&gt; Authors { get; set; }
+        = new List&lt;Author&gt;();
+}
+
+public partial class Author
+{
+    public int Id { get; set; }
+    public string Name { get; set; } = null!;
+    public string? AvatarUrl { get; set; }
+
+    // The inverse skip navigation.
+    public virtual ICollection&lt;Book&gt; Books { get; set; }
+        = new List&lt;Book&gt;();
+}
+</code></pre>
+        <div class="code-expl">تُسمى هذه <strong>تنقلات تجاوزية</strong> لأن كودك يتنقل من Book إلى Author (والعكس) بينما يدير EF Core صفوف <code>book_authors</code> بينهما بشفافية.</div>
+      </div>
+
+      <div class="callout callout-warning">
+        <div class="callout-title">⚠️ "جدول الربط" و"التنقل التجاوزي" شيئان مختلفان</div>
+        <p><strong>جدول الربط</strong> مفهوم في قواعد البيانات العلائقية: جدول فعلي بعمودي مفتاح أجنبي يُجسّد علاقة N:M. أما <strong>التنقل التجاوزي</strong> فمفهوم في نموذج EF Core: مجموعة C# تتيح تجاوز كيان الربط في الكود. جدول الربط موجود دائمًا علائقيًا؛ والتنقلات التجاوزية إحدى طرق نمذجته في EF Core (وليست الوحيدة). لا تخلط المفردتين في النقاش أو مراجعة الكود.</p>
+      </div>
+
+      <h3>كيان الربط الضمني — ما يستخدمه Raff فعلًا</h3>
+      <p>يستطيع EF Core 5+ إدارة جدول الربط عنك. وعندما لا يحمل جدول الربط أعمدة حِمل غير المفتاحين الأجنبيين، يمكن أن يبقى كيان الربط <strong>ضمنيًّا</strong>: فلا صنف <code>BookAuthor</code> في حلّك، ولا <code>DbSet&lt;BookAuthor&gt;</code> تستعلم منه. وهذا بالضبط وضع Raff. ويحتوي <code>BooksContext.OnModelCreating</code> على التهيئة المُولَّدة:</p>
+
+      <div class="code-wrapper">
+        <div class="code-header">
+          <div class="code-badge-group">
+            <span class="code-lang-tag">C#</span>
+            <span class="code-filename">Data/BooksContext.cs (Raff، مختصر — استدعاءات OnDelete محذوفة)</span>
+            <span class="code-type-pill pill-fragment">مقتطف</span>
+          </div>
+          <button class="btn-copy" type="button" aria-label="نسخ الكود">📋 نسخ</button>
+        </div>
+        <pre><code class="language-c#">
+modelBuilder.Entity&lt;Book&gt;(entity =&gt;
+{
+    entity.HasKey(e =&gt; e.Id).HasName("books_pkey");
+    entity.ToTable("books");
+
+    // ...
+
+    entity.HasMany(d =&gt; d.Authors)          // Book has many Authors
+        .WithMany(p =&gt; p.Books)             // Author has many Books
+        .UsingEntity&lt;Dictionary&lt;string, object&gt;&gt;(
+            "BookAuthor",                    // the join entity type (shared-type, no CLR class)
+            r =&gt; r.HasOne&lt;Author&gt;().WithMany()
+                .HasForeignKey("AuthorId")
+                .HasConstraintName("book_authors_author_id_fkey"),
+            l =&gt; l.HasOne&lt;Book&gt;().WithMany()
+                .HasForeignKey("BookId")
+                .HasConstraintName("book_authors_book_id_fkey"),
+            j =&gt;
+            {
+                j.HasKey("BookId", "AuthorId").HasName("book_authors_pkey");
+                j.ToTable("book_authors");
+                j.IndexerProperty&lt;int&gt;("BookId").HasColumnName("book_id");
+                j.IndexerProperty&lt;int&gt;("AuthorId").HasColumnName("author_id");
+            });
+});
+</code></pre>
+        <div class="code-expl">هذا الشكل المطوَّل هو ما يولّده <code>dotnet ef dbcontext scaffold</code> عند هندسة قاعدة بيانات موجودة عكسيًّا. كيان الربط "نوع كيان من نوع مشترك" يُخزَّن قاموسًا في النموذج — ولن تكتب أبدًا <code>List&lt;Dictionary&lt;string, object&gt;&gt;</code> في كود الأعمال؛ فـ <code>UsingEntity</code> يتولى المسك الدفتري.</div>
+      </div>
+
+      <h3>كيان الربط الصريح — عندما يحمل الاقتران نفسه بيانات</h3>
+      <p>بمجرد أن تصبح <em>للعلاقة نفسها</em> سمات — ترتيب المؤلف، ودور المساهمة، وتاريخ ربط المؤلف — يحتاج جدول الربط أعمدة حِمل، ولم يعد القاموس مناسبًا. عرّف صنفًا حقيقيًّا. وهذا توضيحي: فجدول <code>book_authors</code> في Raff لا يضم حاليًّا سوى عمودي المفتاح الأجنبي.</p>
+
+      <div class="code-wrapper">
+        <div class="code-header">
+          <div class="code-badge-group">
+            <span class="code-lang-tag">C#</span>
+            <span class="code-filename">كيان ربط صريح مع حِمل (توضيحي)</span>
+            <span class="code-type-pill pill-illustrative">توضيحي</span>
+          </div>
+          <button class="btn-copy" type="button" aria-label="نسخ الكود">📋 نسخ</button>
+        </div>
+        <pre><code class="language-c#">
+public class BookAuthor             // the association itself, with its own data
+{
+    public int BookId { get; set; }
+    public Book Book { get; set; } = null!;
+
+    public int AuthorId { get; set; }
+    public Author Author { get; set; } = null!;
+
+    public int AuthorOrder { get; set; }              // 1 = first-listed author
+    public string? ContributionRole { get; set; }     // "translator", "editor", …
+    public DateTime DateAdded { get; set; }
+}
+
+// Configuration — the join entity is now a first-class CLR type.
+modelBuilder.Entity&lt;Book&gt;()
+    .HasMany(b =&gt; b.Authors)
+    .WithMany(a =&gt; a.Books)
+    .UsingEntity&lt;BookAuthor&gt;(
+        j =&gt; j.HasOne(ba =&gt; ba.Author).WithMany().HasForeignKey(ba =&gt; ba.AuthorId),
+        j =&gt; j.HasOne(ba =&gt; ba.Book).WithMany().HasForeignKey(ba =&gt; ba.BookId),
+        j =&gt;
+        {
+            j.HasKey(ba =&gt; new { ba.BookId, ba.AuthorId });   // composite PK
+            j.ToTable("book_authors");
+        });
+</code></pre>
+        <div class="code-expl">النقطة الجوهرية: حتى مع صنف ربط صريح، تبقى <code>Book.Authors</code> تنقلًا تجاوزيًّا، وما زال EF Core يُدرج صفوف الربط ويحذفها عنك عند الإضافة إلى المجموعات أو الحذف منها. والصنف ببساطة يجعل كيان الربط قابلًا للاستخدام في LINQ (مثل ترتيب المؤلفين حسب <code>AuthorOrder</code>).</div>
+      </div>
+
+      <p>وثمة خيار ثانٍ أثقل: إسقاط التنقلات التجاوزية كليًّا ونمذجة صف الربط كيانًا عاديًّا له <code>DbSet</code> خاص به (<code>context.BookAuthors</code>)، بالتنقل صراحةً <code>Book → BookAuthor → Author</code>. يمنحك ذلك أقصى تحكّم (تستطيع الاستعلام من تاريخ الاقتران مباشرةً، وإعادة هيكلته كأي جدول) مقابل إسهاب في كل موضع استدعاء. أما في Raff فالتنقلات التجاوزية هي الافتراضي الصحيح؛ واختر نسخة الصنف الصريح فقط حين تنمو للاقتران بيانات خاصة به، ونسخة <code>DbSet</code> فقط حين يصبح الاقتران مفهومًا تجاريًّا من الدرجة الأولى.</p>
+
+      <div class="callout callout-info">
+        <div class="callout-title">💡 هل تحتاج دائمًا صنف ربط مكتوبًا يدويًّا؟</div>
+        <p>لا. كيان الربط الضمني (أو حمولة <code>UsingEntity&lt;BookAuthor&gt;</code> بصنف بلا حِمل) هو الخيار المعتاد. والجأ إلى كيان ربط ذي حِمل عندما تجد نفسك تريد تخزين سمة <em>عن الاقتران نفسه</em>، أو حين يجب أن تستعلم مباشرةً "أي صفوف ربط موجودة ومتى أُنشئت". فـ"متعدد-إلى-متعدد" لا تعني "اكتب صنف ربطك بنفسك".</p>
+      </div>
+
+      <h2>مفردات العلاقات في واجهة Fluent API</h2>
+      <table class="table-scroll concept-table">
+        <thead>
+          <tr><th>الطريقة</th><th>السؤال الذي تجيب عنه</th><th>تُستخدم في</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>HasOne(nav)</code></td><td>"انطلاقًا من هذا الكيان، ما الكيان المرتبط الواحد؟"</td><td>جهة المرجع في 1:N و1:1؛ وبداية التهيئة.</td></tr>
+          <tr><td><code>HasMany(nav)</code></td><td>"انطلاقًا من هذا الكيان، ما المجموعة المرتبطة؟"</td><td>جهة المجموعة؛ وبداية التهيئة في M:N.</td></tr>
+          <tr><td><code>WithOne(nav)</code></td><td>"للطرف الآخر كيان واحد — وهذا تنقله (أو لا شيء)."</td><td>تهيئة 1:1.</td></tr>
+          <tr><td><code>WithMany(nav)</code></td><td>"للطرف الآخر مجموعة — وهذا تنقلها (أو لا شيء)."</td><td>تهيئة 1:N؛ وM:N مع <code>UsingEntity</code>.</td></tr>
+          <tr><td><code>HasForeignKey(...)</code></td><td>"أي خاصية (أو خاصية ظلّية) تخزّن المفتاح الأجنبي؟"</td><td>كل علاقة لها عمود مفتاح أجنبي (1:1 و1:N).</td></tr>
+          <tr><td><code>HasPrincipalKey(...)</code></td><td>"الجهة الرئيسية مُشار إليها بمفتاح بديل، لا بالمفتاح الأساسي."</td><td>نادرة؛ مثل مفتاح أجنبي إلى عمود فريد غير المفتاح الأساسي.</td></tr>
+          <tr><td><code>IsRequired(bool)</code></td><td>"هل يجب أن يشير التابع إلى رئيسي؟"</td><td>وسم الإلزام أو الاختيار صراحةً حين تلتبس الاصطلاحات.</td></tr>
+          <tr><td><code>UsingEntity&lt;T&gt;(...)</code></td><td>"استخدم نوع الكيان هذا (أو القاموس) ككيان ربط M:N."</td><td>متعدد-إلى-متعدد بكيان ربط ضمني أو قاموس أو صريح.</td></tr>
+          <tr><td><code>OnDelete(DeleteBehavior...)</code></td><td>"ماذا يحدث للتابعين عند حذف الرئيسي؟"</td><td>تسلسل / تقييد / تعيين null / سلوك جهة العميل. (سلوك الحذف موضوع منفصل — خارج نطاق هذه الوحدة.)</td></tr>
+        </tbody>
+      </table>
+
+      <h2>تمارين العلاقات</h2>
+      <p>تطلب منك هذه التمارين اتخاذ القرارات ذاتها التي تتخذها في مراجعة الكود الحقيقية: أي كيان يأخذ المفتاح الأجنبي، ومن الرئيسي، وهل العلاقة إلزامية أم اختيارية، وأي نوع علاقة يلائم، وكيف يبدو جدول الربط. وتظهر الملاحظات بعد الإرسال؛ ويمكنك إعادة المحاولة في أي سؤال.</p>
+      <div class="kc-mount" data-kc-group="lesson-2"></div>
+
+      <h2>خلاصة الدرس 2</h2>
+      <ul>
+        <li><strong>واحد-إلى-متعدد</strong>: المفتاح الأجنبي في طرف "الكثير"؛ ويكتشفه EF من تنقل مرجعي حتى مع عدم وجود خاصية مفتاح أجنبي ولا مجموعة معاكسة (حالة Raff).</li>
+        <li><strong>واحد-إلى-واحد</strong>: المفتاح الأجنبي في طرف التابع ويتطلب <strong>قيد تفرّد</strong>؛ وهيَّئه صراحةً للتحكم في أي طرف يكون تابعًا.</li>
+        <li><strong>متعدد-إلى-متعدد</strong>: جدول ربط يحمل مفتاحين أجنبيين بمفتاح أساسي مركّب. وتكشف التنقلات التجاوزية الزوج مباشرةً؛ ويمكن أن يكون كيان الربط ضمنيًّا (Raff)، أو صنفًا صريحًا بحِمل، أو كيانًا كاملًا له <code>DbSet</code> خاص به.</li>
+        <li>تُقرأ واجهة Fluent API كجملة: <code>HasOne → WithMany → HasForeignKey</code>؛ و<code>UsingEntity</code> تصل كيانات الربط.</li>
+        <li>تقييم تهيئة العلاقة يعني السؤال: أي طرف تابع، وهل المفتاح الأجنبي قابل للقيمة الفارغة، وهل التفرّد مفروض، وهل يحمل الربط بيانات؟</li>
+      </ul>
+
+      <div class="refs-block">
+        <div class="refs-title">مراجع رسمية لهذا الدرس</div>
+        <ul>
+          <li><a href="https://learn.microsoft.com/en-us/ef/core/modeling/relationships/" target="_blank" rel="noopener noreferrer">EF Core — مقدمة إلى العلاقات</a></li>
+          <li><a href="https://learn.microsoft.com/en-us/ef/core/modeling/relationships/one-to-many" target="_blank" rel="noopener noreferrer">EF Core — علاقات واحد-إلى-متعدد</a></li>
+          <li><a href="https://learn.microsoft.com/en-us/ef/core/modeling/relationships/one-to-one" target="_blank" rel="noopener noreferrer">EF Core — علاقات واحد-إلى-واحد</a></li>
+          <li><a href="https://learn.microsoft.com/en-us/ef/core/modeling/relationships/many-to-many" target="_blank" rel="noopener noreferrer">EF Core — علاقات متعدد-إلى-متعدد</a></li>
+        </ul>
+      </div>
+
+      <div class="lesson-footer-nav">
+        <button class="btn-secondary" data-nav-target="lesson-1" type="button">→ الدرس 1</button>
+        <button class="btn-complete-lesson" data-lesson="lesson-2" type="button">أكمل الدرس 2 ✓</button>
+        <button class="btn-primary" data-nav-target="lesson-3" type="button">التالي: التنقلات والـ fix-up ←</button>
+      </div>
+    `
     }
   }
 };
