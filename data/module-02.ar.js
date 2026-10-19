@@ -561,6 +561,42 @@ window.RAFF_MODULE_02_AR = {
   },
 
   search: [
+    {
+      title: "نظرة عامة على الوحدة 2",
+      snippet: "مخرجات الدورة والمتطلبات السابقة وخريطة التعلّم الخاصة بـ Raff."
+    },
+    {
+      title: "الدرس 1: النموذج الذهني لـ EF Core",
+      snippet: "المعمارية، وأدوار DbContext وDbSet، ومسارا الاستعلام والتحديث."
+    },
+    {
+      title: "الدرس 2: DbContext وDbSet ونمط Unit of Work",
+      snippet: "أعمار Scoped في حقن التبعيات، وسلامة الخيوط، ومخالفات التزامن، وتجميع الاتصالات."
+    },
+    {
+      title: "الدرس 3: حالات الكيان وتتبّع التغييرات",
+      snippet: "Detached وUnchanged وAdded وModified وDeleted، وتتبّع اللقطات، وDebugView."
+    },
+    {
+      title: "الدرس 4: التتبّع وعدم التتبّع وهوية الكيان",
+      snippet: "أداء AsNoTracking، وخريطة الهوية، وإصابات ذاكرة FindAsync."
+    },
+    {
+      title: "الدرس 5: SaveChanges وانتقالات CRUD وSQL المولَّد",
+      snippet: "توليد DML، وقيم الإرجاع، وDbUpdateConcurrencyException، والمعاملات الضمنية."
+    },
+    {
+      title: "الدرس 6: LINQ وIQueryable وIEnumerable وتنفيذ الاستعلامات",
+      snippet: "أشجار التعبيرات، والتنفيذ المؤجَّل، والعوامل النهائية غير المتزامنة، والتقييم على العميل مقابل الخادم."
+    },
+    {
+      title: "الدرس 7: الإسقاط والتحقق من SQL والتنقيح",
+      snippet: "إسقاطات DTO، وToQueryString()، وتسجيل EF Core عبر LogTo، ومصفوفة التنقيح."
+    },
+    {
+      title: "التقييم الختامي للوحدة",
+      snippet: "12 سؤال تقييم قائمًا على سيناريوهات يغطي كل مفاهيم EF Core."
+    }
   ],
 
   lessons: {
