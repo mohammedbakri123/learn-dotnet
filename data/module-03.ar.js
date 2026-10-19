@@ -2676,6 +2676,205 @@ services.AddDbContext&lt;BooksContext&gt;(options =&gt;
         <button class="btn-primary" data-nav-target="lesson-6" type="button">التالي: إسقاطات DTO ←</button>
       </div>
     `
+    },
+    "lesson-6": {
+      nav: "إسقاطات DTO",
+      content: `
+      <div class="lesson-header-box">
+        <div class="lesson-badge-top">الدرس 6</div>
+        <h1 class="lesson-title">إسقاطات DTO والأداء</h1>
+        <p class="lesson-subtitle">لماذا تكون الكيانات شكلًا خاطئًا لاستجابات الواجهات — وكيف يمنحك Select() البيانات التي تحتاجها بالضبط، محسوبةً حيث تكون أرخص.</p>
+      </div>
+
+      <h2>1. مشكلة إرجاع الكيانات</h2>
+      <p>ظل الدرسان 4 و5 يطرقان موضوعًا واحدًا: كلفة الاستعلام تتناسب مع ما تطلبه. والكيانات تطلب كل شيء. فكيان <code>Book</code> يجرّ معه:</p>
+      <ul>
+        <li><strong>الصف كاملًا</strong> — كل عمود، بما فيه أعمدة لا تحتاجها نقطة النهاية (فـ <code>Summary</code> و<code>CoverUrl</code> في Raff ليسا الحقلين النصيين الرخيصين اللذين تريدهما في استجابة قائمة من غير قصد).</li>
+        <li><strong>عبء التتبّع</strong> — يخصّص متتبع التغييرات مدخلًا لكل كيان في نطاق <code>DbContext</code>، ويجري دقة الهوية، ويحفظ لقطات لكشف التحديثات. وطلب GET للقراءة فقط يتحمل هذه الكلفة بلا مقابل.</li>
+        <li><strong>مشكلة العلاقات</strong> — فالتنقلات إما غير محمَّلة (بيانات ناقصة، الدرس 3)، أو مُضمَّنة (جلب مفرط، الدرس 4)، أو مُسلسَلة إلى دورات (<code>Book → Authors → Books → …</code>).</li>
+        <li><strong>الاقتران</strong> — ففي اليوم الذي تعيد فيه تسمية عمود قاعدة بيانات، أو تُدخل خاصية يجب ألا تُكشف أبدًا (مثل <code>User.PasswordHash</code>!)، يتغير عقد الواجهة مع مخططك. و<code>PasswordHash</code> في كيان تعيده وحدة تحكم حادثة أمنية تنتظر طلب سحب.</li>
+      </ul>
+
+      <div class="callout callout-warning">
+        <div class="callout-title">⚠️ مخططات Raff نفسها تعرض الحل</div>
+        <p>يحفظ Raff بالفعل أشكال الطلب والاستجابة منفصلة عن نماذج الاستمرار — انظر إلى أصناف DTO في <code>Dtos/</code> التي تستخدمها الخدمات ووحدات التحكم. ويشرح هذا الدرس <em>سبب</em> وجود ذلك الفصل وكيف تجعل قاعدة البيانات تؤدي المزيد من العمل الذي أنتج تلك الأشكال.</p>
+      </div>
+
+      <h2>2. ما الإسقاط</h2>
+      <p>الإسقاط هو <code>Select</code> في LINQ يُترجَم إلى <code>SELECT</code> في SQL يطلب الأعمدة والتعبيرات المطلوبة بالضبط. ويجسّد EF Core النوع المُسقَط مباشرةً — بلا كيان وسيط.</p>
+
+      <div class="code-wrapper">
+        <div class="code-header">
+          <div class="code-badge-group">
+            <span class="code-lang-tag">C#</span>
+            <span class="code-filename">إسقاط مجهول — أسرع مكسب</span>
+            <span class="code-type-pill pill-fragment">مقتطف</span>
+          </div>
+          <button class="btn-copy" type="button" aria-label="نسخ الكود">📋 نسخ</button>
+        </div>
+        <pre><code class="language-c#">
+var result = await context.Books
+    .Select(b =&gt; new
+    {
+        b.Id,
+        b.Title,
+        b.PublishedYear,
+        CategoryName = b.Category != null ? b.Category.Name : null,
+        AuthorCount = b.Authors.Count
+    })
+    .ToListAsync();
+</code></pre>
+        <div class="code-expl">استعلام واحد. وتحسب قاعدة البيانات اسم الفئة الشرطي وعدد المؤلفين. وتنقل الاستجابة أربع قيم قياسية لكل كتاب — بلا كيانات <code>Book</code> أو <code>Category</code> أو <code>Author</code> في أي موضع.</div>
+      </div>
+
+      <div class="code-wrapper">
+        <div class="code-header">
+          <div class="code-badge-group">
+            <span class="code-lang-tag">C#</span>
+            <span class="code-filename">سجلات مسمّاة بدل الأنواع المجهولة (مناسبة للواجهات)</span>
+            <span class="code-type-pill pill-complete">مثال كامل</span>
+          </div>
+          <button class="btn-copy" type="button" aria-label="نسخ الكود">📋 نسخ</button>
+        </div>
+        <pre><code class="language-c#">
+public record BookListItemDto(
+    int Id,
+    string Title,
+    int? PublishedYear,
+    string? CategoryName,
+    int AuthorCount);
+
+// in a service:
+public async Task&lt;List&lt;BookListItemDto&gt;&gt; GetListAsync(CancellationToken ct)
+{
+    return await context.Books
+        .OrderBy(b =&gt; b.Title)
+        .Select(b =&gt; new BookListItemDto(
+            b.Id,
+            b.Title,
+            b.PublishedYear,
+            b.Category != null ? b.Category.Name : null,
+            b.Authors.Count))
+        .ToListAsync(ct);
+}
+</code></pre>
+        <div class="code-expl">يحفظ DTO من نوع record العقد صريحًا وقابلًا للاختبار. ولاحظ كيف يُبنى الإسقاط بصيغة الباني — وهذا جائز لأن EF Core يترجم استدعاء الباني إلى أعمدة SQL.</div>
+      </div>
+
+      <h2>3. إسقاط العلاقات إلى أشكال مسطّحة</h2>
+      <p>الجزء المكلف في استجابات العلاقات هو المجموعة غالبًا. ويمكن للإسقاط تسطيحها ليصبح JSON قائمة أسماء بسيطة — مع أن قاعدة البيانات ما زالت تؤديها في استعلام واحد:</p>
+
+      <div class="code-wrapper">
+        <div class="code-header">
+          <div class="code-badge-group">
+            <span class="code-lang-tag">C#</span>
+            <span class="code-filename">تسطيح مجموعة إلى قائمة سلاسل</span>
+            <span class="code-type-pill pill-complete">مثال كامل</span>
+          </div>
+          <button class="btn-copy" type="button" aria-label="نسخ الكود">📋 نسخ</button>
+        </div>
+        <pre><code class="language-c#">
+public record BookCardDto(
+    int Id,
+    string Title,
+    List&lt;string&gt; AuthorNames,
+    string? CategoryName,
+    int ReadingEntryCount);
+
+public async Task&lt;List&lt;BookCardDto&gt;&gt; GetCardsAsync(CancellationToken ct)
+{
+    return await context.Books
+        .OrderBy(b =&gt; b.Id)
+        .Select(b =&gt; new BookCardDto(
+            b.Id,
+            b.Title,
+            b.Authors.Select(a =&gt; a.Name).ToList(),   // flattened in one query
+            b.Category != null ? b.Category.Name : null,
+            b.ReadingEntries.Count))
+        .ToListAsync(ct);
+}
+</code></pre>
+        <div class="code-expl">يدعم EF Core إسقاط تنقل مجموعي إلى قائمة داخل استعلام واحد (وصل أو استعلام مترابط في الخلف). ويحصل المستهلك على <code>["Ursula K. Le Guin", "…"]</code> بدل كائنات مؤلفين كاملة بمعرّفاتها وصورها الرمزية وتنقلاتها الخاصة.</div>
+      </div>
+
+      <div class="callout callout-warning">
+        <div class="callout-title">⚠️ قيد المجموعات المتعددة</div>
+        <p>لا يستطيع EF Core تركيب إسقاط يسطّح <strong>مجموعتين شقيقتين</strong> من الكيان نفسه في استعلام واحد (تذكر الرسالة بانيًا يحتوي مجموعات متعددة / تنقلات مجموعية متعددة). فـ DTO مثل <code>(Book, List&lt;string&gt; AuthorNames, List&lt;string&gt; EntryNotes)</code> لا يمكن التعبير عنه في عبارة LINQ واحدة. والحلول البديلة:</p>
+        <ul>
+          <li>قسّمه إلى استعلامين وجمّعهما في الخادم (واحد للمؤلفين وواحد للإدخالات، مفتاحهما معرّف الكتاب).</li>
+          <li>لا يساعد <code>AsSplitQuery()</code> إلا عندما تظهر المجموعتان كـ <code>Include</code>، لا داخل باني إسقاط واحد.</li>
+          <li>أعد تصميم العقد: أعداد بدل قوائم (مثل <code>ReadingEntryCount</code> أعلاه)، أو نقطة نهاية فرعية مخصصة للمجموعة الثقيلة.</li>
+        </ul>
+      </div>
+
+      <h2>4. الإسقاط مقابل التتبّع: ما الذي تتنازل عنه</h2>
+      <table class="table-scroll concept-table">
+        <thead>
+          <tr><th>الجانب</th><th>استعلام كيان</th><th>إسقاط</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>الأعمدة المجلوبة</td><td>كل أعمدة الكيان</td><td>التعبيرات المختارة فقط</td></tr>
+          <tr><td>تتبع التغييرات</td><td>كل كيان متتبَّع ومحلول الهوية</td><td>النتائج المُسقَطة غير متتبَّعة — بلا عبء المتتبع</td></tr>
+          <tr><td>قابلية التحديث</td><td>يمكن تعديل الكيانات وحفظها</td><td>النتائج للقراءة فقط بالتصميم (ممتازة للواجهات، عديمة الفائدة للتحديثات)</td></tr>
+          <tr><td>اكتمال العلاقات</td><td>يعتمد على إعدادات Include/fix-up/التحميل الكسول</td><td>ما يُسقِطه الاستعلام بالضبط — لا شيء خفي</td></tr>
+          <tr><td>شكل SQL</td><td>صفوف على شكل جداول، توصل حسب التوجيه</td><td>صفوف على شكل DTO؛ والتجميعات تُحسب في قاعدة البيانات</td></tr>
+        </tbody>
+      </table>
+
+      <p>وإن احتجت فعلًا كيانات متتبَّعة لصفحة قراءة فقط (مثل طريقة سير عمل معقّد ستعدّل بعضها لاحقًا)، فالنسخة المهذّبة هي <code>AsNoTracking()</code> — كيانات، لكن بلا عبء اللقطات:</p>
+
+      <div class="code-wrapper">
+        <div class="code-header">
+          <div class="code-badge-group">
+            <span class="code-lang-tag">C#</span>
+            <span class="code-filename">استعلام كيانات بلا تتبّع</span>
+            <span class="code-type-pill pill-fragment">مقتطف</span>
+          </div>
+          <button class="btn-copy" type="button" aria-label="نسخ الكود">📋 نسخ</button>
+        </div>
+        <pre><code class="language-c#">
+var books = await context.Books
+    .AsNoTracking()
+    .Include(b =&gt; b.Authors)
+    .ToListAsync();
+</code></pre>
+        <div class="code-expl">يفعل <code>BookService.GetBooksAsync</code> في Raff ذلك بالفعل: <code>AsNoTracking</code> + <code>Include(b =&gt; b.Authors)</code> + <code>Skip/Take</code>. وتذكّر من الدرس 3: عدم التتبّع يعني لا fix-up ولا دقة هوية — فنسخ مؤلفي كل كتاب كائنات منفصلة، وهذا مقبول للربط للقراءة فقط.</div>
+      </div>
+
+      <h2>5. اختيار ما تحسبه قاعدة البيانات</h2>
+      <p>قاعدة عملية مفيدة لنقاط نهاية القوائم: <strong>الأعداد من حق قاعدة البيانات، والقوائم من حق الاستجابة، والكيانات من حق مسارات الكتابة.</strong></p>
+      <ul>
+        <li><em>"كم مؤلفًا لهذا الكتاب؟"</em> → <code>b.Authors.Count</code> داخل الإسقاط (تجميع SQL).</li>
+        <li><em>"ما أسماء المؤلفين؟"</em> → <code>b.Authors.Select(a =&gt; a.Name).ToList()</code> داخل الإسقاط (استعلام واحد، بوصل في الخلف).</li>
+        <li><em>"أعطني الكتاب وسأحدّثه."</em> → حمّل الكيان المتتبَّع؛ فلا يمكن حفظ الإسقاطات مرة أخرى.</li>
+      </ul>
+
+      <h2>فحوص المعرفة</h2>
+      <div class="kc-mount" data-kc-group="lesson-6"></div>
+
+      <h2>خلاصة الدرس 6</h2>
+      <ul>
+        <li>الكيانات أشكال استمرار؛ واستجابات الواجهات أشكال عقود. وتمزج الإسقاطات بينهما بـ <code>SELECT</code> في SQL محصور في العقد.</li>
+        <li>تتجاوز الإسقاطات متتبع التغييرات، ولا تجلب شيئًا زائدًا، ويمكنها تسطيح المجموعات أو حساب الأعداد داخل قاعدة البيانات.</li>
+        <li>استخدم records أو DTOs مسمّاة لثبات العقد — ولا تُرجِع أبدًا كيانات تحمل أسرارًا مثل <code>PasswordHash</code>.</li>
+        <li>لا يستطيع EF Core تسطيح مجموعتين شقيقتين لكيان واحد في إسقاط واحد؛ فقسّم الاستعلام أو أعد تصميم العقد.</li>
+        <li>لحاجات الكيانات للقراءة فقط، <code>AsNoTracking()</code> (كما يفعل Raff) هو البديل الأخف.</li>
+      </ul>
+
+      <div class="refs-block">
+        <div class="refs-title">مراجع رسمية لهذا الدرس</div>
+        <ul>
+          <li><a href="https://learn.microsoft.com/en-us/ef/core/performance/efficient-querying" target="_blank" rel="noopener noreferrer">EF Core — الاستعلام الكفء (الإسقاط إلى DTOs، وعدم التتبع)</a></li>
+          <li><a href="https://learn.microsoft.com/en-us/ef/core/querying/data-transfer-objects" target="_blank" rel="noopener noreferrer">EF Core — كائنات نقل البيانات والإسقاطات</a></li>
+        </ul>
+      </div>
+
+      <div class="lesson-footer-nav">
+        <button class="btn-secondary" data-nav-target="lesson-5" type="button">→ الدرس 5</button>
+        <button class="btn-complete-lesson" data-lesson="lesson-6" type="button">أكمل الدرس 6 ✓</button>
+        <button class="btn-primary" data-nav-target="lesson-7" type="button">التالي: الانفجار الديكارتي ←</button>
+      </div>
+    `
     }
   }
 };
