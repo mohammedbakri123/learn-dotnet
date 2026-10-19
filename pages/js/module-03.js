@@ -32,7 +32,14 @@
     if (OV.lessonMeta) META = LESSON_META.map(function (m) { var o = OV.lessonMeta[m.id]; return o ? Object.assign({}, m, o) : m; });
     if (OV.explorerData) {
       EXPLORER = Object.assign({}, EXPLORER_DATA);
-      Object.keys(OV.explorerData).forEach(function (k) { if (EXPLORER[k]) EXPLORER[k] = Object.assign({}, EXPLORER_DATA[k], OV.explorerData[k]); });
+      Object.keys(OV.explorerData).forEach(function (k) {
+        if (!EXPLORER[k]) return;
+        var o = OV.explorerData[k];
+        EXPLORER[k] = Object.assign({}, EXPLORER_DATA[k], o, {
+          left: Object.assign({}, EXPLORER_DATA[k].left, o.left || {}),
+          right: Object.assign({}, EXPLORER_DATA[k].right, o.right || {})
+        });
+      });
     }
     if (OV.fixupSteps) FIXUP = FIXUP_STEPS.map(function (s, i) { return OV.fixupSteps[i] ? Object.assign({}, s, OV.fixupSteps[i]) : s; });
     if (OV.labOptions) LAB_OPTS = OV.labOptions.slice();

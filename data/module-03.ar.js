@@ -810,13 +810,154 @@ window.RAFF_MODULE_03_AR = {
 
   /* keyed by explorer variant key */
   explorerData: {
+    "one-to-one-required": {
+      relationLabel: "1 → 1 (إلزامية)",
+      left: { role: "رئيسي" },
+      right: { role: "تابع" },
+      relational: [
+        "`userprofiles.UserId` عمود مفتاح أجنبي غير قابل للقيمة الفارغة يشير إلى `users.Id`.",
+        "**فهرس فريد** على `UserId` يجعل العلاقة واحد-إلى-واحد: يمكن للمستخدم أن يملك ملفًا شخصيًّا واحدًا على الأكثر.",
+        "وصلة SQL: `INNER JOIN users ON users.Id = userprofiles.UserId`.",
+        "حذف مستخدم لا يزال له ملف شخصي مقيَّد افتراضيًّا (علاقة إلزامية)."
+      ],
+      note: "ثنائية توضيحية — لا يملك Raff حاليًّا UserProfile. والسمات المميّزة في الطرف التابع: مفتاح أجنبي فريد غير قابل للقيمة الفارغة. والإلزامية هي الافتراضي عندما تكون خاصية المفتاح الأجنبي غير قابلة للقيمة الفارغة."
+    },
+    "one-to-one-optional": {
+      relationLabel: "1 → 0..1 (اختيارية)",
+      left: { role: "رئيسي" },
+      right: { role: "تابع" },
+      relational: [
+        "`userprofiles.UserId` عمود مفتاح أجنبي **قابل للقيمة الفارغة** مع فهرس فريد.",
+        "قد لا يملك المستخدم ملفًا شخصيًّا (`NULL`)، أو يملك واحدًا — ولا أكثر أبدًا.",
+        "وصلة SQL: `LEFT JOIN userprofiles ON ...` تُبقي المستخدمين بلا ملفات شخصية في النتيجة.",
+        "ينطبق سلوك الحذف بالقيمة الفارغة أو المقيَّد حسب التهيئة؛ والحذف المتتبَّع من جهة العميل افتراضه ضبط المفتاح الأجنبي على null."
+      ],
+      note: "ثنائية توضيحية. قابلية المفتاح الأجنبي للقيمة الفارغة هي المفتاح بين الاختياري والإلزامي — والفهرس الفريد باقٍ في الحالتين."
+    },
+    "one-to-many-required": {
+      relationLabel: "1 → N (إلزامية)",
+      left: { role: "رئيسي" },
+      right: { role: "تابع" },
+      relational: [
+        "`readingentries.UserId` عمود مفتاح أجنبي غير قابل للقيمة الفارغة يشير إلى `users.Id`.",
+        "كل إدخال ينتمي إلى مستخدم واحد بالضبط؛ ولا يمكن أن يكون العمود NULL أبدًا.",
+        "وصلة SQL: `INNER JOIN users ON users.Id = readingentries.UserId`.",
+        "حذف مستخدم لا تزال له إدخالات مقيَّد افتراضيًّا — عالج الكيانات التابعة أولًا."
+      ],
+      note: "علاقة حقيقية في Raff (موثَّقة في النموذج والترحيلات): `ReadingEntry.UserId` غير قابل للقيمة الفارغة مع المجموعة المعكوسة `User.ReadingEntries`. ويهيّئها الاصطلاح دون حاجة إلى Fluent API."
+    },
+    "one-to-many-optional": {
+      relationLabel: "1 → 0..N (اختيارية)",
+      left: { role: "رئيسي" },
+      right: { role: "تابع" },
+      relational: [
+        "`books.CategoryId` عمود مفتاح أجنبي **قابل للقيمة الفارغة** يشير إلى `categories.Id` — أُنشئ كخاصية ظلّية.",
+        "قد لا يشير كتاب إلى أي فئة؛ ويمكن أن يكون `book.Category` فارغًا.",
+        "وصلة SQL: `LEFT JOIN categories ON categories.Id = books.CategoryId`.",
+        "الفلترة على `b.Category.Name` تُسقط الكتب بلا فئة صامتة — احترس بفحوص null عندما يهمّ ذلك."
+      ],
+      note: "تهيئة Raff الحقيقية، موثَّقة مقابل الترحيل 20261011201657_AddCategoryToBooks: عمود CategoryId قابل للقيمة الفارغة وقيد مفتاح أجنبي، بلا مجموعة Books على Category. والتنقل المعكوس اختياري حتى في واحد-إلى-متعدد."
+    },
+    "many-to-many": {
+      relationLabel: "M ↔ N",
+      left: { role: "رئيسي (بالنسبة للربط)" },
+      right: { role: "رئيسي (بالنسبة للربط)" },
+      relational: [
+        "جدول الربط `book_authors` يحمل عمودَي المفتاح الأجنبي `book_id` و`author_id`.",
+        "مفتاح أساسي مركّب (`book_id`, `author_id`): يمكن وجود الاقتران نفسه مرة واحدة على الأكثر.",
+        "كل صف ربط إلزامي بالنسبة للطرفين، لكن قد يكون لأي طرف **صفر** صفوف مرتبطة إجمالًا — فمؤلف بلا كتب صحيح.",
+        "تنشئ الترحيلات فهارس على عمودَي المفتاح الأجنبي."
+      ],
+      note: "علاقة حقيقية في Raff: books ↔ authors عبر book_authors، مهيَّأة في السياق المُنشأ بـ UsingEntity<Dictionary<string, object>> — النموذج نفسه مكتوبًا صراحةً. الاختيارية ليست إعدادًا هنا: فهي ستصف صفوف الربط، وهي إشارات إلزامية دائمًا."
+    }
   },
 
   /* aligned by index — replaces story/tracked/navs/shadow */
   fixupSteps: [
+    {
+      story: "يُنشئ السياق <strong>الكتاب #7</strong> ويبدأ تتبّعه. لم تُطلب بيانات مرتبطة: <code>Authors</code> مجموعة فارغة و<code>Category</code> تساوي null.",
+      tracked: [
+        { name: "Book #7", state: "Unchanged", note: "أُنشئ من الاستعلام" }
+      ],
+      navs: { bookAuthors: "[] — فارغة (لم يُحمَّل شيء)", authorBooks: "(لم يُحمَّل المؤلف بعد)", bookCategory: "null" },
+      shadow: "CategoryId: null (في النموذج؛ بلا خاصية CLR)"
+    },
+    {
+      story: "<strong>المؤلف #3</strong> متتبَّع. لا شيء يربطه بالكتاب #7 بعد — لا مفتاح أجنبي بين books وauthors؛ وأي ربط سيعيش كصف في <code>book_authors</code>.",
+      tracked: [
+        { name: "Book #7", state: "Unchanged", note: "" },
+        { name: "Author #3", state: "Unchanged", note: "أُنشئ من الاستعلام" }
+      ],
+      navs: { bookAuthors: "[] — لا تزال فارغة", authorBooks: "[] — لا تزال فارغة", bookCategory: "null" },
+      shadow: "CategoryId: null"
+    },
+    {
+      story: "تحوير من جهة العميل فقط: تغيّر رسم الكائنات، لكن متتبّع التغييرات لم يمسح بعد. <code>author.Books</code> لا تزال فارغة — المعكوس يُزامَن لاحقًا. ولم يعمل أي SQL.",
+      tracked: [
+        { name: "Book #7", state: "Unchanged", note: "المتتبّع لم يعلم بالتغيير بعد" },
+        { name: "Author #3", state: "Unchanged", note: "" }
+      ],
+      navs: { bookAuthors: "[Author #3] — قائمة من جهة العميل", authorBooks: "[] — لم يُزامَن بعد", bookCategory: "null" },
+      shadow: "CategoryId: null"
+    },
+    {
+      story: "يعمل الـ fix-up: يُزامَن التنقل المعكوس (<code>author.Books</code> تحتوي الآن الكتاب #7) ويرصد المتتبّع اقترانًا جديدًا فينشئ مدخل صف الربط بحالة <strong>Added</strong>. وما زال لا SQL.",
+      tracked: [
+        { name: "Book #7", state: "Unchanged", note: "" },
+        { name: "Author #3", state: "Unchanged", note: "" },
+        { name: "book_authors (7, 3)", state: "Added", note: "مدخل كيان الربط الضمني" }
+      ],
+      navs: { bookAuthors: "[Author #3]", authorBooks: "[Book #7] — تمت مزامنة المعكوس", bookCategory: "null" },
+      shadow: "CategoryId: null"
+    },
+    {
+      story: "<strong>الفئة #2</strong> محمَّلة ومتتبَّعة. وتنقل <code>Category</code> في الكتاب لا يزال null — فتحميل كيان لا يربطه بشيء.",
+      tracked: [
+        { name: "Book #7", state: "Unchanged", note: "" },
+        { name: "Author #3", state: "Unchanged", note: "" },
+        { name: "Category #2", state: "Unchanged", note: "أُنشئ من الاستعلام" },
+        { name: "book_authors (7, 3)", state: "Added", note: "" }
+      ],
+      navs: { bookAuthors: "[Author #3]", authorBooks: "[Book #7]", bookCategory: "null — لا يزال غير مرتبط" },
+      shadow: "CategoryId: null"
+    },
+    {
+      story: "إسناد تنقل مرجعي، من جهة العميل مجددًا. لا مجموعة معكوسة لـ Category في Raff، فلا شيء يُزامَن في ذلك الطرف؛ والمفتاح الأجنبي الظلّي لا يزال null حتى الـ DetectChanges التالي.",
+      tracked: [
+        { name: "Book #7", state: "Unchanged", note: "المتتبّع لم يمسح بعد" },
+        { name: "Author #3", state: "Unchanged", note: "" },
+        { name: "Category #2", state: "Unchanged", note: "" },
+        { name: "book_authors (7, 3)", state: "Added", note: "" }
+      ],
+      navs: { bookAuthors: "[Author #3]", authorBooks: "[Book #7]", bookCategory: "Category #2 — إسناد من جهة العميل" },
+      shadow: "CategoryId: null — لم يُزامَن بعد"
+    },
+    {
+      story: "يزامن الـ fix-up الآن المفتاح الأجنبي من التنقل: يصبح <code>CategoryId</code> الظلّي في مدخل الكتاب <strong>2</strong>، وتنقلب حالة الكيان إلى <strong>Modified</strong>.",
+      tracked: [
+        { name: "Book #7", state: "Modified", note: "تغيّر CategoryId" },
+        { name: "Author #3", state: "Unchanged", note: "" },
+        { name: "Category #2", state: "Unchanged", note: "" },
+        { name: "book_authors (7, 3)", state: "Added", note: "" }
+      ],
+      navs: { bookAuthors: "[Author #3]", authorBooks: "[Book #7]", bookCategory: "Category #2" },
+      shadow: "CategoryId: 2 — ضبطه الـ fix-up"
+    },
+    {
+      story: "يشغّل SaveChanges عملية DetectChanges تلقائيًّا، ثم يولّد SQL وينفذه: <code>INSERT INTO book_authors (book_id, author_id) VALUES (7, 3)</code> و<code>UPDATE books SET CategoryId = 2 WHERE Id = 7</code>. وحتى هذه اللحظة، لم تكن قاعدة البيانات تعرف شيئًا عن أي من ذلك.",
+      tracked: [
+        { name: "Book #7", state: "Unchanged", note: "حُفظ؛ عاد إلى Unchanged" },
+        { name: "Author #3", state: "Unchanged", note: "" },
+        { name: "Category #2", state: "Unchanged", note: "" },
+        { name: "book_authors (7, 3)", state: "Unchanged", note: "أُدرج" }
+      ],
+      navs: { bookAuthors: "[Author #3]", authorBooks: "[Book #7]", bookCategory: "Category #2" },
+      shadow: "CategoryId: 2 — محفوظ",
+      verdict: "تُزامَن التنقلات والمفاتيح الأجنبية بالـ fix-up عند DetectChanges — وSaveChanges يفعلها نيابة عنك؛ ولا يُنفَّذ SQL إلا عند SaveChanges. والإسناد وحده لا يلمس قاعدة البيانات أبدًا."
+    }
   ],
 
-  fixupInitialStory: "",
+  fixupInitialStory: "الحالة الابتدائية: سياق <code>BooksContext</code> جديد. لا شيء متتبَّع بعد. الكتاب #7 والمؤلف #3 والفئة #2 والاقتران (الكتاب #7 — المؤلف #3) كلها موجودة في قاعدة البيانات، لكن EF Core لم يقرأ أيًّا منها.",
 
   /* keyed by lesson id */
   lessons: {
