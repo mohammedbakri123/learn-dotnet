@@ -601,6 +601,380 @@ window.RAFF_MODULE_02_AR = {
 
   lessons: {
 
+    'lesson-6': {
+      nav: 'LINQ وتنفيذ الاستعلامات',
+      content: `
+      <div class="lesson-header-box">
+        <div class="lesson-badge-top">الدرس 6 • محرّك الاستعلامات</div>
+        <h1 class="lesson-title">LINQ وIQueryable وIEnumerable وتنفيذ الاستعلامات</h1>
+        <p class="lesson-subtitle">فهم أشجار التعبيرات، والتنفيذ المؤجَّل، والمشغّلات النهائية غير المتزامنة، وتجنّب النمط المضاد الكارثي للتقييم على العميل.</p>
+      </div>
+
+      <h2>1. تركيب الاستعلام مقابل تنفيذ الاستعلام</h2>
+      <p>تُمثَّل استعلامات LINQ على <code>DbSet&lt;T&gt;</code> بواجهة <code>IQueryable&lt;T&gt;</code>. و<code>IQueryable</code> ليست قائمة نتائج؛ بل هي <strong>شجرة تعبيرات</strong> — شجرة بنية مجرّدة تمثّل منطق استعلامك.</p>
+
+      
+    <div class="code-wrapper">
+      <div class="code-header">
+        <div class="code-badge-group">
+          <span class="code-lang-tag">C#</span>
+          <span class="code-filename">QueryComposition.cs</span>
+          <span class="code-type-pill pill-complete example">[مثال كامل]</span>
+        </div>
+        <button class="btn-copy" aria-label="نسخ الكود">📋 نسخ</button>
+      </div>
+      <pre><code class="language-c#">
+// At this point, ZERO SQL has been executed. No network packets have been sent.
+var query = context.Books
+    .Where(b =&gt; b.PublishedYear &gt;= 2020)
+    .OrderBy(b =&gt; b.Title);
+
+// Adding more filters dynamically: still ZERO database interaction!
+if (!string.IsNullOrEmpty(keyword))
+{
+    query = query.Where(b =&gt; b.Title.Contains(keyword));
+}
+
+// TERMINAL OPERATOR: This triggers the SQL translation and network execution!
+var books = await query.ToListAsync();
+</code></pre>
+      <div class="code-expl">عرض للتنفيذ المؤجَّل: تُركَّب الاستعلامات في الذاكرة كأشجار تعبيرات ولا تُنفَّذ إلا عندما يستهلكها مشغّل نهائي غير متزامن.</div>
+    </div>
+    
+
+      <h2>2. المشغّلات النهائية غير المتزامنة</h2>
+      <p>لا يحدث التنفيذ إلا عندما يستهلك مشغّل نهائي كائن <code>IQueryable</code>. ويوفّر EF Core الحديث نظائر غير متزامنة لكل محفّزات التنفيذ:</p>
+      <table class="concept-table">
+        <thead>
+          <tr><th>المشغّل النهائي</th><th>مكافئ SQL المُولَّد</th><th>نوع الإرجاع</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>await query.ToListAsync()</code></td><td><code>SELECT ...</code></td><td><code>List&lt;T&gt;</code></td></tr>
+          <tr><td><code>await query.FirstOrDefaultAsync()</code></td><td><code>SELECT ... LIMIT 1</code></td><td><code>T?</code></td></tr>
+          <tr><td><code>await query.SingleAsync()</code></td><td><code>SELECT ... LIMIT 2</code> (يتحقق من وجود صف واحد بالضبط)</td><td><code>T</code></td></tr>
+          <tr><td><code>await query.CountAsync()</code></td><td><code>SELECT COUNT(*) FROM ...</code></td><td><code>int</code></td></tr>
+          <tr><td><code>await query.AnyAsync()</code></td><td><code>SELECT EXISTS(...)</code></td><td><code>bool</code></td></tr>
+        </tbody>
+      </table>
+
+      <h2>3. النمط المضاد الكارثي: التقييم على العميل</h2>
+      <div class="callout callout-danger">
+        <div class="callout-title">🚨 كارثة الذاكرة: التجسيد المبكر</div>
+        <p>تأمّل الفرق الكارثي بين التصفية على <code>IQueryable</code> والتصفية بعد <code>ToListAsync()</code>:</p>
+      </div>
+
+      <div class="grid-2">
+        <div class="content-panel">
+          <h3 style="color:var(--success);">✅ التقييم على الخادم (سريع وقابل للتوسّع)</h3>
+          
+    <div class="code-wrapper">
+      <div class="code-header">
+        <div class="code-badge-group">
+          <span class="code-lang-tag">C#</span>
+          <span class="code-filename">GoodQuery.cs</span>
+          <span class="code-type-pill pill-fragment">[مقتطف]</span>
+        </div>
+        <button class="btn-copy" aria-label="نسخ الكود">📋 نسخ</button>
+      </div>
+      <pre><code class="language-c#">
+var books = await context.Books
+    .Where(b =&gt; b.PublishedYear &gt;= 2020)
+    .ToListAsync();
+</code></pre>
+      <div class="code-expl">تُترجم جملة WHERE إلى PostgreSQL: فلا تعبر الشبكة إلا الصفوف المطابقة.</div>
+    </div>
+    
+          <p><strong>تنفّذ PostgreSQL:</strong></p>
+          <code>SELECT "b"."Id", "b"."Title", ... FROM "Books" AS "b" WHERE "b"."PublishedYear" &gt;= 2020;</code>
+          <p>إذا كان في الجدول 1,000,000 صف وطابق 50 منها، فلن يُرسل عبر الشبكة إلا 50 صفًا.</p>
+        </div>
+
+        <div class="content-panel">
+          <h3 style="color:var(--danger);">❌ التجسيد على العميل (كارثي)</h3>
+          
+    <div class="code-wrapper">
+      <div class="code-header">
+        <div class="code-badge-group">
+          <span class="code-lang-tag">C#</span>
+          <span class="code-filename">BadQuery.cs</span>
+          <span class="code-type-pill pill-anti-pattern">[نمط مضاد]</span>
+        </div>
+        <button class="btn-copy" aria-label="نسخ الكود">📋 نسخ</button>
+      </div>
+      <pre><code class="language-c#">
+var allBooks = await context.Books.ToListAsync();
+var books = allBooks
+    .Where(b =&gt; b.PublishedYear &gt;= 2020)
+    .ToList();
+</code></pre>
+      <div class="code-expl">يجلب كل الصفوف إلى ذاكرة خادم الويب قبل التصفية بـLINQ-to-Objects!</div>
+    </div>
+    
+          <p><strong>تنفّذ PostgreSQL:</strong></p>
+          <code>SELECT "b"."Id", "b"."Title", ... FROM "Books" AS "b";</code>
+          <p>تُنقل الصفوف المليون كلها عبر الشبكة وتُجسَّد ككائنات وتُحمَّل في الذاكرة. وسيعاني الخادم فترات توقف طويلة لجمع النفايات أو ينفد منه الذاكرة!</p>
+        </div>
+      </div>
+
+      <!-- INTERACTIVE QUERY PIPELINE PLAYGROUND -->
+      <h2>4. ملعب مسار استعلامات LINQ التفاعلي</h2>
+      <p>جرّب هذا الملعب الحي لبناء الاستعلامات باستخدام نماذج من الأدب العربي في قاعدة بيانات Raff. فعّل المرشّحات والإسقاط وحدود العميل لترى كيف يقيّم EF Core العمليات على الخادم مقابل العميل ويولّد SQL الخاص بـ PostgreSQL.</p>
+
+      <div class="simulator-box" id="query-playground">
+        <div class="simulator-header">
+          <div class="simulator-title">🧪 ملعب مسار استعلامات LINQ التفاعلي</div>
+          <div class="simulator-controls">
+            <label style="color:var(--text-primary); font-size:0.85rem;">
+              تصفية السنة:
+              <select id="play-filter-year" class="sim-select">
+                <option value="all">كل السنوات</option>
+                <option value="modern">&gt;= 1950</option>
+                <option value="contemporary">&gt;= 2000</option>
+                <option value="classic">&lt; 1950</option>
+              </select>
+            </label>
+            <label style="color:var(--text-primary); font-size:0.85rem;">
+              الترتيب حسب:
+              <select id="play-order-by" class="sim-select">
+                <option value="title_asc">العنوان (تصاعديًا)</option>
+                <option value="year_desc">السنة (تنازليًا)</option>
+              </select>
+            </label>
+            <label style="color:var(--text-primary); font-size:0.85rem;">
+              الإسقاط:
+              <select id="play-projection" class="sim-select">
+                <option value="all">كل الأعمدة (كيان كامل)</option>
+                <option value="dto">DTO (المعرّف والعنوان والسنة فقط)</option>
+              </select>
+            </label>
+            <label style="color:var(--text-primary); font-size:0.85rem;">
+              تصفية على ذاكرة العميل:
+              <select id="play-client-filter" class="sim-select">
+                <option value="none">بلا (على الخادم فقط)</option>
+                <option value="client_search">بحث في الذاكرة بعد ToListAsync</option>
+              </select>
+            </label>
+            <button class="btn-primary" id="play-btn-run" style="padding:0.4rem 1rem;">▶ نفّذ الاستعلام</button>
+          </div>
+        </div>
+
+        <div class="simulator-body">
+          <div class="sim-grid">
+            <div class="sim-panel">
+              <div class="sim-panel-title">مراحل المسار ووضع التقييم</div>
+              <div id="play-pipeline-badges" style="display:flex; flex-wrap:wrap; gap:0.5rem; margin-bottom:1rem;">
+                <span class="badge badge-server">على الخادم: IQueryable.Where()</span>
+                <span class="badge badge-server">على الخادم: IQueryable.OrderBy()</span>
+                <span class="badge badge-execution">المشغّل النهائي: await ToListAsync()</span>
+              </div>
+              <div class="sim-panel-title">SQL المُولَّد لـ PostgreSQL (محاكاة ToQueryString)</div>
+              <div class="sim-sql-box" id="play-sql-box">SELECT "b"."Id", "b"."Title", "b"."PublishedYear", "b"."Summary", "b"."CoverUrl" FROM "Books" AS "b" ORDER BY "b"."Title";</div>
+            </div>
+
+            <div class="sim-panel">
+              <div class="sim-panel-title">جدول النتائج المجسَّدة (<span id="play-result-count">6</span> صفوف)</div>
+              <div class="sim-prop-table-box" style="max-height:220px; overflow-y:auto;">
+                <table class="sim-table">
+                  <thead>
+                    <tr id="play-table-head">
+                      <th>المعرّف</th>
+                      <th>العنوان</th>
+                      <th>سنة النشر</th>
+                      <th>الملخص</th>
+                    </tr>
+                  </thead>
+                  <tbody id="play-table-body">
+                    <!-- Populated by JS -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <h2>ملخص الدرس 6</h2>
+      <ul>
+        <li>يمثّل <code>IQueryable&lt;T&gt;</code> أشجار تعبيرات غير منفَّذة؛ ولا تُقيَّم الاستعلامات إلا عندما تستهلكها مشغّلات نهائية غير متزامنة.</li>
+        <li>تشمل المشغّلات النهائية <code>ToListAsync()</code> و<code>FirstOrDefaultAsync()</code> و<code>CountAsync()</code> و<code>AnyAsync()</code>.</li>
+        <li>لا تستدعِ <code>ToListAsync()</code> قبل تطبيق المرشّحات أو الترقيم؛ فالتجسيد المبكر يسحب جداول كاملة إلى الذاكرة.</li>
+        <li>يحدّد <code>AsEnumerable()</code> الحد بين ترجمة SQL على الخادم والتقييم في الذاكرة عبر LINQ-to-Objects.</li>
+      </ul>
+
+      <h2>اختبارات المعرفة</h2>
+      
+    <div class="exercise-card" id="qc-6-1">
+      <div class="exercise-header">
+        <div class="exercise-title-group">
+          <span class="exercise-badge">اختبار المعرفة</span>
+          <span style="font-weight:600; font-size:0.9rem;">التنفيذ المؤجَّل</span>
+        </div>
+      </div>
+      <div class="exercise-body">
+        <div class="exercise-prompt">تأمّل هذا الكود:<br>\`\`\`csharp<br>var query = context.Books.Where(b =&gt; b.PublishedYear &gt;= 2020);<br>query = query.OrderBy(b =&gt; b.Title);<br>\`\`\`<br>كم استعلام SQL أُرسل إلى PostgreSQL بعد تنفيذ هذين السطرين؟</div>
+        <div class="quiz-options" data-qid="qc-6-1">
+          
+        <div class="quiz-option" data-opt="0">
+          <div class="option-indicator">A</div>
+          <div class="option-text">استعلاما SQL (واحد لـWHERE وآخر لـORDER BY).</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="1">
+          <div class="option-indicator">B</div>
+          <div class="option-text">استعلام SQL واحد يجمع الجملتين.</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="2">
+          <div class="option-indicator">C</div>
+          <div class="option-text">صفر استعلامات SQL، لأن استعلامات LINQ على \`IQueryable\` تستخدم التنفيذ المؤجَّل ولا تُنفَّذ إلا عندما يستهلكها مشغّل نهائي.</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="3">
+          <div class="option-indicator">D</div>
+          <div class="option-text">يعتمد على ما إذا كان Kestrel يعمل في وضع التطوير.</div>
+        </div>
+        
+        </div>
+        <div class="exercise-actions">
+          <button class="btn-primary btn-submit-quiz" data-qid="qc-6-1">أرسل الإجابة</button>
+          <button class="btn-secondary btn-retry-quiz" data-qid="qc-6-1" style="display:none;">إعادة المحاولة</button>
+        </div>
+        <div class="quiz-feedback" id="feedback-qc-6-1"></div>
+      </div>
+    </div>
+    
+      
+    <div class="exercise-card" id="qc-6-2">
+      <div class="exercise-header">
+        <div class="exercise-title-group">
+          <span class="exercise-badge">اختبار المعرفة</span>
+          <span style="font-weight:600; font-size:0.9rem;">التقييم على الخادم مقابل العميل</span>
+        </div>
+      </div>
+      <div class="exercise-body">
+        <div class="exercise-prompt">قارن النمط A والنمط B:<br>\`\`\`csharp<br>// Pattern A<br>var books = await context.Books<br>    .Where(b =&gt; b.PublishedYear &gt;= 2020)<br>    .ToListAsync();<br><br>// Pattern B<br>var allBooks = await context.Books.ToListAsync();<br>var books = allBooks.Where(b =&gt; b.PublishedYear &gt;= 2020).ToList();<br>\`\`\`<br>ما الفرق الجوهري في الأداء؟</div>
+        <div class="quiz-options" data-qid="qc-6-2">
+          
+        <div class="quiz-option" data-opt="0">
+          <div class="option-indicator">A</div>
+          <div class="option-text">النمط A يصفّي الصفوف على خادم PostgreSQL ولا يعيد إلا الصفوف المطابقة؛ أما النمط B فيجلب كل صفوف الجدول إلى ذاكرة خادم الويب قبل التصفية بـLINQ-to-Objects.</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="1">
+          <div class="option-indicator">B</div>
+          <div class="option-text">النمط B أسرع لأن التصفية في ذاكرة C# أسرع دائمًا من فهارس قاعدة البيانات.</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="2">
+          <div class="option-indicator">C</div>
+          <div class="option-text">يولّد النمطان استعلامي SQL متطابقين على PostgreSQL.</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="3">
+          <div class="option-indicator">D</div>
+          <div class="option-text">يتسبب النمط A في استثناء نفاد ذاكرة في PostgreSQL.</div>
+        </div>
+        
+        </div>
+        <div class="exercise-actions">
+          <button class="btn-primary btn-submit-quiz" data-qid="qc-6-2">أرسل الإجابة</button>
+          <button class="btn-secondary btn-retry-quiz" data-qid="qc-6-2" style="display:none;">إعادة المحاولة</button>
+        </div>
+        <div class="quiz-feedback" id="feedback-qc-6-2"></div>
+      </div>
+    </div>
+    
+      
+    <div class="exercise-card" id="qc-6-3">
+      <div class="exercise-header">
+        <div class="exercise-title-group">
+          <span class="exercise-badge">اختبار المعرفة</span>
+          <span style="font-weight:600; font-size:0.9rem;">المشغّلات النهائية</span>
+        </div>
+      </div>
+      <div class="exercise-body">
+        <div class="exercise-prompt">أيٌّ من أساليب LINQ التالية يحفّز تنفيذ استعلام قاعدة البيانات فورًا عند استدعائه على \`IQueryable&lt;Book&gt;\`؟</div>
+        <div class="quiz-options" data-qid="qc-6-3">
+          
+        <div class="quiz-option" data-opt="0">
+          <div class="option-indicator">A</div>
+          <div class="option-text">\`.Where(b =&gt; b.PublishedYear == 2025)\`</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="1">
+          <div class="option-indicator">B</div>
+          <div class="option-text">\`.OrderBy(b =&gt; b.Title)\`</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="2">
+          <div class="option-indicator">C</div>
+          <div class="option-text">\`.Select(b =&gt; b.Title)\`</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="3">
+          <div class="option-indicator">D</div>
+          <div class="option-text">\`.CountAsync()\`</div>
+        </div>
+        
+        </div>
+        <div class="exercise-actions">
+          <button class="btn-primary btn-submit-quiz" data-qid="qc-6-3">أرسل الإجابة</button>
+          <button class="btn-secondary btn-retry-quiz" data-qid="qc-6-3" style="display:none;">إعادة المحاولة</button>
+        </div>
+        <div class="quiz-feedback" id="feedback-qc-6-3"></div>
+      </div>
+    </div>
+    
+      
+    <div class="exercise-card" id="qc-6-4">
+      <div class="exercise-header">
+        <div class="exercise-title-group">
+          <span class="exercise-badge">اختبار المعرفة</span>
+          <span style="font-weight:600; font-size:0.9rem;">حد AsEnumerable</span>
+        </div>
+      </div>
+      <div class="exercise-body">
+        <div class="exercise-prompt">ماذا يحقق استدعاء \`.AsEnumerable()\` على سلسلة استعلام في EF Core؟</div>
+        <div class="quiz-options" data-qid="qc-6-4">
+          
+        <div class="quiz-option" data-opt="0">
+          <div class="option-indicator">A</div>
+          <div class="option-text">ينفّذ الاستعلام فورًا ويخزّن كل الصفوف في قائمة List.</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="1">
+          <div class="option-indicator">B</div>
+          <div class="option-text">ينقل ارتباط مشغّلات LINQ من \`IQueryable\` إلى \`IEnumerable\`، بمعنى أن مشغّلات LINQ التالية في السلسلة ستُنفَّذ في ذاكرة العميل مع تدفّق الصفوف بدلًا من ترجمتها إلى SQL.</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="2">
+          <div class="option-indicator">C</div>
+          <div class="option-text">يسلسل جدول قاعدة البيانات إلى ملف CSV.</div>
+        </div>
+        
+        <div class="quiz-option" data-opt="3">
+          <div class="option-indicator">D</div>
+          <div class="option-text">يعطّل معاملات قاعدة البيانات.</div>
+        </div>
+        
+        </div>
+        <div class="exercise-actions">
+          <button class="btn-primary btn-submit-quiz" data-qid="qc-6-4">أرسل الإجابة</button>
+          <button class="btn-secondary btn-retry-quiz" data-qid="qc-6-4" style="display:none;">إعادة المحاولة</button>
+        </div>
+        <div class="quiz-feedback" id="feedback-qc-6-4"></div>
+      </div>
+    </div>
+    
+
+      <div class="lesson-footer-nav">
+        <button class="btn-secondary" onclick="switchLesson('lesson-5')">→ الدرس السابق</button>
+        <button class="btn-complete-lesson" data-lesson="lesson-6">أكمل الدرس 6 ✓</button>
+        <button class="btn-primary" onclick="switchLesson('lesson-7')">التالي: الإسقاط والتصحيح ←</button>
+      </div>
+    `
+    },
+
     'lesson-5': {
       nav: 'SaveChanges وSQL المُولَّد',
       content: `
