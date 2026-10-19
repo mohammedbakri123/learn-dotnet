@@ -1210,6 +1210,353 @@ public async Task&lt;IActionResult&gt; Add([FromBody] createBookDto dto)
 `
     },
 
+    'lesson-3': {
+      nav: 'التوجيه والمتحكمات',
+      content: `
+  <div class="lesson-header-box">
+    <div class="lesson-meta-bar">
+      <span class="lesson-pill">الدرس 3</span>
+      <span class="badge-time">قراءة وتمارين في 35 دقيقة</span>
+    </div>
+    <h1 class="lesson-h1">التوجيه والمتحكمات في ASP.NET Core</h1>
+    <p class="lesson-lead">
+      افهم كيف يطابق توجيه نقاط النهاية الطلبات الواردة مع إجراءات المتحكم، وكيف تعمل قيود المسار حقًا، ولماذا يؤدي التباس المسارات إلى <code>AmbiguousMatchException</code>.
+    </p>
+  </div>
+
+  <div class="content-body">
+    <h2>1. دور المتحكمات وControllerBase</h2>
+    <p>
+      في واجهات ASP.NET Core، المتحكم فئة ترث من <code>ControllerBase</code> وتُزخرَف بسمة <code>[ApiController]</code>.
+    </p>
+
+    <div class="callout callout-note">
+      <div class="callout-icon">💡</div>
+      <div class="callout-content">
+        <div class="callout-title">ControllerBase مقابل Controller</div>
+        <p>
+          في ASP.NET Core، اكتفِ دائمًا بالوراثة من <code>ControllerBase</code> في واجهات الويب. ففئة <code>Controller</code> ترث منه وتضيف دعم عروض Razor ‏(<code>View()</code> و<code>ViewData</code>)، وهو حِمل زائد لا تحتاجه واجهات REST التي تعيد JSON.
+        </p>
+      </div>
+    </div>
+
+    <h3>ماذا تفعل سمة <code>[ApiController]</code>؟</h3>
+    <p>
+      تطبيق <code>[ApiController]</code> على فئة المتحكم يفعّل سلوكيات عديدة موجّهة للواجهات:
+    </p>
+    <ul>
+      <li><strong>اشتراط التوجيه بالسمات:</strong> لا يمكن الوصول إلى الإجراءات عبر المسارات التقليدية المبنية على الأعراف.</li>
+      <li><strong>ردود 400 تلقائية:</strong> إذا فشل تحقق النموذج (مثل أنواع غير صالحة أو سمات بيانات)، يقطع ASP.NET Core التنفيذ تلقائيًا ويعيد <code>400 Bad Request</code> بصيغة RFC 7807 ‏<code>ProblemDetails</code> قبل تشغيل كود الإجراء.</li>
+      <li><strong>استنتاج مصادر الربط:</strong> يستنتج تلقائيًا <code>[FromBody]</code> للفئات المعقّدة، و<code>[FromRoute]</code> لمعاملات المسار، و<code>[FromQuery]</code> للأنواع الأولية.</li>
+      <li><strong>استنتاج multipart/form-data:</strong> تُستنتج معاملات الإجراء من نوع <code>IFormFile</code> على أنها <code>[FromForm]</code>.</li>
+    </ul>
+
+    <h2>2. التوجيه بالسمات وقوالب المسار</h2>
+    <p>
+      تأمّل بنية التوجيه في ملفك <code>BookController.cs</code>:
+    </p>
+
+    <div class="code-container">
+      <div class="code-header">
+        <div class="code-badge-group">
+          <span class="code-lang-tag">C#</span>
+          <span class="code-filename">Controllers/BookController.cs</span>
+          <span class="code-type-pill">Controller Fragment</span>
+        </div>
+        <button class="btn-copy-code" data-code="using Microsoft.AspNetCore.Mvc;
+
+[ApiController]
+[Route(&quot;api/[controller]&quot;)]
+public class BookController : ControllerBase
+{
+    private readonly IBookService _bookService;
+
+    public BookController(IBookService bookService)
+    {
+        _bookService = bookService;
+    }
+
+    [HttpGet]
+    public async Task&lt;IActionResult&gt; GetBooks([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
+    {
+        var result = await _bookService.GetBooksAsync(page, pageSize);
+        return Ok(result);
+    }
+
+    [HttpGet(&quot;{id:int}&quot;)]
+    public async Task&lt;IActionResult&gt; GetBook([FromRoute] int id)
+    {
+        var book = await _bookService.GetBookByIdAsync(id);
+        return Ok(book);
+    }
+}">Copy Controller</button>
+      </div>
+      <pre><code class="language-csharp">using Microsoft.AspNetCore.Mvc;
+
+[ApiController]
+[Route("api/[controller]")]
+public class BookController : ControllerBase
+{
+    private readonly IBookService _bookService;
+
+    public BookController(IBookService bookService)
+    {
+        _bookService = bookService;
+    }
+
+    [HttpGet]
+    public async Task&lt;IActionResult&gt; GetBooks([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
+    {
+        var result = await _bookService.GetBooksAsync(page, pageSize);
+        return Ok(result);
+    }
+
+    [HttpGet("{id:int}")]
+    public async Task&lt;IActionResult&gt; GetBook([FromRoute] int id)
+    {
+        var book = await _bookService.GetBookByIdAsync(id);
+        return Ok(book);
+    }
+}</code></pre>
+      <div class="code-explanation">
+        <strong>تحليل القالب:</strong> استبدال الرمز <code>[Route("api/[controller]")]</code> يحذف لاحقة "Controller" من <code>BookController</code> فينتج المسار الأساسي <code>/api/book</code> (أو <code>/api/books</code> إذا أُعيدت التسمية إلى <code>BooksController</code>). ويُلحق قالب الإجراء <code>{id:int}</code> بهذا الأساس.
+      </div>
+    </div>
+
+    <h2>3. قيود المسار: تمييز النقاط مقابل التحقق</h2>
+    <p>
+      في <code>[HttpGet("{id:int}")]</code> يكون الرمز <code>:int</code> <strong>قيد مسار</strong>.
+    </p>
+
+    <div class="callout callout-danger">
+      <div class="callout-icon">🚨</div>
+      <div class="callout-content">
+        <div class="callout-title">رؤية جوهرية: قيود المسار ليست مدقّقات مدخلات!</div>
+        <p>
+          من الأخطاء الشائعة لدى المبتدئين افتراض أن قيود المسار تتحقق من مدخلات العميل. وهي لا تفعل ذلك! يستخدمها <strong>محرّك توجيه نقاط النهاية</strong> ليقرّر <em>ما إذا كانت نقطة النهاية تطابق عنوان URL</em>:
+        </p>
+        <ul style="margin-top: 0.5rem;">
+          <li>
+            إذا هُيّئ مسار بالشكل <code>[HttpGet("{id:int}")]</code> وطلب عميل <code>GET /api/books/great-gatsby</code>:
+            <br>
+            يفحص التوجيه المقطع <code>great-gatsby</code> مقابل قيد <code>int</code>، فيفشل.
+            <br>
+            ولأن القيد فشل فإن نقطة النهاية <strong>لا تطابق</strong>. وإذا لم تطابق أي نقطة نهاية أخرى، يعيد ASP.NET Core <span class="status-badge status-4xx">404 Not Found</span>!
+          </li>
+          <li>
+            أما إذا كان المسار <code>[HttpGet("{id}")]</code> (بلا قيد) مع المعامل <code>int id</code>:
+            <br>
+            فإن المسار <strong>يطابق</strong> ويُختار الإجراء، ثم يحاول ربط النموذج تحويل <code>"great-gatsby"</code> إلى <code>int</code> فيفشل.
+            <br>
+            ولأن ربط النموذج فشل في متحكّم يحمل <code>[ApiController]</code>، يعيد ASP.NET Core <span class="status-badge status-4xx">400 Bad Request</span> مع خطأ تحقق ProblemDetails!
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <h2>4. المسارات الملتبسة واختيار الإجراء</h2>
+    <p>
+      كيف يميّز ASP.NET Core بين نقاط النهاية؟ عند بدء التشغيل، يبني محرّك توجيه نقاط النهاية شجرة من قوالب المسار ويمنح كل قالب <strong>درجة أسبقية</strong> وفق خصوصيته:
+    </p>
+    <ol>
+      <li>القيم الحرفية (مثل <code>books/recent</code>) أعلى أسبقية من المعاملات.</li>
+      <li>المعاملات المقيَّدة (مثل <code>{id:int}</code>) أعلى أسبقية من المعاملات غير المقيَّدة (<code>{id}</code>).</li>
+      <li>معاملات الالتقاط الشامل (<code>{*path}</code>) أدنى أسبقية.</li>
+    </ol>
+
+    <p>
+      فماذا يحدث إذا كان لإجرائين قالبان <em>متساويان في الأسبقية</em>؟
+    </p>
+
+    <div class="code-container">
+      <div class="code-header">
+        <div class="code-badge-group">
+          <span class="code-lang-tag">C#</span>
+          <span class="code-filename">Ambiguous Route Collision Example</span>
+          <span class="code-type-pill">Anti-Pattern</span>
+        </div>
+      </div>
+      <pre><code class="language-csharp">[HttpGet("{id:int}")]
+public IActionResult GetById(int id) { ... }
+
+[HttpGet("{bookId:int}")]
+public IActionResult GetByBookId(int bookId) { ... }</code></pre>
+      <div class="code-explanation">
+        <strong>انهيار وقت التشغيل:</strong> عند وصول طلب مثل <code>GET /api/books/42</code> يعثر ASP.NET Core على نقطتي نهاية مرشحتين بقالبين متطابقين. ولأنه لا يستطيع الاختيار اعتباطًا، يرمي <code>Microsoft.AspNetCore.Routing.Matching.AmbiguousMatchException</code> فتكون النتيجة <strong>500 Internal Server Error</strong>!
+      </div>
+    </div>
+
+    <!-- Route Matching Interactive Exercise -->
+    <div class="simulator-widget">
+      <div class="simulator-header">
+        <span class="simulator-title">🧪 محاكي مطابقة المسارات: اختبر عناوين URL مقابل نقاط نهاية Raff</span>
+      </div>
+      <div class="simulator-body">
+        <p style="font-size:0.9rem; margin-bottom:1rem; color:var(--text-secondary);">
+          تأمّل هذه الإجراءات الثلاثة المسجّلة في <code>BooksController</code>:
+        </p>
+        <div class="code-container" style="margin:0.5rem 0 1.25rem;">
+          <pre><code class="language-csharp">// Endpoint A
+[HttpGet("featured")]
+public IActionResult GetFeatured() { ... }
+
+// Endpoint B
+[HttpGet("{id:int}")]
+public IActionResult GetById(int id) { ... }
+
+// Endpoint C
+[HttpGet("{slug}")]
+public IActionResult GetBySlug(string slug) { ... }</code></pre>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:0.75rem;">
+          <label style="font-weight:600; font-size:0.85rem; color:var(--text-muted); text-transform:uppercase;">اختر عنوان طلب تجريبي لتتبّعه:</label>
+          <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+            <button class="btn-secondary btn-test-route" data-url="/api/books/featured">GET /api/books/featured</button>
+            <button class="btn-secondary btn-test-route" data-url="/api/books/101">GET /api/books/101</button>
+            <button class="btn-secondary btn-test-route" data-url="/api/books/arabic-classics">GET /api/books/arabic-classics</button>
+          </div>
+          <div id="route-trace-box" style="margin-top:0.75rem; padding:1rem; border-radius:var(--radius-sm); background:var(--bg-secondary); border:1px solid var(--border-color); display:none;">
+            <div id="route-trace-result" style="font-weight:700; color:var(--accent-light); margin-bottom:0.25rem;"></div>
+            <div id="route-trace-reason" style="font-size:0.875rem; color:var(--text-secondary); line-height:1.5;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Knowledge Check 3.1 -->
+    <div class="exercise-card" id="qc-3-1">
+      <div class="exercise-header">
+        <div class="exercise-title-group">
+          <span class="exercise-badge">اختبار المعرفة 3.1</span>
+          <span>قيود المسار مقابل التحقق</span>
+        </div>
+      </div>
+      <div class="exercise-body">
+        <div class="exercise-prompt">
+          وُجّه إجراء عبر <code>[HttpGet("{id:int}")]</code>. ويرسل عميل <code>GET /api/books/al-ayam</code>. ولا يطابق هذا المسار أي مسار آخر. فما رمز الحالة العائد، ولماذا؟
+        </div>
+        <div class="quiz-options" data-qid="qc-3-1">
+          <div class="quiz-option" data-opt="0">
+            <div class="option-indicator">A</div>
+            <div class="option-text"><code>400 Bad Request</code>، لأن "al-ayam" فشل في قاعدة التحقق من كونه عددًا صحيحًا.</div>
+          </div>
+          <div class="quiz-option" data-opt="1">
+            <div class="option-indicator">B</div>
+            <div class="option-text"><code>404 Not Found</code>، لأن قيود المسار تحكم مطابقة نقاط النهاية؛ وفشل القيد يعني عدم مطابقة أي نقطة نهاية لعنوان URL.</div>
+          </div>
+          <div class="quiz-option" data-opt="2">
+            <div class="option-indicator">C</div>
+            <div class="option-text"><code>500 Internal Server Error</code>، لأن Kestrel يرمي استثناء صياغة غير معالَج.</div>
+          </div>
+          <div class="quiz-option" data-opt="3">
+            <div class="option-indicator">D</div>
+            <div class="option-text"><code>200 OK</code> مع معامل معرّف افتراضي يساوي 0.</div>
+          </div>
+        </div>
+        <div class="exercise-footer">
+          <button class="btn-primary btn-submit-quiz" data-qid="qc-3-1">أرسل الإجابة</button>
+          <button class="btn-secondary btn-retry-quiz" data-qid="qc-3-1" style="display:none;">إعادة المحاولة</button>
+        </div>
+        <div class="quiz-feedback" id="feedback-qc-3-1"></div>
+      </div>
+    </div>
+
+    <!-- Knowledge Check 3.2 -->
+    <div class="exercise-card" id="qc-3-2">
+      <div class="exercise-header">
+        <div class="exercise-title-group">
+          <span class="exercise-badge">اختبار المعرفة 3.2</span>
+          <span>حلّ المسارات الملتبسة</span>
+        </div>
+      </div>
+      <div class="exercise-body">
+        <div class="exercise-prompt">
+          يضيف مطوّر في Raff عن طريق الخطأ إجرائين إلى المتحكم نفسه:
+          <br>
+          1) <code>[HttpGet("{id:int}")]</code>
+          <br>
+          2) <code>[HttpGet("{bookId:int}")]</code>
+          <br>
+          فماذا يحدث عندما يرسل عميل <code>GET /api/books/5</code>؟
+        </div>
+        <div class="quiz-options" data-qid="qc-3-2">
+          <div class="quiz-option" data-opt="0">
+            <div class="option-indicator">A</div>
+            <div class="option-text">ينفّذ ASP.NET Core الإجراء الأول وفق الترتيب الأبجدي.</div>
+          </div>
+          <div class="quiz-option" data-opt="1">
+            <div class="option-indicator">B</div>
+            <div class="option-text">يرمي ASP.NET Core استثناء <code>AmbiguousMatchException</code> لأن نقطتي النهاية تتساويان في أسبقية المسار وخصوصية القالب.</div>
+          </div>
+          <div class="quiz-option" data-opt="2">
+            <div class="option-indicator">C</div>
+            <div class="option-text">يُنفَّذ الإجراؤان معًا على خيوط خلفية متوازية.</div>
+          </div>
+          <div class="quiz-option" data-opt="3">
+            <div class="option-indicator">D</div>
+            <div class="option-text">يعيد ASP.NET Core الحالة 404 Not Found لأنه يُسكت المسارات المكررة.</div>
+          </div>
+        </div>
+        <div class="exercise-footer">
+          <button class="btn-primary btn-submit-quiz" data-qid="qc-3-2">أرسل الإجابة</button>
+          <button class="btn-secondary btn-retry-quiz" data-qid="qc-3-2" style="display:none;">إعادة المحاولة</button>
+        </div>
+        <div class="quiz-feedback" id="feedback-qc-3-2"></div>
+      </div>
+    </div>
+
+    <!-- Knowledge Check 3.3 -->
+    <div class="exercise-card" id="qc-3-3">
+      <div class="exercise-header">
+        <div class="exercise-title-group">
+          <span class="exercise-badge">اختبار المعرفة 3.3</span>
+          <span>مسؤوليات المتحكم مقابل الخدمة</span>
+        </div>
+      </div>
+      <div class="exercise-body">
+        <div class="exercise-prompt">
+          أي من المسؤوليات التالية ينبغي أن تكون داخل <code>BookController</code> لا <code>BookService</code>؟
+        </div>
+        <div class="quiz-options" data-qid="qc-3-3">
+          <div class="quiz-option" data-opt="0">
+            <div class="option-indicator">A</div>
+            <div class="option-text">حساب العدد الكلي للصفحات من حجم الصفحة والعدد الإجمالي.</div>
+          </div>
+          <div class="quiz-option" data-opt="1">
+            <div class="option-indicator">B</div>
+            <div class="option-text">استدعاء <code>_context.Books.FindAsync(id)</code> لتحميل كيانات قاعدة البيانات.</div>
+          </div>
+          <div class="quiz-option" data-opt="2">
+            <div class="option-indicator">C</div>
+            <div class="option-text">ترجمة نتائج الخدمة إلى رموز حالة HTTP مثل <code>201 Created</code> مع ترويسة <code>Location</code>.</div>
+          </div>
+          <div class="quiz-option" data-opt="3">
+            <div class="option-indicator">D</div>
+            <div class="option-text">التحقق من عدم وجود ربط مؤلف مسبقًا قبل ربطه.</div>
+          </div>
+        </div>
+        <div class="exercise-footer">
+          <button class="btn-primary btn-submit-quiz" data-qid="qc-3-3">أرسل الإجابة</button>
+          <button class="btn-secondary btn-retry-quiz" data-qid="qc-3-3" style="display:none;">إعادة المحاولة</button>
+        </div>
+        <div class="quiz-feedback" id="feedback-qc-3-3"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="lesson-nav-footer">
+    <button class="btn-complete-lesson" data-lesson="lesson-3">
+      <span class="complete-checkbox">✓</span> أكمل الدرس 3
+    </button>
+    <button class="btn-primary btn-next-lesson" data-target="lesson-4">
+      التالي: ربط النماذج وبيانات الطلب ←
+    </button>
+  </div>
+`
+    },
+
     'assessment': {
       nav: 'التقييم الختامي (80%)',
       content: `
